@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.base import StorageKey
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
 import os
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -50,6 +50,7 @@ TEXTS = {
         "female": "👩 Девушка",
         "age_error": "Пожалуйста введи число от 16 до 99",
         "need_profile": "Сначала заполни анкету",
+        "done": "✅ Готово",
     }
 }
 
@@ -92,8 +93,97 @@ async def cmd_restart(message: types.Message, state: FSMContext):
     await message.answer("🔄 Бот полностью перезапущен!")
     await cmd_start(message, state)
 
-# ====================== РЕГИСТРАЦИЯ (оставил как было) ======================
-# ... (вставь сюда свои функции регистрации из предыдущего кода — они работают)
+# ====================== РЕГИСТРАЦИЯ ======================
+@dp.message(Registration.language)
+async def choose_language(message: types.Message, state: FSMContext):
+    lang = "ru" if "Русский" in message.text else "en"
+    users[message.from_user.id] = {"lang": lang}
+    await state.update_data(lang=lang)
+    await message.answer(TEXTS[lang]["welcome"], reply_markup=ReplyKeyboardRemove())
+    await message.answer(TEXTS[lang]["enter_name"])
+    await state.set_state(Registration.name)
+
+@dp.message(Registration.name)
+async def enter_name(message: types.Message, state: FSMContext):
+    await state.update_data(name=message.text.strip())
+    await message.answer(TEXTS[users[message.from_user.id]["lang"]]["enter_age"])
+    await state.set_state(Registration.age)
+
+@dp.message(Registration.age)
+async def enter_age(message: types.Message, state: FSMContext):
+    if not message.text.isdigit() or not (16 <= int(message.text) <= 99):
+        await message.answer(TEXTS[users[message.from_user.id]["lang"]]["age_error"])
+        return
+    await state.update_data(age=int(message.text))
+    lang = users[message.from_user.id]["lang"]
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=TEXTS[lang]["male"]), KeyboardButton(text=TEXTS[lang]["female"])]], resize_keyboard=True)
+    await message.answer(TEXTS[lang]["choose_gender"], reply_markup=kb)
+    await state.set_state(Registration.gender)
+
+@dp.message(Registration.gender)
+async def enter_gender(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    gender = "male" if any(x in message.text for x in ["Парень", "Male"]) else "female"
+    uid = message.from_user.id
+    users[uid].update({"name": data["name"], "age": data["age"], "gender": gender})
+    await state.clear()
+
+    kb = ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="1️⃣ Просто общение")],
+        [KeyboardButton(text="2️⃣ Флирт")],
+        [KeyboardButton(text="3️⃣ Kink / ролевые (18+)")]
+    ], resize_keyboard=True)
+    await message.answer(TEXTS[users[uid]["lang"]]["choose_mode"], reply_markup=kb)
+    await state.set_state(Registration.mode)
+
+@dp.message(Registration.mode)
+async def choose_mode(message: types.Message, state: FSMContext):
+    text = message.text.lower()
+    uid = message.from_user.id
+    if "просто" in text:
+        mode = "simple"
+        interests_list = ["Разговор по душам", "Юмор и мемы", "Советы по жизни"]
+    elif "флирт" in text:
+        mode = "flirt"
+        interests_list = ["Лёгкий флирт", "Комплименты", "Секстинг"]
+    else:
+        mode = "kink"
+        interests_list = ["BDSM", "Bondage", "Roleplay"]
+
+    users[uid]["mode"] = mode
+    users[uid]["temp_interests"] = []
+    await state.update_data(mode=mode)
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=i, callback_data=f"interest:{i}")]
+        for i in interests_list
+    ])
+    kb.inline_keyboard.append([InlineKeyboardButton(text="✅ Готово", callback_data="done")])
+
+    await message.answer(TEXTS[users[uid]["lang"]]["choose_interests"], reply_markup=kb)
+    await state.set_state(Registration.interests)
+
+@dp.callback_query(F.data.startswith("interest:"))
+async def add_interest(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    interest = callback.data.split(":", 1)[1]
+    if "temp_interests" not in users[uid]:
+        users[uid]["temp_interests"] = []
+    if interest not in users[uid]["temp_interests"]:
+        users[uid]["temp_interests"].append(interest)
+    await callback.answer("Добавлено")
+
+@dp.callback_query(F.data == "done")
+async def finish_interests(callback: types.CallbackQuery, state: FSMContext):
+    uid = callback.from_user.id
+    interests = users[uid].get("temp_interests", [])[:3]
+    users[uid]["interests"] = interests
+    if "temp_interests" in users[uid]:
+        del users[uid]["temp_interests"]
+    await state.clear()
+    await callback.message.edit_text("✅ Интересы сохранены!")
+    await callback.message.answer(TEXTS[users[uid]["lang"]]["profile_saved"], reply_markup=get_main_menu())
+    await callback.answer()
 
 # ====================== ПОИСК ======================
 @dp.message(F.text.contains("Найти собеседника"))
