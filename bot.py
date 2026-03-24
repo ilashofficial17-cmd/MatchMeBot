@@ -14,9 +14,9 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 users = {}
-waiting_queue_simple = []   # Просто общение
-waiting_queue_flirt = []    # Флирт
-waiting_queue_kink = []     # Kink
+waiting_queue_simple = []
+waiting_queue_flirt = []
+waiting_queue_kink = []
 active_chats = {}
 pairing_lock = asyncio.Lock()
 
@@ -25,8 +25,8 @@ class Registration(StatesGroup):
     name = State()
     age = State()
     gender = State()
-    mode = State()          # Новый шаг
-    interests = State()     # Новый шаг
+    mode = State()
+    interests = State()
 
 class Searching(StatesGroup):
     waiting = State()
@@ -39,9 +39,9 @@ TEXTS = {
         "enter_age": "Сколько тебе лет?",
         "choose_gender": "Выбери свой пол:",
         "choose_mode": "Выбери режим общения:",
-        "choose_interests": "Напиши через запятую 1–3 интереса из списка ниже (или просто отправь свои):",
+        "choose_interests": "Напиши через запятую 1–3 интереса:",
         "profile_saved": "✅ Анкета сохранена!",
-        "searching": "🔍 Ищем собеседника по твоим интересам...",
+        "searching": "🔍 Ищем собеседника...",
         "found": "✅ Собеседник найден!",
         "chat_ended": "💔 Чат завершён.",
         "partner_left": "😔 Собеседник покинул чат.",
@@ -66,13 +66,16 @@ def get_chat_menu():
         [KeyboardButton(text="❌ Завершить чат")]
     ], resize_keyboard=True)
 
-# ====================== ПЕРЕЗАПУСК И СТАРТ ======================
+def get_cancel_search_menu():
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="❌ Отменить поиск")]
+    ], resize_keyboard=True)
+
+# ====================== СТАРТ ======================
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()
-    kb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇬🇧 English")]
-    ], resize_keyboard=True)
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇬🇧 English")]], resize_keyboard=True)
     await message.answer("🌐 Выбери язык:", reply_markup=kb)
     await state.set_state(Registration.language)
 
@@ -80,13 +83,11 @@ async def cmd_start(message: types.Message, state: FSMContext):
 async def cmd_restart(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     await state.clear()
-    # Полная очистка
+    for q in [waiting_queue_simple, waiting_queue_flirt, waiting_queue_kink]:
+        if uid in q: q.remove(uid)
     if uid in active_chats:
         partner = active_chats.pop(uid, None)
         active_chats.pop(partner, None)
-    for q in [waiting_queue_simple, waiting_queue_flirt, waiting_queue_kink]:
-        if uid in q:
-            q.remove(uid)
     await message.answer("🔄 Бот полностью перезапущен!")
     await cmd_start(message, state)
 
@@ -113,9 +114,7 @@ async def enter_age(message: types.Message, state: FSMContext):
         return
     await state.update_data(age=int(message.text))
     lang = users[message.from_user.id]["lang"]
-    kb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text=TEXTS[lang]["male"]), KeyboardButton(text=TEXTS[lang]["female"])]
-    ], resize_keyboard=True)
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=TEXTS[lang]["male"]), KeyboardButton(text=TEXTS[lang]["female"])]], resize_keyboard=True)
     await message.answer(TEXTS[lang]["choose_gender"], reply_markup=kb)
     await state.set_state(Registration.gender)
 
@@ -127,7 +126,6 @@ async def enter_gender(message: types.Message, state: FSMContext):
     users[uid].update({"name": data["name"], "age": data["age"], "gender": gender})
     await state.clear()
 
-    # Новый шаг — выбор режима
     kb = ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="1️⃣ Просто общение")],
         [KeyboardButton(text="2️⃣ Флирт")],
@@ -141,17 +139,16 @@ async def choose_mode(message: types.Message, state: FSMContext):
     text = message.text.lower()
     if "просто" in text:
         mode = "simple"
-        interests_text = "Разговор по душам, Юмор и мемы, Советы по жизни"
+        hint = "Разговор по душам, Юмор и мемы, Советы по жизни"
     elif "флирт" in text:
         mode = "flirt"
-        interests_text = "Лёгкий флирт, Комплименты, Секстинг"
+        hint = "Лёгкий флирт, Комплименты, Секстинг"
     else:
         mode = "kink"
-        interests_text = "BDSM, Bondage, Roleplay, Dominance/Sub, Foot fetish, Pet play"
-
+        hint = "BDSM, Bondage, Roleplay, Dominance/Sub, Foot fetish, Pet play"
     users[message.from_user.id]["mode"] = mode
     await state.update_data(mode=mode)
-    await message.answer(f"Выбран режим: {message.text}\n\nНапиши 1–3 интереса через запятую:\n{interests_text}")
+    await message.answer(f"✅ Выбран режим: {message.text}\n\nНапиши 1–3 интереса через запятую:\n{hint}")
     await state.set_state(Registration.interests)
 
 @dp.message(Registration.interests)
@@ -166,12 +163,12 @@ async def choose_interests(message: types.Message, state: FSMContext):
 @dp.message(F.text.contains("Мой профиль"))
 async def show_profile(message: types.Message):
     uid = message.from_user.id
-    if uid not in users or "name" not in users[uid]:
+    if uid not in users or "mode" not in users[uid]:
         await message.answer("Сначала заполни анкету!")
         return
     u = users[uid]
     gender_text = "Парень 👨" if u["gender"] == "male" else "Девушка 👩"
-    mode_text = {"simple": "Просто общение", "flirt": "Флирт", "kink": "Kink / ролевые"}.get(u.get("mode", ""), "—")
+    mode_text = {"simple": "Просто общение", "flirt": "Флирт", "kink": "Kink / ролевые"}.get(u["mode"], "—")
     interests_text = ", ".join(u.get("interests", [])) or "—"
     await message.answer(f"👤 Твой профиль:\nИмя: {u['name']}\nВозраст: {u['age']}\nПол: {gender_text}\nРежим: {mode_text}\nИнтересы: {interests_text}")
 
@@ -179,7 +176,7 @@ async def show_profile(message: types.Message):
 async def show_help(message: types.Message):
     await message.answer("🆘 Помощь:\nНажимай кнопки меню.\nЕсли что-то сломалось — нажми «🔄 Перезапустить»", reply_markup=get_main_menu())
 
-# ====================== ПОИСК (умный) ======================
+# ====================== ПОИСК С ИНДИКАТОРОМ ======================
 @dp.message(F.text.contains("Найти собеседника"))
 @dp.message(Command("find"))
 async def cmd_find(message: types.Message, state: FSMContext):
@@ -192,10 +189,24 @@ async def cmd_find(message: types.Message, state: FSMContext):
         return
 
     mode = users[uid]["mode"]
-    my_interests = set(users[uid].get("interests", []))
+    if mode == "simple":
+        online = len(waiting_queue_simple)
+        queue_name = "Просто общение"
+    elif mode == "flirt":
+        online = len(waiting_queue_flirt)
+        queue_name = "Флирт"
+    else:
+        online = len(waiting_queue_kink)
+        queue_name = "Kink"
+
+    await message.answer(f"👥 Сейчас онлайн в режиме **{queue_name}**: **{online}** человек\n\n🔍 Начинаем поиск...", reply_markup=get_cancel_search_menu())
 
     async with pairing_lock:
-        # Выбираем нужную очередь
+        # Логика поиска (точно как ты просил)
+        partner_id = None
+        my_interests = set(users[uid].get("interests", []))
+
+        # Выбор очереди
         if mode == "simple":
             queue = waiting_queue_simple
             fallback = None
@@ -206,8 +217,7 @@ async def cmd_find(message: types.Message, state: FSMContext):
             queue = waiting_queue_kink
             fallback = waiting_queue_flirt
 
-        partner_id = None
-        # Сначала ищем точное совпадение в своей очереди
+        # Сначала точное совпадение
         for i in range(len(queue)):
             p_id = queue[i]
             if p_id != uid and set(users[p_id].get("interests", [])) & my_interests:
@@ -233,7 +243,6 @@ async def cmd_find(message: types.Message, state: FSMContext):
             key = StorageKey(bot_id=bot.id, chat_id=partner_id, user_id=partner_id)
             await FSMContext(dp.storage, key=key).set_state(Searching.chatting)
 
-            # Показ полного профиля
             p = users.get(partner_id, {})
             p_mode = {"simple": "Просто общение", "flirt": "Флирт", "kink": "Kink / ролевые"}.get(p.get("mode", ""), "—")
             p_interests = ", ".join(p.get("interests", [])) or "—"
@@ -245,7 +254,6 @@ async def cmd_find(message: types.Message, state: FSMContext):
             await bot.send_message(uid, TEXTS[users[uid]["lang"]]["found"], reply_markup=get_chat_menu())
             await bot.send_message(partner_id, TEXTS[users[partner_id]["lang"]]["found"], reply_markup=get_chat_menu())
         else:
-            # Добавляем в свою очередь
             if mode == "simple":
                 waiting_queue_simple.append(uid)
             elif mode == "flirt":
@@ -253,7 +261,22 @@ async def cmd_find(message: types.Message, state: FSMContext):
             else:
                 waiting_queue_kink.append(uid)
             await state.set_state(Searching.waiting)
-            await message.answer(TEXTS[users[uid]["lang"]]["searching"])
+
+# ====================== ОТМЕНА ПОИСКА ======================
+@dp.message(F.text == "❌ Отменить поиск")
+async def cancel_search(message: types.Message, state: FSMContext):
+    uid = message.from_user.id
+    removed = False
+    for q in [waiting_queue_simple, waiting_queue_flirt, waiting_queue_kink]:
+        if uid in q:
+            q.remove(uid)
+            removed = True
+            break
+    if removed:
+        await state.clear()
+        await message.answer("❌ Поиск отменён", reply_markup=get_main_menu())
+    else:
+        await message.answer("Ты не в поиске", reply_markup=get_main_menu())
 
 # ====================== ЧАТ ======================
 @dp.message(F.text.contains("Завершить чат"))
@@ -308,7 +331,7 @@ async def relay_message(message: types.Message, state: FSMContext):
         pass
 
 async def main():
-    print("🚀 MatchMe запущен с полной системой режимов и интересов!")
+    print("🚀 Бот запущен с кнопкой отмены поиска и индикатором онлайн!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
