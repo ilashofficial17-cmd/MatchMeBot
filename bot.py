@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -18,6 +19,8 @@ waiting_queue_simple = []
 waiting_queue_flirt = []
 waiting_queue_kink = []
 active_chats = {}
+last_message_time = {}
+message_count = {}
 pairing_lock = asyncio.Lock()
 
 class Registration(StatesGroup):
@@ -45,11 +48,15 @@ TEXTS = {
         "found": "✅ Собеседник найден!",
         "chat_ended": "💔 Чат завершён.",
         "partner_left": "😔 Собеседник покинул чат.",
+        "inactive": "⏰ Чат завершён из-за неактивности.",
         "male": "👨 Парень",
         "female": "👩 Девушка",
         "age_error": "Пожалуйста введи число от 16 до 99",
         "need_profile": "Сначала заполни анкету",
         "done": "✅ Готово",
+        "complain": "🚩 Пожаловаться",
+        "complain_sent": "🚩 Жалоба отправлена. Чат завершён.",
+        "flood_warning": "Не спамь! Подожди немного.",
     }
 }
 
@@ -64,7 +71,8 @@ def get_main_menu():
 def get_chat_menu():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="🔄 Следующий собеседник")],
-        [KeyboardButton(text="❌ Завершить чат")]
+        [KeyboardButton(text="❌ Завершить чат")],
+        [KeyboardButton(text="🚩 Пожаловаться")]
     ], resize_keyboard=True)
 
 def get_cancel_search_menu():
@@ -151,7 +159,6 @@ async def choose_mode(message: types.Message, state: FSMContext):
     users[uid]["temp_interests"] = []
     await state.update_data(mode=mode)
 
-    # Inline кнопки для интересов
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=interest, callback_data=f"interest:{interest}")]
         for interest in interests_list
@@ -161,190 +168,6 @@ async def choose_mode(message: types.Message, state: FSMContext):
     await message.answer(TEXTS[users[uid]["lang"]]["choose_interests"], reply_markup=kb)
     await state.set_state(Registration.interests)
 
-# Обработка нажатий на интересы
 @dp.callback_query(F.data.startswith("interest:"))
 async def add_interest(callback: types.CallbackQuery):
     uid = callback.from_user.id
-    interest = callback.data.split(":", 1)[1]
-    if "temp_interests" not in users[uid]:
-        users[uid]["temp_interests"] = []
-    if interest not in users[uid]["temp_interests"]:
-        users[uid]["temp_interests"].append(interest)
-    await callback.answer(f"Добавлено: {interest}")
-
-@dp.callback_query(F.data == "interests_done")
-async def finish_interests(callback: types.CallbackQuery, state: FSMContext):
-    uid = callback.from_user.id
-    interests = users[uid].get("temp_interests", [])[:3]
-    users[uid]["interests"] = interests
-    if "temp_interests" in users[uid]:
-        del users[uid]["temp_interests"]
-
-    await state.clear()
-    await callback.message.edit_text("✅ Интересы сохранены!")
-    await callback.message.answer(TEXTS[users[uid]["lang"]]["profile_saved"], reply_markup=get_main_menu())
-    await callback.answer()
-
-# ====================== МЕНЮ ======================
-@dp.message(F.text.contains("Мой профиль"))
-async def show_profile(message: types.Message):
-    uid = message.from_user.id
-    if uid not in users or "mode" not in users[uid]:
-        await message.answer("Сначала заполни анкету!")
-        return
-    u = users[uid]
-    gender_text = "Парень 👨" if u["gender"] == "male" else "Девушка 👩"
-    mode_text = {"simple": "Просто общение", "flirt": "Флирт", "kink": "Kink / ролевые"}.get(u["mode"], "—")
-    interests_text = ", ".join(u.get("interests", [])) or "—"
-    await message.answer(f"👤 Твой профиль:\nИмя: {u['name']}\nВозраст: {u['age']}\nПол: {gender_text}\nРежим: {mode_text}\nИнтересы: {interests_text}")
-
-@dp.message(F.text.contains("Помощь"))
-async def show_help(message: types.Message):
-    await message.answer("🆘 Помощь:\nНажимай кнопки меню.\nЕсли что-то сломалось — нажми «🔄 Перезапустить»", reply_markup=get_main_menu())
-
-# ====================== ПОИСК ======================
-@dp.message(F.text.contains("Найти собеседника"))
-@dp.message(Command("find"))
-async def cmd_find(message: types.Message, state: FSMContext):
-    uid = message.from_user.id
-    if uid not in users or "mode" not in users[uid]:
-        await message.answer("Сначала заполни анкету!")
-        return
-    if uid in active_chats:
-        await message.answer("Ты уже в чате!")
-        return
-
-    mode = users[uid]["mode"]
-    mode_name = {"simple": "Просто общение", "flirt": "Флирт", "kink": "Kink"}.get(mode, "—")
-    online = len(waiting_queue_simple if mode == "simple" else waiting_queue_flirt if mode == "flirt" else waiting_queue_kink)
-
-    await message.answer(f"👥 Сейчас онлайн в режиме **{mode_name}**: **{online}** человек\n\n🔍 Начинаем поиск...", reply_markup=get_cancel_search_menu())
-
-    async with pairing_lock:
-        partner_id = None
-        my_interests = set(users[uid].get("interests", []))
-
-        if mode == "simple":
-            queue = waiting_queue_simple
-            fallback = None
-        elif mode == "flirt":
-            queue = waiting_queue_flirt
-            fallback = waiting_queue_kink
-        else:
-            queue = waiting_queue_kink
-            fallback = waiting_queue_flirt
-
-        for i in range(len(queue)):
-            if queue[i] != uid and set(users[queue[i]].get("interests", [])) & my_interests:
-                partner_id = queue.pop(i)
-                break
-
-        if not partner_id and queue:
-            partner_id = queue.pop(0)
-
-        if not partner_id and fallback:
-            for i in range(len(fallback)):
-                if fallback[i] != uid:
-                    partner_id = fallback.pop(i)
-                    break
-
-        if partner_id:
-            active_chats[uid] = partner_id
-            active_chats[partner_id] = uid
-
-            await state.set_state(Searching.chatting)
-            key = StorageKey(bot_id=bot.id, chat_id=partner_id, user_id=partner_id)
-            await FSMContext(dp.storage, key=key).set_state(Searching.chatting)
-
-            p = users.get(partner_id, {})
-            p_mode = {"simple": "Просто общение", "flirt": "Флирт", "kink": "Kink"}.get(p.get("mode"), "—")
-            p_interests = ", ".join(p.get("interests", [])) or "—"
-
-            profile_text = f"👤 Собеседник найден!\nИмя: {p.get('name','Аноним')}\nВозраст: {p.get('age','?')}\nПол: {'Парень' if p.get('gender')=='male' else 'Девушка'}\nРежим: {p_mode}\nИнтересы: {p_interests}"
-
-            await bot.send_message(uid, profile_text)
-            await bot.send_message(partner_id, profile_text.replace(p.get('name','Аноним'), users[uid].get('name','Аноним')))
-
-            await bot.send_message(uid, TEXTS[users[uid]["lang"]]["found"], reply_markup=get_chat_menu())
-            await bot.send_message(partner_id, TEXTS[users[partner_id]["lang"]]["found"], reply_markup=get_chat_menu())
-        else:
-            if mode == "simple":
-                waiting_queue_simple.append(uid)
-            elif mode == "flirt":
-                waiting_queue_flirt.append(uid)
-            else:
-                waiting_queue_kink.append(uid)
-            await state.set_state(Searching.waiting)
-
-# ====================== ОТМЕНА ПОИСКА ======================
-@dp.message(F.text == "❌ Отменить поиск")
-async def cancel_search(message: types.Message, state: FSMContext):
-    uid = message.from_user.id
-    removed = False
-    for q in [waiting_queue_simple, waiting_queue_flirt, waiting_queue_kink]:
-        if uid in q:
-            q.remove(uid)
-            removed = True
-            break
-    if removed:
-        await state.clear()
-        await message.answer("❌ Поиск отменён", reply_markup=get_main_menu())
-    else:
-        await message.answer("Ты не в поиске", reply_markup=get_main_menu())
-
-# ====================== ЧАТ ======================
-@dp.message(F.text.contains("Завершить чат"))
-@dp.message(F.text.contains("Следующий"))
-@dp.message(Command("stop"))
-async def cmd_stop_or_next(message: types.Message, state: FSMContext):
-    uid = message.from_user.id
-    is_next = "Следующий" in (message.text or "")
-
-    if uid in active_chats:
-        partner_id = active_chats.pop(uid, None)
-        if partner_id:
-            active_chats.pop(partner_id, None)
-        await state.clear()
-        await message.answer("💔 Чат завершён.", reply_markup=get_main_menu())
-        try:
-            await bot.send_message(partner_id, "😔 Собеседник покинул чат.", reply_markup=get_main_menu())
-        except:
-            pass
-        if is_next:
-            await asyncio.sleep(0.3)
-            await cmd_find(message, state)
-    else:
-        await message.answer("Ты не в чате", reply_markup=get_main_menu())
-
-@dp.message(Searching.chatting)
-async def relay_message(message: types.Message, state: FSMContext):
-    uid = message.from_user.id
-    if uid not in active_chats:
-        await state.clear()
-        return
-    partner_id = active_chats[uid]
-
-    try:
-        await bot.send_chat_action(partner_id, "typing")
-    except:
-        pass
-
-    try:
-        if message.text:
-            await bot.send_message(partner_id, message.text)
-        elif message.sticker:
-            await bot.send_sticker(partner_id, message.sticker.file_id)
-        elif message.photo:
-            await bot.send_photo(partner_id, message.photo[-1].file_id, caption=message.caption)
-        elif message.voice:
-            await bot.send_voice(partner_id, message.voice.file_id)
-    except:
-        pass
-
-async def main():
-    print("🚀 Бот запущен с кнопками для выбора интересов!")
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
-        
