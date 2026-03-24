@@ -1,6 +1,6 @@
 import asyncio
 from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -61,11 +61,17 @@ def get_chat_menu():
         [KeyboardButton(text="❌ Завершить чат")]
     ], resize_keyboard=True)
 
-# ====================== ГЛАВНОЕ МЕНЮ ======================
+# ====================== СТАРТ И МЕНЮ ======================
 @dp.message(Command("start", "menu"))
 async def show_menu(message: types.Message, state: FSMContext):
     await state.clear()
     uid = message.from_user.id
+    
+    if uid not in users or "name" not in users[uid]:
+        # Если профиля нет — сразу запускаем регистрацию
+        await cmd_start(message, state)
+        return
+    
     if uid in active_chats:
         await message.answer("Ты сейчас в чате ↓", reply_markup=get_chat_menu())
     else:
@@ -80,7 +86,10 @@ async def cmd_restart(message: types.Message, state: FSMContext):
         active_chats.pop(partner, None)
     if uid in waiting_queue:
         waiting_queue.remove(uid) if uid in waiting_queue else None
-    await message.answer("🔄 Бот перезапущен!", reply_markup=get_main_menu())
+    
+    await message.answer("🔄 Бот перезапущен!")
+    # САМОЕ ВАЖНОЕ ИСПРАВЛЕНИЕ — сразу начинаем регистрацию заново
+    await cmd_start(message, state)
 
 # ====================== РЕГИСТРАЦИЯ ======================
 @dp.message(Registration.language)
@@ -105,9 +114,7 @@ async def enter_age(message: types.Message, state: FSMContext):
         return
     await state.update_data(age=int(message.text))
     lang = users[message.from_user.id]["lang"]
-    kb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text=TEXTS[lang]["male"]), KeyboardButton(text=TEXTS[lang]["female"])]
-    ], resize_keyboard=True)
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=TEXTS[lang]["male"]), KeyboardButton(text=TEXTS[lang]["female"])]], resize_keyboard=True)
     await message.answer(TEXTS[lang]["choose_gender"], reply_markup=kb)
     await state.set_state(Registration.gender)
 
@@ -125,17 +132,17 @@ async def enter_gender(message: types.Message, state: FSMContext):
 async def show_profile(message: types.Message):
     uid = message.from_user.id
     if uid not in users or "name" not in users[uid]:
-        await message.answer(TEXTS.get(users.get(uid, {}).get("lang"), TEXTS["ru"])["need_profile"])
+        await message.answer("Сначала заполни анкету!")
         return
     u = users[uid]
     gender_text = "Парень 👨" if u["gender"] == "male" else "Девушка 👩"
-    await message.answer(f"👤 Твой профиль:\n\nИмя: {u['name']}\nВозраст: {u['age']}\nПол: {gender_text}")
+    await message.answer(f"👤 Твой профиль:\nИмя: {u['name']}\nВозраст: {u['age']}\nПол: {gender_text}")
 
 @dp.message(F.text.contains("Помощь"))
 async def show_help(message: types.Message):
-    await message.answer("🆘 Помощь:\n\n• Нажимай кнопки меню\n• В чате используй «Следующий» или «Завершить чат»", reply_markup=get_main_menu())
+    await message.answer("🆘 Помощь:\n\nНажимай кнопки меню.\nЕсли что-то сломалось — нажми «🔄 Перезапустить»", reply_markup=get_main_menu())
 
-# ====================== ПОИСК ======================
+# ====================== ПОИСК И ЧАТ ======================
 @dp.message(F.text.contains("Найти собеседника"))
 @dp.message(Command("find"))
 async def cmd_find(message: types.Message, state: FSMContext):
@@ -146,6 +153,8 @@ async def cmd_find(message: types.Message, state: FSMContext):
     if uid in active_chats:
         await message.answer("Ты уже в чате!")
         return
+
+    # ... (остальной код поиска и чата остался как в предыдущей версии — он работает)
 
     async with pairing_lock:
         partner_id = None
@@ -174,7 +183,8 @@ async def cmd_find(message: types.Message, state: FSMContext):
             await state.set_state(Searching.waiting)
             await message.answer(TEXTS[users[uid]["lang"]]["searching"])
 
-# ====================== ЧАТ ======================
+# (код cmd_stop_or_next и relay_message оставил как был — они работали)
+
 @dp.message(F.text.contains("Завершить чат"))
 @dp.message(F.text.contains("Следующий"))
 @dp.message(Command("stop"))
@@ -207,16 +217,13 @@ async def relay_message(message: types.Message, state: FSMContext):
     if uid not in active_chats:
         await state.clear()
         return
-
     partner_id = active_chats[uid]
 
-    # "Печатает..."
     try:
         await bot.send_chat_action(partner_id, "typing")
     except:
         pass
 
-    # Пересылка
     try:
         if message.text:
             await bot.send_message(partner_id, message.text)
@@ -230,7 +237,7 @@ async def relay_message(message: types.Message, state: FSMContext):
         pass
 
 async def main():
-    print("🚀 Бот запущен — регистрация должна работать!")
+    print("🚀 Бот запущен — регистрация теперь должна работать!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
