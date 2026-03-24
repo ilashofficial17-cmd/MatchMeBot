@@ -61,34 +61,29 @@ def get_chat_menu():
         [KeyboardButton(text="❌ Завершить чат")]
     ], resize_keyboard=True)
 
-# ====================== СТАРТ И МЕНЮ ======================
-@dp.message(Command("start", "menu"))
-async def show_menu(message: types.Message, state: FSMContext):
+# ====================== ПЕРЕЗАПУСК И СТАРТ ======================
+@dp.message(Command("start"))
+async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()
-    uid = message.from_user.id
-    
-    if uid not in users or "name" not in users[uid]:
-        # Если профиля нет — сразу запускаем регистрацию
-        await cmd_start(message, state)
-        return
-    
-    if uid in active_chats:
-        await message.answer("Ты сейчас в чате ↓", reply_markup=get_chat_menu())
-    else:
-        await message.answer("🏠 Главное меню MatchMe", reply_markup=get_main_menu())
+    kb = ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇬🇧 English")]
+    ], resize_keyboard=True)
+    await message.answer("🌐 Выбери язык:", reply_markup=kb)
+    await state.set_state(Registration.language)
 
 @dp.message(F.text.contains("Перезапустить"))
 async def cmd_restart(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     await state.clear()
+    # Полностью очищаем всё
     if uid in active_chats:
         partner = active_chats.pop(uid, None)
         active_chats.pop(partner, None)
     if uid in waiting_queue:
         waiting_queue.remove(uid) if uid in waiting_queue else None
     
-    await message.answer("🔄 Бот перезапущен!")
-    # САМОЕ ВАЖНОЕ ИСПРАВЛЕНИЕ — сразу начинаем регистрацию заново
+    await message.answer("🔄 Бот полностью перезапущен!")
+    # Сразу начинаем регистрацию заново
     await cmd_start(message, state)
 
 # ====================== РЕГИСТРАЦИЯ ======================
@@ -127,7 +122,7 @@ async def enter_gender(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer(TEXTS[users[uid]["lang"]]["profile_saved"], reply_markup=get_main_menu())
 
-# ====================== КНОПКИ МЕНЮ ======================
+# ====================== ОСТАЛЬНЫЕ КНОПКИ ======================
 @dp.message(F.text.contains("Мой профиль"))
 async def show_profile(message: types.Message):
     uid = message.from_user.id
@@ -142,7 +137,8 @@ async def show_profile(message: types.Message):
 async def show_help(message: types.Message):
     await message.answer("🆘 Помощь:\n\nНажимай кнопки меню.\nЕсли что-то сломалось — нажми «🔄 Перезапустить»", reply_markup=get_main_menu())
 
-# ====================== ПОИСК И ЧАТ ======================
+# (поиск, чат, пересылка — оставил как работало раньше, они не трогались)
+
 @dp.message(F.text.contains("Найти собеседника"))
 @dp.message(Command("find"))
 async def cmd_find(message: types.Message, state: FSMContext):
@@ -154,15 +150,12 @@ async def cmd_find(message: types.Message, state: FSMContext):
         await message.answer("Ты уже в чате!")
         return
 
-    # ... (остальной код поиска и чата остался как в предыдущей версии — он работает)
-
     async with pairing_lock:
         partner_id = None
         for i in range(len(waiting_queue)):
             if waiting_queue[i] != uid:
                 partner_id = waiting_queue.pop(i)
                 break
-
         if partner_id:
             active_chats[uid] = partner_id
             active_chats[partner_id] = uid
@@ -182,8 +175,6 @@ async def cmd_find(message: types.Message, state: FSMContext):
             waiting_queue.append(uid)
             await state.set_state(Searching.waiting)
             await message.answer(TEXTS[users[uid]["lang"]]["searching"])
-
-# (код cmd_stop_or_next и relay_message оставил как был — они работали)
 
 @dp.message(F.text.contains("Завершить чат"))
 @dp.message(F.text.contains("Следующий"))
@@ -237,7 +228,7 @@ async def relay_message(message: types.Message, state: FSMContext):
         pass
 
 async def main():
-    print("🚀 Бот запущен — регистрация теперь должна работать!")
+    print("🚀 Бот запущен — перезапуск теперь работает правильно!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
