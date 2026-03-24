@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from aiogram import Bot, Dispatcher, types, F
+from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -13,7 +13,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# Хранилище пользователей и очередь
+# Хранилище
 users = {}
 waiting_queue = []
 active_chats = {}
@@ -136,6 +136,9 @@ async def cmd_profile(message: types.Message):
 @dp.message(Command("find"))
 async def cmd_find(message: types.Message, state: FSMContext):
     uid = message.from_user.id
+    print(f"[DEBUG] --- /find от {uid} ---")
+    print(f"[DEBUG] Очередь: {waiting_queue}")
+    print(f"[DEBUG] Активные чаты: {active_chats}")
 
     if uid not in users or "name" not in users[uid]:
         await message.answer(t(uid, "need_profile"))
@@ -145,7 +148,11 @@ async def cmd_find(message: types.Message, state: FSMContext):
         await message.answer(t(uid, "already_chatting"))
         return
 
-    # Ищем партнёра в очереди
+    if uid in waiting_queue:
+        print(f"[DEBUG] {uid} уже в очереди")
+        await message.answer("🔄 Ты уже в поиске! Жди...")
+        return
+
     partner_id = None
     for queued_id in waiting_queue[:]:
         if queued_id != uid:
@@ -154,39 +161,39 @@ async def cmd_find(message: types.Message, state: FSMContext):
             break
 
     if partner_id:
-        # Создаём чат
+        print(f"[DEBUG] 🔥 СОЕДИНИЛИ! {uid} <-> {partner_id}")
         active_chats[uid] = partner_id
         active_chats[partner_id] = uid
 
-        # Ставим состояние chatting для тебя
         await state.set_state(Searching.chatting)
 
-        # Ставим состояние chatting для партнёра (самое важное исправление)
-        partner_state: FSMContext = dp.fsm.storage.get_context(
-            bot=bot, chat_id=partner_id, user_id=partner_id
-        )
+        partner_state = dp.fsm.storage.get_context(bot=bot, chat_id=partner_id, user_id=partner_id)
         await partner_state.set_state(Searching.chatting)
 
-        # Уведомляем обоих
         await bot.send_message(uid, t(uid, "found"))
         await bot.send_message(partner_id, t(partner_id, "found"))
     else:
-        if uid not in waiting_queue:
-            waiting_queue.append(uid)
+        waiting_queue.append(uid)
+        print(f"[DEBUG] Добавили {uid} в очередь")
         await state.set_state(Searching.waiting)
         await message.answer(t(uid, "searching"))
 
 @dp.message(Command("stop"))
 async def cmd_stop(message: types.Message, state: FSMContext):
     uid = message.from_user.id
+    print(f"[DEBUG] --- /stop от {uid} ---")
+    print(f"[DEBUG] Очередь: {waiting_queue} | Чаты: {active_chats}")
+
     if uid in waiting_queue:
         waiting_queue.remove(uid)
         await state.clear()
+        print(f"[DEBUG] Убрали {uid} из очереди")
         await message.answer(t(uid, "stopped_searching"))
     elif uid in active_chats:
         partner_id = active_chats.pop(uid)
         active_chats.pop(partner_id, None)
         await state.clear()
+        print(f"[DEBUG] Чат завершён {uid} <-> {partner_id}")
         await message.answer(t(uid, "chat_ended"))
         try:
             await bot.send_message(partner_id, t(partner_id, "partner_left"))
@@ -198,17 +205,13 @@ async def cmd_stop(message: types.Message, state: FSMContext):
 @dp.message(Searching.chatting)
 async def relay_message(message: types.Message, state: FSMContext):
     uid = message.from_user.id
-    
     if uid not in active_chats:
         await state.clear()
         return
-    
     partner_id = active_chats[uid]
+    print(f"[DEBUG] Сообщение от {uid} → {partner_id}")
 
-    # Исправляем состояние у партнёра
-    partner_state: FSMContext = dp.fsm.storage.get_context(
-        bot=bot, chat_id=partner_id, user_id=partner_id
-    )
+    partner_state = dp.fsm.storage.get_context(bot=bot, chat_id=partner_id, user_id=partner_id)
     await partner_state.set_state(Searching.chatting)
 
     try:
@@ -221,9 +224,10 @@ async def relay_message(message: types.Message, state: FSMContext):
         elif message.voice:
             await bot.send_voice(partner_id, message.voice.file_id)
     except Exception as e:
-        print(f"Ошибка при пересылке: {e}")
+        print(f"[ERROR] Ошибка пересылки: {e}")
 
 async def main():
+    print("🚀 Бот запущен! Ждём пользователей...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
