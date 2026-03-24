@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.base import StorageKey
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
 import os
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -32,40 +32,21 @@ class Searching(StatesGroup):
 
 TEXTS = {
     "ru": {
-        "welcome": "👋 Привет! Я MatchMe — анонимный чат для знакомств.\n\nДавай заполним анкету!",
+        "welcome": "👋 Привет! Добро пожаловать в MatchMe — анонимный чат для знакомств.",
         "enter_name": "Как тебя зовут? (будет видно собеседнику)",
         "enter_age": "Сколько тебе лет?",
         "choose_gender": "Выбери свой пол:",
-        "profile_saved": "✅ Анкета сохранена!\n\nНапиши /find чтобы найти собеседника\nНапиши /profile чтобы посмотреть анкету",
-        "searching": "🔍 Ищем собеседника...\nНапиши /stop чтобы отменить поиск",
-        "found": "✅ Собеседник найден! Можете общаться анонимно.",
-        "stopped_searching": "❌ Поиск отменён",
-        "chat_ended": "💔 Чат завершён\n\nНапиши /find чтобы найти нового собеседника",
-        "partner_left": "😔 Собеседник покинул чат\n\nНапиши /find чтобы найти нового",
+        "profile_saved": "✅ Анкета успешно сохранена!",
+        "searching": "🔍 Ищем тебе собеседника...\n\nНапиши /stop или нажми кнопку ниже, чтобы отменить.",
+        "found": "✅ Собеседник найден!",
+        "stopped_searching": "❌ Поиск отменён.",
+        "chat_ended": "💔 Чат завершён.",
+        "partner_left": "😔 Собеседник покинул чат.",
         "male": "👨 Парень",
         "female": "👩 Девушка",
-        "profile": "👤 Твоя анкета:\nИмя: {name}\nВозраст: {age}\nПол: {gender}",
-        "age_error": "Пожалуйста введи число от 16 до 99",
-        "already_chatting": "Ты уже в чате! Напиши /stop чтобы завершить",
-        "need_profile": "Сначала заполни анкету! Напиши /start",
-    },
-    "en": {
-        "welcome": "👋 Hi! I'm MatchMe — anonymous chat for meeting people.\n\nLet's fill out your profile!",
-        "enter_name": "What's your name? (will be visible to your partner)",
-        "enter_age": "How old are you?",
-        "choose_gender": "Choose your gender:",
-        "profile_saved": "✅ Profile saved!\n\nType /find to find a partner\nType /profile to view your profile",
-        "searching": "🔍 Looking for a partner...\nType /stop to cancel",
-        "found": "✅ Partner found! You can chat anonymously.",
-        "stopped_searching": "❌ Search cancelled",
-        "chat_ended": "💔 Chat ended\n\nType /find to find a new partner",
-        "partner_left": "😔 Your partner left the chat\n\nType /find to find a new one",
-        "male": "👨 Male",
-        "female": "👩 Female",
-        "profile": "👤 Your profile:\nName: {name}\nAge: {age}\nGender: {gender}",
-        "age_error": "Please enter a number between 16 and 99",
-        "already_chatting": "You're already in a chat! Type /stop to end it",
-        "need_profile": "Please fill out your profile first! Type /start",
+        "age_error": "Пожалуйста, введи число от 16 до 99.",
+        "already_chatting": "Ты уже в чате!",
+        "need_profile": "Сначала заполни анкету с помощью /start",
     }
 }
 
@@ -74,11 +55,23 @@ def t(user_id, key, **kwargs):
     text = TEXTS[lang].get(key, key)
     return text.format(**kwargs) if kwargs else text
 
+# ==================== ГЛАВНОЕ МЕНЮ ====================
+def get_main_menu():
+    kb = ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="🔍 Найти собеседника")],
+        [KeyboardButton(text="👤 Мой профиль")],
+        [KeyboardButton(text="❓ Помощь")]
+    ], resize_keyboard=True)
+    return kb
+
+# ==================== START И РЕГИСТРАЦИЯ ====================
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()
-    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇬🇧 English")]], resize_keyboard=True)
-    await message.answer("🌐 Выбери язык / Choose language:", reply_markup=kb)
+    kb = ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇬🇧 English")]
+    ], resize_keyboard=True)
+    await message.answer("🌐 Выбери язык:", reply_markup=kb)
     await state.set_state(Registration.language)
 
 @dp.message(Registration.language)
@@ -86,69 +79,82 @@ async def choose_language(message: types.Message, state: FSMContext):
     lang = "ru" if "Русский" in message.text else "en"
     users[message.from_user.id] = {"lang": lang}
     await state.update_data(lang=lang)
-    await message.answer(t(message.from_user.id, "welcome"), reply_markup=ReplyKeyboardRemove())
-    await message.answer(t(message.from_user.id, "enter_name"))
+    await message.answer(TEXTS[lang]["welcome"], reply_markup=ReplyKeyboardRemove())
+    await message.answer(TEXTS[lang]["enter_name"])
     await state.set_state(Registration.name)
 
 @dp.message(Registration.name)
 async def enter_name(message: types.Message, state: FSMContext):
     await state.update_data(name=message.text)
-    await message.answer(t(message.from_user.id, "enter_age"))
+    await message.answer(TEXTS[users[message.from_user.id]["lang"]]["enter_age"])
     await state.set_state(Registration.age)
 
 @dp.message(Registration.age)
 async def enter_age(message: types.Message, state: FSMContext):
     if not message.text.isdigit() or not (16 <= int(message.text) <= 99):
-        await message.answer(t(message.from_user.id, "age_error"))
+        await message.answer(TEXTS[users[message.from_user.id]["lang"]]["age_error"])
         return
     await state.update_data(age=int(message.text))
     lang = users[message.from_user.id]["lang"]
-    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=TEXTS[lang]["male"]), KeyboardButton(text=TEXTS[lang]["female"])]], resize_keyboard=True)
-    await message.answer(t(message.from_user.id, "choose_gender"), reply_markup=kb)
+    kb = ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text=TEXTS[lang]["male"]), KeyboardButton(text=TEXTS[lang]["female"])]
+    ], resize_keyboard=True)
+    await message.answer(TEXTS[lang]["choose_gender"], reply_markup=kb)
     await state.set_state(Registration.gender)
 
 @dp.message(Registration.gender)
 async def enter_gender(message: types.Message, state: FSMContext):
     data = await state.get_data()
     gender = "male" if "Парень" in message.text or "Male" in message.text else "female"
-    users[message.from_user.id].update({"name": data["name"], "age": data["age"], "gender": gender, "lang": data.get("lang", "ru")})
+    users[message.from_user.id].update({
+        "name": data["name"],
+        "age": data["age"],
+        "gender": gender,
+        "lang": data.get("lang", "ru")
+    })
     await state.clear()
-    await message.answer(t(message.from_user.id, "profile_saved"), reply_markup=ReplyKeyboardRemove())
+    await message.answer(TEXTS[users[message.from_user.id]["lang"]]["profile_saved"], reply_markup=get_main_menu())
 
-@dp.message(Command("profile"))
+# ==================== ГЛАВНОЕ МЕНЮ ====================
+@dp.message(Command("menu"))
+@dp.message(F.text == "❓ Помощь")
+async def show_menu(message: types.Message):
+    await message.answer("🏠 Главное меню:", reply_markup=get_main_menu())
+
+@dp.message(F.text == "👤 Мой профиль")
 async def cmd_profile(message: types.Message):
     uid = message.from_user.id
     if uid not in users or "name" not in users[uid]:
-        await message.answer(t(uid, "need_profile"))
+        await message.answer(TEXTS[users.get(uid, {}).get("lang", "ru")]["need_profile"])
         return
     u = users[uid]
     lang = u["lang"]
     gender_text = TEXTS[lang]["male"] if u["gender"] == "male" else TEXTS[lang]["female"]
-    await message.answer(t(uid, "profile", name=u["name"], age=u["age"], gender=gender_text))
+    await message.answer(f"👤 Твой профиль:\n\nИмя: {u['name']}\nВозраст: {u['age']}\nПол: {gender_text}")
 
-# ==================== ИСПРАВЛЕННЫЙ ПОИСК С ПОКАЗОМ ПРОФИЛЯ ====================
+# ==================== ПОИСК СОБЕСЕДНИКА ====================
+@dp.message(F.text == "🔍 Найти собеседника")
 @dp.message(Command("find"))
 async def cmd_find(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     print(f"[DEBUG] /find от {uid}")
 
     if uid not in users or "name" not in users[uid]:
-        await message.answer(t(uid, "need_profile"))
+        await message.answer(TEXTS[users.get(uid, {}).get("lang", "ru")]["need_profile"])
         return
     if uid in active_chats:
-        await message.answer(t(uid, "already_chatting"))
+        await message.answer(TEXTS[users[uid]["lang"]]["already_chatting"])
         return
 
     async with pairing_lock:
         if uid in waiting_queue:
-            await message.answer("🔄 Ты уже в поиске! Жди...")
+            await message.answer("🔄 Ты уже в поиске...")
             return
 
         partner_id = None
         for i in range(len(waiting_queue)):
             if waiting_queue[i] != uid:
                 partner_id = waiting_queue.pop(i)
-                print(f"[DEBUG] 🔥 СОЕДИНИЛИ! {uid} <-> {partner_id}")
                 break
 
         if partner_id:
@@ -157,47 +163,40 @@ async def cmd_find(message: types.Message, state: FSMContext):
 
             await state.set_state(Searching.chatting)
 
-            # Правильное состояние для партнёра
             key = StorageKey(bot_id=bot.id, chat_id=partner_id, user_id=partner_id)
             partner_state = FSMContext(storage=dp.storage, key=key)
             await partner_state.set_state(Searching.chatting)
 
-            # === ПОКАЗ ПРОФИЛЯ СОБЕСЕДНИКА ===
+            # Показ профиля
             partner = users.get(partner_id, {})
             p_name = partner.get("name", "Аноним")
             p_age = partner.get("age", "?")
             p_gender = "Парень" if partner.get("gender") == "male" else "Девушка"
 
-            profile_text = f"👤 Собеседник найден!\n\n" \
-                           f"Имя: {p_name}\n" \
-                           f"Возраст: {p_age}\n" \
-                           f"Пол: {p_gender}\n\n" \
-                           f"Можете общаться анонимно."
+            profile_text = f"👤 Собеседник найден!\n\nИмя: {p_name}\nВозраст: {p_age}\nПол: {p_gender}\n\nМожете общаться анонимно."
 
             await bot.send_message(uid, profile_text)
             await bot.send_message(partner_id, profile_text.replace(p_name, users[uid].get("name", "Аноним")))
 
-            # Основное сообщение
-            await bot.send_message(uid, t(uid, "found"))
-            await bot.send_message(partner_id, t(partner_id, "found"))
+            await bot.send_message(uid, TEXTS[users[uid]["lang"]]["found"])
+            await bot.send_message(partner_id, TEXTS[users[partner_id]["lang"]]["found"])
 
-            # === КНОПКИ УПРАВЛЕНИЯ ЧАТОМ ===
-            kb = ReplyKeyboardMarkup(keyboard=[
-                [KeyboardButton(text="🔄 Следующий собеседник")],
+            # Кнопки в чате
+            chat_kb = ReplyKeyboardMarkup(keyboard=[
+                [KeyboardButton(text="🔄 Следующий")],
                 [KeyboardButton(text="❌ Завершить чат")]
             ], resize_keyboard=True)
-            await bot.send_message(uid, "Выбери действие:", reply_markup=kb)
-            await bot.send_message(partner_id, "Выбери действие:", reply_markup=kb)
+            await bot.send_message(uid, "Управление чатом:", reply_markup=chat_kb)
+            await bot.send_message(partner_id, "Управление чатом:", reply_markup=chat_kb)
 
         else:
             waiting_queue.append(uid)
-            print(f"[DEBUG] {uid} добавлен в очередь")
             await state.set_state(Searching.waiting)
-            await message.answer(t(uid, "searching"))
+            await message.answer(TEXTS[users[uid]["lang"]]["searching"])
 
-# ==================== ОБРАБОТКА КНОПОК И /stop ====================
+# ==================== ОБРАБОТКА КНОПОК В ЧАТЕ ====================
 @dp.message(F.text == "❌ Завершить чат")
-@dp.message(F.text == "🔄 Следующий собеседник")
+@dp.message(F.text == "🔄 Следующий")
 @dp.message(Command("stop"))
 async def cmd_stop_or_next(message: types.Message, state: FSMContext):
     uid = message.from_user.id
@@ -208,33 +207,29 @@ async def cmd_stop_or_next(message: types.Message, state: FSMContext):
         active_chats.pop(partner_id, None)
         await state.clear()
 
-        await message.answer("💔 Чат завершён")
+        await message.answer(TEXTS[users[uid]["lang"]]["chat_ended"])
 
         try:
-            if is_next:
-                await bot.send_message(partner_id, "😔 Собеседник ищет нового человека...")
-            else:
-                await bot.send_message(partner_id, t(partner_id, "partner_left"))
+            msg = "😔 Собеседник ищет нового..." if is_next else TEXTS[users[partner_id]["lang"]]["partner_left"]
+            await bot.send_message(partner_id, msg)
         except:
             pass
 
-        # Если нажал "Следующий" — сразу ищем нового
         if is_next:
             await cmd_find(message, state)
         else:
-            await message.answer("Напиши /find чтобы найти нового собеседника")
+            await message.answer("🏠 Возвращаемся в меню", reply_markup=get_main_menu())
     else:
-        await message.answer(t(uid, "stopped_searching"))
+        await message.answer(TEXTS[users.get(uid, {}).get("lang", "ru")]["stopped_searching"])
 
-# ==================== ПОКАЗ "СОБЕСЕДНИК ПЕЧАТАЕТ..." ====================
+# ==================== ПЕЧАТАЕТ... ====================
 @dp.message(Searching.chatting, F.text)
 async def typing_indicator(message: types.Message):
     uid = message.from_user.id
     if uid not in active_chats:
         return
-    partner_id = active_chats[uid]
     try:
-        await bot.send_chat_action(partner_id, "typing")
+        await bot.send_chat_action(active_chats[uid], "typing")
     except:
         pass
 
@@ -247,7 +242,6 @@ async def relay_message(message: types.Message, state: FSMContext):
         return
     partner_id = active_chats[uid]
 
-    # Обновляем состояние партнёра
     key = StorageKey(bot_id=bot.id, chat_id=partner_id, user_id=partner_id)
     partner_state = FSMContext(storage=dp.storage, key=key)
     await partner_state.set_state(Searching.chatting)
@@ -265,10 +259,11 @@ async def relay_message(message: types.Message, state: FSMContext):
         print(f"[ERROR] {e}")
 
 async def main():
-    print("🚀 Бот запущен с тремя новыми фичами!")
-    print("   • Показ профиля собеседника")
-    print("   • Кнопки «Следующий» и «Завершить чат»")
-    print("   • «Собеседник печатает...»")
+    print("🚀 MatchMe бот запущен!")
+    print("   ✅ Красивое меню")
+    print("   ✅ Удобные кнопки")
+    print("   ✅ Профиль при подключении")
+    print("   ✅ Кнопки в чате")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
