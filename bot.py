@@ -147,13 +147,13 @@ async def choose_mode(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     if "просто" in text:
         mode = "simple"
-        interests_list = ["Разговор по душам", "Юмор и мемы", "Советы по жизни", "Книги и фильмы", "Музыка"]
+        interests_list = ["Разговор по душам", "Юмор и мемы", "Советы по жизни"]
     elif "флирт" in text:
         mode = "flirt"
-        interests_list = ["Лёгкий флирт", "Комплименты", "Секстинг", "Романтика", "Игривый настрой"]
+        interests_list = ["Лёгкий флирт", "Комплименты", "Секстинг"]
     else:
         mode = "kink"
-        interests_list = ["BDSM", "Bondage", "Roleplay", "Dominance/Sub", "Foot fetish", "Pet play", "Impact play"]
+        interests_list = ["BDSM", "Bondage", "Roleplay", "Dominance/Sub", "Foot fetish"]
 
     users[uid]["mode"] = mode
     users[uid]["temp_interests"] = []
@@ -225,6 +225,7 @@ async def cmd_find(message: types.Message, state: FSMContext):
 
     await message.answer(f"👥 Сейчас онлайн в режиме **{mode_name}**: **{online}** человек\n\n🔍 Начинаем поиск...", reply_markup=get_cancel_search_menu())
 
+    # Логика поиска (упрощённая, но рабочая)
     async with pairing_lock:
         partner_id = None
         my_interests = set(users[uid].get("interests", []))
@@ -282,7 +283,7 @@ async def cmd_find(message: types.Message, state: FSMContext):
                 waiting_queue_kink.append(uid)
             await state.set_state(Searching.waiting)
 
-# ====================== СЛЕДУЮЩИЙ + ЖАЛОБА + ОТМЕНА ======================
+# ====================== СЛЕДУЮЩИЙ, ЖАЛОБА, ОТМЕНА ======================
 @dp.message(F.text.contains("Следующий"))
 async def next_partner(message: types.Message, state: FSMContext):
     uid = message.from_user.id
@@ -308,7 +309,6 @@ async def complain(message: types.Message, state: FSMContext):
         await bot.send_message(partner_id, "😔 На тебя поступила жалоба. Чат завершён.")
     except:
         pass
-    print(f"[ЖАЛОБА] От {uid} на {partner_id}")
 
 @dp.message(F.text == "❌ Отменить поиск")
 async def cancel_search(message: types.Message, state: FSMContext):
@@ -325,4 +325,42 @@ async def cancel_search(message: types.Message, state: FSMContext):
     else:
         await message.answer("Ты не в поиске", reply_markup=get_main_menu())
 
-# ====================== ЧАТ + АНТИ-Ф
+# ====================== ЧАТ ======================
+@dp.message(Searching.chatting)
+async def relay_message(message: types.Message, state: FSMContext):
+    uid = message.from_user.id
+    if uid not in active_chats:
+        await state.clear()
+        return
+    partner_id = active_chats[uid]
+
+    # Анти-флуд
+    now = datetime.now()
+    if uid not in message_count:
+        message_count[uid] = []
+    message_count[uid] = [t for t in message_count[uid] if (now - t).total_seconds() < 5]
+    message_count[uid].append(now)
+    if len(message_count[uid]) > 4:
+        await message.answer(TEXTS[users[uid]["lang"]]["flood_warning"])
+        return
+
+    last_message_time[uid] = last_message_time[partner_id] = now
+
+    try:
+        if message.text:
+            await bot.send_message(partner_id, message.text)
+        elif message.sticker:
+            await bot.send_sticker(partner_id, message.sticker.file_id)
+        elif message.photo:
+            await bot.send_photo(partner_id, message.photo[-1].file_id, caption=message.caption)
+        elif message.voice:
+            await bot.send_voice(partner_id, message.voice.file_id)
+    except:
+        pass
+
+async def main():
+    print("🚀 Бот запущен — должен работать!")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
