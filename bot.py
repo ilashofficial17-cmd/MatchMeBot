@@ -155,17 +155,20 @@ async def cmd_find(message: types.Message, state: FSMContext):
             waiting_queue.remove(queued_id)
             break
 
-    if partner_id:
-        # Создаём чат для обоих
+        if partner_id:
+        # Создаём чат
         active_chats[uid] = partner_id
         active_chats[partner_id] = uid
 
-        # Ставим состояние chatting для обоих
+        # Ставим состояние chatting для текущего пользователя
         await state.set_state(Searching.chatting)
 
-        # Получаем FSM партнёра и ставим его в chatting
-        partner_state = dp.current_state(chat=partner_id, user=partner_id)
-        await partner_state.set_state(Searching.chatting)
+        # Ставим состояние chatting для партнёра (самое важное исправление!)
+        partner_fsm = FSMContext(
+            storage=dp.storage,
+            key=types.FSMContextKey(chat_id=partner_id, user_id=partner_id)
+        )
+        await partner_fsm.set_state(Searching.chatting)
 
         # Уведомляем обоих
         await bot.send_message(uid, t(uid, "found"))
@@ -194,18 +197,34 @@ async def cmd_stop(message: types.Message, state: FSMContext):
         await message.answer(t(uid, "stopped_searching"))
 
 @dp.message(Searching.chatting)
-async def relay_message(message: types.Message):
+async def relay_message(message: types.Message, state: FSMContext):
     uid = message.from_user.id
-    if uid in active_chats:
-        partner_id = active_chats[uid]
+    
+    if uid not in active_chats:
+        await state.clear()
+        return
+    
+    partner_id = active_chats[uid]
+    
+    # Исправляем состояние у партнёра, если вдруг сломалось
+    partner_fsm = FSMContext(
+        storage=dp.storage,
+        key=types.FSMContextKey(chat_id=partner_id, user_id=partner_id)
+    )
+    await partner_fsm.set_state(Searching.chatting)
+
+    try:
         if message.text:
             await bot.send_message(partner_id, message.text)
         elif message.sticker:
             await bot.send_sticker(partner_id, message.sticker.file_id)
         elif message.photo:
-            await bot.send_photo(partner_id, message.photo[-1].file_id)
+            await bot.send_photo(partner_id, message.photo[-1].file_id, caption=message.caption)
         elif message.voice:
             await bot.send_voice(partner_id, message.voice.file_id)
+
+    except Exception as e:
+        print(f"Ошибка при пересылке: {e}")
 
 async def main():
     await dp.start_polling(bot)
