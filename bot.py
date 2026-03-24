@@ -137,44 +137,40 @@ async def cmd_profile(message: types.Message):
 async def cmd_find(message: types.Message, state: FSMContext):
     uid = message.from_user.id
 
-    # Проверяем профиль
     if uid not in users or "name" not in users[uid]:
         await message.answer(t(uid, "need_profile"))
         return
 
-    # Проверяем, не в чате ли уже
     if uid in active_chats:
         await message.answer(t(uid, "already_chatting"))
         return
 
     # Ищем партнёра в очереди
     partner_id = None
-    for queued_id in waiting_queue:
+    for queued_id in waiting_queue[:]:
         if queued_id != uid:
             partner_id = queued_id
             waiting_queue.remove(queued_id)
             break
 
-        if partner_id:
+    if partner_id:
         # Создаём чат
         active_chats[uid] = partner_id
         active_chats[partner_id] = uid
 
-        # Ставим состояние chatting для текущего пользователя
+        # Ставим состояние chatting для тебя
         await state.set_state(Searching.chatting)
 
-        # Ставим состояние chatting для партнёра (самое важное исправление!)
-        partner_fsm = FSMContext(
-            storage=dp.storage,
-            key=types.FSMContextKey(chat_id=partner_id, user_id=partner_id)
+        # Ставим состояние chatting для партнёра (самое важное исправление)
+        partner_state: FSMContext = dp.fsm.storage.get_context(
+            bot=bot, chat_id=partner_id, user_id=partner_id
         )
-        await partner_fsm.set_state(Searching.chatting)
+        await partner_state.set_state(Searching.chatting)
 
         # Уведомляем обоих
         await bot.send_message(uid, t(uid, "found"))
         await bot.send_message(partner_id, t(partner_id, "found"))
     else:
-        # Если никого нет в очереди — добавляем себя
         if uid not in waiting_queue:
             waiting_queue.append(uid)
         await state.set_state(Searching.waiting)
@@ -192,7 +188,10 @@ async def cmd_stop(message: types.Message, state: FSMContext):
         active_chats.pop(partner_id, None)
         await state.clear()
         await message.answer(t(uid, "chat_ended"))
-        await bot.send_message(partner_id, t(partner_id, "partner_left"))
+        try:
+            await bot.send_message(partner_id, t(partner_id, "partner_left"))
+        except:
+            pass
     else:
         await message.answer(t(uid, "stopped_searching"))
 
@@ -205,13 +204,12 @@ async def relay_message(message: types.Message, state: FSMContext):
         return
     
     partner_id = active_chats[uid]
-    
-    # Исправляем состояние у партнёра, если вдруг сломалось
-    partner_fsm = FSMContext(
-        storage=dp.storage,
-        key=types.FSMContextKey(chat_id=partner_id, user_id=partner_id)
+
+    # Исправляем состояние у партнёра
+    partner_state: FSMContext = dp.fsm.storage.get_context(
+        bot=bot, chat_id=partner_id, user_id=partner_id
     )
-    await partner_fsm.set_state(Searching.chatting)
+    await partner_state.set_state(Searching.chatting)
 
     try:
         if message.text:
@@ -222,7 +220,6 @@ async def relay_message(message: types.Message, state: FSMContext):
             await bot.send_photo(partner_id, message.photo[-1].file_id, caption=message.caption)
         elif message.voice:
             await bot.send_voice(partner_id, message.voice.file_id)
-
     except Exception as e:
         print(f"Ошибка при пересылке: {e}")
 
