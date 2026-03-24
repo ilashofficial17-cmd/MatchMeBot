@@ -18,6 +18,9 @@ users = {}
 waiting_queue = []
 active_chats = {}
 
+# Защита от одновременного поиска (чтобы не было гонки)
+pairing_lock = asyncio.Lock()
+
 class Registration(StatesGroup):
     language = State()
     name = State()
@@ -75,9 +78,7 @@ def t(user_id, key, **kwargs):
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()
-    kb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇬🇧 English")]
-    ], resize_keyboard=True)
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇬🇧 English")]], resize_keyboard=True)
     await message.answer("🌐 Выбери язык / Choose language:", reply_markup=kb)
     await state.set_state(Registration.language)
 
@@ -103,9 +104,7 @@ async def enter_age(message: types.Message, state: FSMContext):
         return
     await state.update_data(age=int(message.text))
     lang = users[message.from_user.id]["lang"]
-    kb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text=TEXTS[lang]["male"]), KeyboardButton(text=TEXTS[lang]["female"])]
-    ], resize_keyboard=True)
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=TEXTS[lang]["male"]), KeyboardButton(text=TEXTS[lang]["female"])]], resize_keyboard=True)
     await message.answer(t(message.from_user.id, "choose_gender"), reply_markup=kb)
     await state.set_state(Registration.gender)
 
@@ -113,12 +112,7 @@ async def enter_age(message: types.Message, state: FSMContext):
 async def enter_gender(message: types.Message, state: FSMContext):
     data = await state.get_data()
     gender = "male" if "Парень" in message.text or "Male" in message.text else "female"
-    users[message.from_user.id].update({
-        "name": data["name"],
-        "age": data["age"],
-        "gender": gender,
-        "lang": data.get("lang", "ru")
-    })
+    users[message.from_user.id].update({"name": data["name"], "age": data["age"], "gender": gender, "lang": data.get("lang", "ru")})
     await state.clear()
     await message.answer(t(message.from_user.id, "profile_saved"), reply_markup=ReplyKeyboardRemove())
 
@@ -136,64 +130,57 @@ async def cmd_profile(message: types.Message):
 @dp.message(Command("find"))
 async def cmd_find(message: types.Message, state: FSMContext):
     uid = message.from_user.id
-    print(f"[DEBUG] --- /find от {uid} ---")
-    print(f"[DEBUG] Очередь: {waiting_queue}")
-    print(f"[DEBUG] Активные чаты: {active_chats}")
+    print(f"[DEBUG] /find от {uid}")
 
     if uid not in users or "name" not in users[uid]:
         await message.answer(t(uid, "need_profile"))
         return
-
     if uid in active_chats:
         await message.answer(t(uid, "already_chatting"))
         return
 
-    if uid in waiting_queue:
-        print(f"[DEBUG] {uid} уже в очереди")
-        await message.answer("🔄 Ты уже в поиске! Жди...")
-        return
+    async with pairing_lock:  # ← ЗАЩИТА ОТ ОДНОВРЕМЕННОГО ПОИСКА
+        if uid in waiting_queue:
+            print(f"[DEBUG] {uid} уже в очереди")
+            await message.answer("🔄 Ты уже в поиске! Жди...")
+            return
 
-    partner_id = None
-    for queued_id in waiting_queue[:]:
-        if queued_id != uid:
-            partner_id = queued_id
-            waiting_queue.remove(queued_id)
-            break
+        partner_id = None
+        for i in range(len(waiting_queue)):
+            if waiting_queue[i] != uid:
+                partner_id = waiting_queue.pop(i)
+                print(f"[DEBUG] 🔥 СОЕДИНИЛИ! {uid} <-> {partner_id}")
+                break
 
-    if partner_id:
-        print(f"[DEBUG] 🔥 СОЕДИНИЛИ! {uid} <-> {partner_id}")
-        active_chats[uid] = partner_id
-        active_chats[partner_id] = uid
+        if partner_id:
+            active_chats[uid] = partner_id
+            active_chats[partner_id] = uid
 
-        await state.set_state(Searching.chatting)
+            await state.set_state(Searching.chatting)
+            partner_state = dp.fsm.storage.get_context(bot=bot, chat_id=partner_id, user_id=partner_id)
+            await partner_state.set_state(Searching.chatting)
 
-        partner_state = dp.fsm.storage.get_context(bot=bot, chat_id=partner_id, user_id=partner_id)
-        await partner_state.set_state(Searching.chatting)
-
-        await bot.send_message(uid, t(uid, "found"))
-        await bot.send_message(partner_id, t(partner_id, "found"))
-    else:
-        waiting_queue.append(uid)
-        print(f"[DEBUG] Добавили {uid} в очередь")
-        await state.set_state(Searching.waiting)
-        await message.answer(t(uid, "searching"))
+            await bot.send_message(uid, t(uid, "found"))
+            await bot.send_message(partner_id, t(partner_id, "found"))
+        else:
+            waiting_queue.append(uid)
+            print(f"[DEBUG] {uid} добавлен в очередь. Сейчас очередь: {waiting_queue}")
+            await state.set_state(Searching.waiting)
+            await message.answer(t(uid, "searching"))
 
 @dp.message(Command("stop"))
 async def cmd_stop(message: types.Message, state: FSMContext):
     uid = message.from_user.id
-    print(f"[DEBUG] --- /stop от {uid} ---")
-    print(f"[DEBUG] Очередь: {waiting_queue} | Чаты: {active_chats}")
+    print(f"[DEBUG] /stop от {uid}")
 
     if uid in waiting_queue:
         waiting_queue.remove(uid)
         await state.clear()
-        print(f"[DEBUG] Убрали {uid} из очереди")
         await message.answer(t(uid, "stopped_searching"))
     elif uid in active_chats:
         partner_id = active_chats.pop(uid)
         active_chats.pop(partner_id, None)
         await state.clear()
-        print(f"[DEBUG] Чат завершён {uid} <-> {partner_id}")
         await message.answer(t(uid, "chat_ended"))
         try:
             await bot.send_message(partner_id, t(partner_id, "partner_left"))
@@ -209,7 +196,7 @@ async def relay_message(message: types.Message, state: FSMContext):
         await state.clear()
         return
     partner_id = active_chats[uid]
-    print(f"[DEBUG] Сообщение от {uid} → {partner_id}")
+    print(f"[DEBUG] Сообщение {uid} → {partner_id}")
 
     partner_state = dp.fsm.storage.get_context(bot=bot, chat_id=partner_id, user_id=partner_id)
     await partner_state.set_state(Searching.chatting)
@@ -224,10 +211,10 @@ async def relay_message(message: types.Message, state: FSMContext):
         elif message.voice:
             await bot.send_voice(partner_id, message.voice.file_id)
     except Exception as e:
-        print(f"[ERROR] Ошибка пересылки: {e}")
+        print(f"[ERROR] {e}")
 
 async def main():
-    print("🚀 Бот запущен! Ждём пользователей...")
+    print("🚀 Бот запущен! Готов к тестам...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
