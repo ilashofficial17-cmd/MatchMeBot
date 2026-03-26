@@ -30,6 +30,17 @@ last_msg_time = {}
 msg_count = {}
 pairing_lock = asyncio.Lock()
 
+# Логирование сообщений (последние 10 на пару)
+chat_logs = {}  # (min_uid, max_uid) -> [messages]
+
+# Стоп-слова
+STOP_WORDS = [
+    "продам", "куплю", "услуги", "интим", "досуг", "escort", "проститут",
+    "вирт за деньги", "платно", "прайс", "цена", "стоимость", "оплата",
+    "телеграм канал", "подпишись", "реклама", "казино", "ставки", "заработок",
+    "крипта", "инвест", "вложи", "мамка", "школьник", "школьница"
+]
+
 # ====================== СОСТОЯНИЯ ======================
 class Reg(StatesGroup):
     name = State()
@@ -111,15 +122,22 @@ async def init_db():
                 from_uid BIGINT,
                 to_uid BIGINT,
                 reason TEXT,
+                chat_log TEXT DEFAULT '',
+                stop_words_found BOOLEAN DEFAULT FALSE,
                 reviewed BOOLEAN DEFAULT FALSE,
                 admin_action TEXT DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """)
-        try:
-            await conn.execute("ALTER TABLE complaints_log ADD COLUMN IF NOT EXISTS reviewed BOOLEAN DEFAULT FALSE")
-            await conn.execute("ALTER TABLE complaints_log ADD COLUMN IF NOT EXISTS admin_action TEXT DEFAULT NULL")
-        except: pass
+        for col, definition in [
+            ("chat_log", "TEXT DEFAULT ''"),
+            ("stop_words_found", "BOOLEAN DEFAULT FALSE"),
+            ("reviewed", "BOOLEAN DEFAULT FALSE"),
+            ("admin_action", "TEXT DEFAULT NULL"),
+        ]:
+            try:
+                await conn.execute(f"ALTER TABLE complaints_log ADD COLUMN IF NOT EXISTS {col} {definition}")
+            except: pass
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS active_chats_db (
@@ -213,6 +231,69 @@ async def remove_chat_from_db(uid1, uid2=None):
                 await conn.execute("DELETE FROM active_chats_db WHERE uid1=$1", uid1)
     except: pass
 
+# ====================== ЛОГИРОВАНИЕ СООБЩЕНИЙ ======================
+def get_chat_key(uid1, uid2):
+    return (min(uid1, uid2), max(uid1, uid2))
+
+def log_message(uid1, uid2, sender_uid, text):
+    key = get_chat_key(uid1, uid2)
+    if key not in chat_logs:
+        chat_logs[key] = []
+    chat_logs[key].append({
+        "sender": sender_uid,
+        "text": text[:200],
+        "time": datetime.now().strftime("%H:%M:%S")
+    })
+    # Храним только последние 10
+    if len(chat_logs[key]) > 10:
+        chat_logs[key] = chat_logs[key][-10:]
+
+def get_chat_log_text(uid1, uid2):
+    key = get_chat_key(uid1, uid2)
+    logs = chat_logs.get(key, [])
+    if not logs:
+        return "Переписка пуста"
+    lines = []
+    for msg in logs:
+        sender = "Жалобщик" if msg["sender"] == uid1 else "Обвиняемый"
+        lines.append(f"[{msg['time']}] {sender}: {msg['text']}")
+    return "\n".join(lines)
+
+def check_stop_words(uid1, uid2):
+    key = get_chat_key(uid1, uid2)
+    logs = chat_logs.get(key, [])
+    all_text = " ".join(msg["text"].lower() for msg in logs)
+    found = [w for w in STOP_WORDS if w.lower() in all_text]
+    return len(found) > 0, found
+
+def clear_chat_log(uid1, uid2):
+    key = get_chat_key(uid1, uid2)
+    if key in chat_logs:
+        del chat_logs[key]
+
+# ====================== ПРИКОЛЫ ПО ВОЗРАСТУ ======================
+def get_age_joke(age):
+    if age <= 6:
+        return "🐥 Цыплёнок, тебе ещё в садик рано! Иди играй в кубики."
+    elif age <= 12:
+        return "🎮 Эй малой, тут не мультики и не игрушки! Подрасти сначала."
+    elif age <= 15:
+        return "🙅 Стоп-стоп-стоп! Тебе нет 16. Возвращайся когда подрастёшь!"
+    elif age <= 17:
+        return "😄 О, молодёжь! Добро пожаловать, только не балуйся."
+    elif age <= 25:
+        return "🔥 Самый сок! Добро пожаловать в MatchMe!"
+    elif age <= 35:
+        return "😎 Взрослый человек, солидно. Знаешь чего хочешь!"
+    elif age <= 50:
+        return "🧐 Опытный пользователь! Уважаем."
+    elif age <= 70:
+        return "💪 Ого, ещё в деле! Молодость в душе — это главное."
+    elif age <= 90:
+        return "👴 Дедуля/бабуля освоили интернет! Снимаем шляпу."
+    else:
+        return "😂 Серьёзно?! Тебе домой надо, не в анонимный чат! Отдыхай уже."
+
 # ====================== ТЕКСТЫ ======================
 WELCOME_TEXT = (
     "👋 Привет! Я MatchMe — анонимный чат для общения, флирта и знакомств.\n\n"
@@ -229,18 +310,20 @@ RULES_RU = """📜 Правила MatchMe:
 • Жалобы при реальных нарушениях
 
 ❌ Запрещено:
-• Спам, реклама, продажа
-• Контент с несовершеннолетними — бан навсегда
-• Угрозы, оскорбления, травля
-• Необоснованные жалобы — бан за злоупотребление
+• Реклама любых услуг — бан без предупреждения
+• Продажа интим-услуг — перманентный бан
+• Контент с несовершеннолетними — перманентный бан
+• Пошлые темы без согласия собеседника в режиме Общение — бан
+• Спам, угрозы, оскорбления — бан
+• Ложные жалобы — бан за злоупотребление
 
-⚠️ Система модерации:
-• 1-я жалоба: бан 3 часа
-• 2-я жалоба: бан 24 часа
-• 3-я жалоба: перманентный бан
-• Ложные жалобы = предупреждение или бан
+⚠️ Градация банов:
+• Лёгкое нарушение: предупреждение → бан 3ч → бан 24ч
+• Грубое нарушение (реклама, интим-услуги, дети): бан сразу без предупреждения
+• Особо грубое: перманентный бан
 
 ℹ️ Все жалобы проверяются администратором вручную.
+Злоупотребление жалобами = санкции против тебя.
 
 Нажми ✅ Принять правила для продолжения."""
 
@@ -248,9 +331,11 @@ RULES_PROFILE = """📜 Правила общения:
 
 • Уважай собеседника
 • 👍 Лайк — если понравилось общение
-• 🚩 Жалоба — только при реальных нарушениях
+• 🚩 Жалоба — только при реальных нарушениях!
+• Реклама в чате = жалоба = бан
+• Пошлые темы без согласия в Общении = жалоба = бан
 • Ложная жалоба = санкции против тебя
-• Администратор проверяет каждую жалобу вручную
+• Администратор проверяет переписку при жалобе
 
 Нажми ✅ Понятно для продолжения."""
 
@@ -342,6 +427,7 @@ def kb_complaint():
         [InlineKeyboardButton(text="🔞 Несовершеннолетние", callback_data="rep:minor")],
         [InlineKeyboardButton(text="💰 Спам / Реклама", callback_data="rep:spam")],
         [InlineKeyboardButton(text="😡 Угрозы / Оскорбления", callback_data="rep:abuse")],
+        [InlineKeyboardButton(text="🔞 Пошлятина без согласия", callback_data="rep:nsfw")],
         [InlineKeyboardButton(text="🔄 Другое", callback_data="rep:other")],
         [InlineKeyboardButton(text="◀️ Отмена", callback_data="rep:cancel")],
     ])
@@ -379,17 +465,27 @@ def kb_edit():
         [InlineKeyboardButton(text="🎯 Интересы", callback_data="edit:interests")],
     ])
 
-def kb_admin_main():
+def kb_admin_main(pending=0):
+    badge = f" ({pending})" if pending > 0 else ""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats")],
-        [InlineKeyboardButton(text="🚩 Жалобы на рассмотрение", callback_data="admin:complaints")],
+        [InlineKeyboardButton(text=f"🚩 Жалобы на рассмотрение{badge}", callback_data="admin:complaints")],
         [InlineKeyboardButton(text="👥 Онлайн", callback_data="admin:online")],
         [InlineKeyboardButton(text="🔍 Найти пользователя по ID", callback_data="admin:find")],
         [InlineKeyboardButton(text="🔧 Уведомить об обновлении", callback_data="admin:notify_update")],
     ])
 
-def kb_complaint_action(complaint_id, accused_uid, reporter_uid):
-    return InlineKeyboardMarkup(inline_keyboard=[
+def kb_complaint_action(complaint_id, accused_uid, reporter_uid, has_log=False, stop_words=False):
+    sw_text = "⚠️ Стоп-слова: ДА" if stop_words else "✅ Стоп-слова: НЕТ"
+    buttons = [
+        [InlineKeyboardButton(text=sw_text, callback_data="noop")],
+    ]
+    if has_log:
+        buttons.append([InlineKeyboardButton(
+            text="📄 Показать переписку",
+            callback_data=f"clog:show:{complaint_id}"
+        )])
+    buttons += [
         [InlineKeyboardButton(text="🚫 Бан 3ч нарушителю", callback_data=f"cadm:ban3:{complaint_id}:{accused_uid}")],
         [InlineKeyboardButton(text="🚫 Бан 24ч нарушителю", callback_data=f"cadm:ban24:{complaint_id}:{accused_uid}")],
         [InlineKeyboardButton(text="🚫 Перм бан нарушителю", callback_data=f"cadm:banperm:{complaint_id}:{accused_uid}")],
@@ -397,7 +493,8 @@ def kb_complaint_action(complaint_id, accused_uid, reporter_uid):
         [InlineKeyboardButton(text="⚠️ Предупреждение жалобщику (ложная)", callback_data=f"cadm:warnrep:{complaint_id}:{reporter_uid}")],
         [InlineKeyboardButton(text="🚫 Бан жалобщику (ложная)", callback_data=f"cadm:banrep:{complaint_id}:{reporter_uid}")],
         [InlineKeyboardButton(text="✅ Отклонить жалобу", callback_data=f"cadm:dismiss:{complaint_id}:0")],
-    ])
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def kb_user_actions(target_uid):
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -426,6 +523,7 @@ async def cleanup(uid, state=None):
     if partner:
         active_chats.pop(partner, None)
         await remove_chat_from_db(uid, partner)
+        clear_chat_log(uid, partner)
     if state: await state.clear()
     return partner
 
@@ -444,6 +542,10 @@ async def set_commands():
         BotCommand(command="help", description="Помощь"),
         BotCommand(command="admin", description="Админ панель"),
     ])
+
+async def get_pending_complaints():
+    async with db_pool.acquire() as conn:
+        return await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE") or 0
 
 async def do_find(uid, state):
     u = await get_user(uid)
@@ -543,6 +645,7 @@ async def end_chat(uid, state, go_next=False):
     if partner:
         active_chats.pop(partner, None)
         await remove_chat_from_db(uid, partner)
+        clear_chat_log(uid, partner)
     for q in [waiting_anon, waiting_simple, waiting_flirt, waiting_kink]:
         if uid in q: q.remove(uid)
     await state.clear()
@@ -620,8 +723,7 @@ async def cmd_reset(message: types.Message, state: FSMContext):
         "• Режим и интересы\n"
         "• Настройки поиска\n"
         "• Рейтинг и лайки\n\n"
-        "❗ Бан и предупреждения сохранятся.\n\n"
-        "Ты уверен?",
+        "❗ Бан и предупреждения сохранятся.\n\nТы уверен?",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="✅ Да, сбросить всё", callback_data="reset:confirm")],
             [InlineKeyboardButton(text="❌ Нет, отмена", callback_data="reset:cancel")],
@@ -770,13 +872,19 @@ async def reg_age(message: types.Message, state: FSMContext):
         await message.answer("❗ Введи число.")
         return
     age = int(txt)
-    if age < 16:
-        await message.answer("❌ Тебе должно быть минимум 16 лет.\n\nВведи правильный возраст:")
+
+    joke = get_age_joke(age)
+
+    if age <= 15:
+        await message.answer(f"{joke}\n\nВведи правильный возраст (минимум 16):")
         return
     if age > 99:
-        await message.answer("❗ Введи реальный возраст (16–99).")
+        await message.answer(f"{joke}\n\nВведи реальный возраст (16–99).")
         return
+
     await update_user(uid, age=age)
+    await message.answer(joke)
+    await asyncio.sleep(0.5)
     await state.set_state(Reg.gender)
     await message.answer("⚧ Выбери свой пол:", reply_markup=kb_gender())
 
@@ -858,6 +966,7 @@ async def reg_interest(callback: types.CallbackQuery, state: FSMContext):
 async def relay(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     txt = message.text or ""
+
     if "⏭" in txt or txt == "⏭ Следующий":
         await end_chat(uid, state, go_next=True)
         return
@@ -883,11 +992,18 @@ async def relay(message: types.Message, state: FSMContext):
     if txt.startswith("/start"):
         await end_chat(uid, state, go_next=False)
         return
+
     if uid not in active_chats:
         await state.clear()
         await message.answer("Ты не в чате.", reply_markup=kb_main())
         return
+
     partner = active_chats[uid]
+
+    # Логируем сообщение
+    if message.text:
+        log_message(uid, partner, uid, message.text)
+
     now = datetime.now()
     msg_count.setdefault(uid, [])
     msg_count[uid] = [t for t in msg_count[uid] if (now - t).total_seconds() < 5]
@@ -896,6 +1012,7 @@ async def relay(message: types.Message, state: FSMContext):
         return
     msg_count[uid].append(now)
     last_msg_time[uid] = last_msg_time[partner] = now
+
     try:
         if message.text: await bot.send_message(partner, message.text)
         elif message.sticker: await bot.send_sticker(partner, message.sticker.file_id)
@@ -921,6 +1038,7 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
         "minor": "Несовершеннолетние",
         "spam": "Спам/Реклама",
         "abuse": "Угрозы/Оскорбления",
+        "nsfw": "Пошлятина без согласия",
         "other": "Другое"
     }
     reason = reason_map.get(callback.data.split(":", 1)[1], "Другое")
@@ -929,17 +1047,25 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_text("Ты не в чате.")
         await state.clear()
         return
+
+    # Получаем лог и проверяем стоп-слова
+    log_text = get_chat_log_text(uid, partner)
+    stop_found, found_words = check_stop_words(uid, partner)
+
     async with db_pool.acquire() as conn:
         complaint_id = await conn.fetchval(
-            "INSERT INTO complaints_log (from_uid, to_uid, reason) VALUES ($1,$2,$3) RETURNING id",
-            uid, partner, reason
+            "INSERT INTO complaints_log (from_uid, to_uid, reason, chat_log, stop_words_found) VALUES ($1,$2,$3,$4,$5) RETURNING id",
+            uid, partner, reason, log_text, stop_found
         )
         pu = await get_user(partner)
         await update_user(partner, complaints=pu.get("complaints", 0) + 1)
+
     active_chats.pop(uid, None)
     active_chats.pop(partner, None)
     await remove_chat_from_db(uid, partner)
+    clear_chat_log(uid, partner)
     await state.clear()
+
     await callback.message.edit_text(
         f"🚩 Жалоба #{complaint_id} отправлена.\nПричина: {reason}\n\nАдминистратор рассмотрит её вручную."
     )
@@ -949,23 +1075,9 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
         pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
         await FSMContext(dp.storage, key=pkey).clear()
     except: pass
-    pu = await get_user(partner)
-    ru = await get_user(uid)
-    g_map = {"male": "Парень", "female": "Девушка", "other": "Другое"}
-    try:
-        await bot.send_message(
-            ADMIN_ID,
-            f"🚩 Новая жалоба #{complaint_id}!\n\n"
-            f"👤 Жалобщик: {uid}\n"
-            f"Имя: {ru.get('name','?') if ru else '?'} | Возраст: {ru.get('age','?') if ru else '?'} | {g_map.get(ru.get('gender',''),'?') if ru else '?'}\n\n"
-            f"👤 Обвиняемый: {partner}\n"
-            f"Имя: {pu.get('name','?') if pu else '?'} | Возраст: {pu.get('age','?') if pu else '?'} | {g_map.get(pu.get('gender',''),'?') if pu else '?'}\n"
-            f"Жалоб на нём: {pu.get('complaints', 0) if pu else '?'}\n\n"
-            f"📋 Причина: {reason}\n"
-            f"🕐 {datetime.now().strftime('%d.%m.%Y %H:%M')}",
-            reply_markup=kb_complaint_action(complaint_id, partner, uid)
-        )
-    except: pass
+
+    # Уведомляем админа — только сохраняем, не отправляем автоматом
+    # Жалоба появится в очереди при нажатии кнопки в админке
     await callback.answer()
 
 # ====================== ОТМЕНА ПОИСКА ======================
@@ -1067,9 +1179,11 @@ async def edit_age(message: types.Message, state: FSMContext):
     if not message.text or not message.text.isdigit() or not (16 <= int(message.text) <= 99):
         await message.answer("❗ Введи число от 16 до 99")
         return
-    await update_user(message.from_user.id, age=int(message.text))
+    age = int(message.text)
+    joke = get_age_joke(age)
+    await update_user(message.from_user.id, age=age)
     await state.clear()
-    await message.answer("✅ Возраст обновлён!", reply_markup=kb_main())
+    await message.answer(f"{joke}\n\n✅ Возраст обновлён!", reply_markup=kb_main())
 
 @dp.message(StateFilter(EditProfile.gender))
 async def edit_gender(message: types.Message, state: FSMContext):
@@ -1204,7 +1318,7 @@ async def set_search_age(message: types.Message, state: FSMContext):
             await state.clear()
             await message.answer(f"✅ Возраст поиска: {min_age}–{max_age}", reply_markup=kb_main())
         else:
-            await message.answer("❗ Диапазон должен быть в пределах 16–99, например: 18-25")
+            await message.answer("❗ Диапазон: 16–99, например: 18-25")
     except:
         await message.answer("❗ Формат: 18-25")
 
@@ -1237,7 +1351,12 @@ async def cmd_restart(message: types.Message, state: FSMContext):
 @dp.message(Command("admin"), StateFilter("*"))
 async def admin_panel(message: types.Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID: return
-    await message.answer("🛡 Админ панель MatchMe", reply_markup=kb_admin_main())
+    pending = await get_pending_complaints()
+    await message.answer("🛡 Админ панель MatchMe", reply_markup=kb_admin_main(pending))
+
+@dp.callback_query(F.data == "noop")
+async def noop(callback: types.CallbackQuery):
+    await callback.answer()
 
 @dp.callback_query(F.data.startswith("admin:"))
 async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
@@ -1278,6 +1397,8 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
                 ru = await get_user(r["from_uid"])
                 pu = await get_user(r["to_uid"])
                 g_map = {"male": "Парень", "female": "Девушка", "other": "Другое"}
+                has_log = bool(r.get("chat_log"))
+                stop_words = bool(r.get("stop_words_found"))
                 await callback.message.answer(
                     f"🚩 Жалоба #{r['id']}\n\n"
                     f"👤 Жалобщик: {r['from_uid']}\n"
@@ -1287,7 +1408,7 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
                     f"Жалоб на нём: {pu.get('complaints',0) if pu else '?'}\n\n"
                     f"📋 Причина: {r['reason']}\n"
                     f"🕐 {r['created_at'].strftime('%d.%m %H:%M')}",
-                    reply_markup=kb_complaint_action(r["id"], r["to_uid"], r["from_uid"])
+                    reply_markup=kb_complaint_action(r["id"], r["to_uid"], r["from_uid"], has_log, stop_words)
                 )
 
     elif action == "online":
@@ -1314,6 +1435,36 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
                  InlineKeyboardButton(text="🔴 Сейчас", callback_data="upd:0")],
             ])
         )
+    await callback.answer()
+
+# ====================== ПОКАЗ ПЕРЕПИСКИ ======================
+@dp.callback_query(F.data.startswith("clog:"))
+async def show_chat_log(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+    parts = callback.data.split(":")
+    action = parts[1]
+    complaint_id = int(parts[2])
+
+    if action == "show":
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT chat_log FROM complaints_log WHERE id=$1", complaint_id)
+        if not row or not row["chat_log"]:
+            await callback.message.answer("📄 Переписка пуста или не была сохранена.")
+        else:
+            log_text = row["chat_log"]
+            await callback.message.answer(
+                f"📄 Переписка жалобы #{complaint_id}:\n\n{log_text}",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🗑 Удалить это сообщение", callback_data=f"clog:delete:{complaint_id}")]
+                ])
+            )
+    elif action == "delete":
+        try:
+            await callback.message.delete()
+        except: pass
+
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("upd:"))
@@ -1484,7 +1635,6 @@ async def admin_user_action(callback: types.CallbackQuery):
         await callback.message.answer(f"🚫 {target_uid} заблокирован на 3 часа")
         try: await bot.send_message(target_uid, "🚫 Тебя заблокировал администратор на 3 часа.")
         except: pass
-
     elif action == "ban24":
         until = datetime.now() + timedelta(hours=24)
         await update_user(target_uid, ban_until=until.isoformat())
@@ -1492,21 +1642,18 @@ async def admin_user_action(callback: types.CallbackQuery):
         await callback.message.answer(f"🚫 {target_uid} заблокирован на 24 часа")
         try: await bot.send_message(target_uid, "🚫 Тебя заблокировал администратор на 24 часа.")
         except: pass
-
     elif action == "banperm":
         await update_user(target_uid, ban_until="permanent")
         await callback.answer("✅ Перм бан")
         await callback.message.answer(f"🚫 {target_uid} заблокирован навсегда")
         try: await bot.send_message(target_uid, "🚫 Ты заблокирован навсегда администратором.")
         except: pass
-
     elif action == "unban":
         await update_user(target_uid, ban_until=None)
         await callback.answer("✅ Разбан")
         await callback.message.answer(f"✅ {target_uid} разблокирован")
         try: await bot.send_message(target_uid, "✅ Ты разблокирован! Добро пожаловать обратно в MatchMe.")
         except: pass
-
     elif action == "warn":
         u = await get_user(target_uid)
         await update_user(target_uid, warn_count=u.get("warn_count", 0) + 1)
@@ -1514,7 +1661,6 @@ async def admin_user_action(callback: types.CallbackQuery):
         await callback.message.answer(f"⚠️ {target_uid} получил предупреждение")
         try: await bot.send_message(target_uid, "⚠️ Тебе вынесено предупреждение от администратора.")
         except: pass
-
     elif action == "kick":
         if target_uid in active_chats:
             partner = active_chats.pop(target_uid, None)
@@ -1545,6 +1691,7 @@ async def inactivity_checker():
             active_chats.pop(uid, None)
             active_chats.pop(partner, None)
             await remove_chat_from_db(uid, partner)
+            clear_chat_log(uid, partner)
             try: await bot.send_message(uid, "⏰ Чат завершён из-за неактивности (7 мин).", reply_markup=kb_main())
             except: pass
             try: await bot.send_message(partner, "⏰ Чат завершён из-за неактивности (7 мин).", reply_markup=kb_main())
