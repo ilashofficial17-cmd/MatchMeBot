@@ -2116,7 +2116,8 @@ async def main():
     await set_commands()
     asyncio.create_task(inactivity_checker())
     print("🚀 MatchMe с Premium запущен!")
-    await dp.start_premium_polling(bot)
+    await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
