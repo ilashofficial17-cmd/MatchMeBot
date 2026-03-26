@@ -915,14 +915,15 @@ async def cmd_premium(message: types.Message, state: FSMContext):
         reply_markup=kb_premium()
     )
 
-@dp.callback_query(F.data == "buy:info")
+@dp.callback_query(F.data == "buy:info", StateFilter("*"))
 async def premium_info(callback: types.CallbackQuery):
     await callback.answer(
         "⭐ Premium даёт: Kink ИИ персонажи, безлимитный ИИ чат, приоритет в поиске и значок в профиле!",
         show_alert=True
     )
 
-@dp.callback_query(F.data == "buy:premium")
+@dp.callback_query(F.data == "buy:premium", StateFilter("*"))
+
 async def buy_premium(callback: types.CallbackQuery):
     uid = callback.from_user.id
     await callback.answer()
