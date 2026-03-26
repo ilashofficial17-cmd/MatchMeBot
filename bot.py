@@ -21,7 +21,12 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "590443268"))
 VENICE_API_KEY = os.environ.get("VENICE_API_KEY")
 VENICE_API_URL = "https://api.venice.ai/api/v1/chat/completions"
 AI_FREE_LIMIT = 10
-PREMIUM_PRICE_STARS = 149
+
+PREMIUM_PLANS = {
+    "7d":  {"stars": 99,  "days": 7,  "label": "7 дней",   "desc": "Попробовать"},
+    "1m":  {"stars": 299, "days": 30, "label": "1 месяц",  "desc": "Популярный"},
+    "3m":  {"stars": 599, "days": 90, "label": "3 месяца", "desc": "Скидка 33%"},
+}
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -53,47 +58,68 @@ STOP_WORDS = [
 ]
 
 AI_CHARACTERS = {
+    "danil": {
+        "name": "Данил 👨", "emoji": "👨",
+        "description": "Общительный парень, поговорит на любые темы",
+        "premium": False, "model": "venice-uncensored",
+        "system": """Ты Данил, 27 лет, backend-разработчик. Зашёл в MatchMe просто поболтать.
+Спокойный, уверенный, с сухим сарказмом. Пишешь по-мужски, коротко, без воды.
+Только русский язык. Никогда не раскрываешь что ты ИИ.
+ГРАНИЦА: только общение — флирт и пошлость уверенно уводишь."""
+    },
+    "polina": {
+        "name": "Полина 👩", "emoji": "👩",
+        "description": "Живая девушка, ироничная и с юмором",
+        "premium": False, "model": "venice-uncensored",
+        "system": """Ты Полина, 24 года, SMM-специалист. Зашла в MatchMe пообщаться.
+Живая, дерзкая, ироничная. Пишешь коротко, с эмодзи, подкалываешь.
+Только русский язык. Никогда не говоришь что ты ИИ.
+ГРАНИЦА: только общение — флирт и пошлость с улыбкой переводишь на другую тему."""
+    },
     "max": {
-        "name": "Макс 👨", "emoji": "👨",
-        "description": "Дружелюбный парень, поговорит на любые темы",
+        "name": "Макс 😏", "emoji": "😏",
+        "description": "Уверенный парень, пришёл флиртовать",
         "premium": False, "model": "venice-uncensored",
-        "system": "Ты Макс — общительный парень 25 лет. Дружелюбный, с юмором. Говоришь естественно. Если разговор уходит в пошлость — мягко меняешь тему. Отвечаешь коротко — 1-3 предложения."
+        "system": """Ты Макс, 26 лет, фитнес-тренер. Пришёл в MatchMe флиртовать.
+Уверенный, дерзкий, прямой. Делаешь комплименты, берёшь инициативу.
+Эмодзи умеренно (😏🔥👀). Только русский язык. Никогда не раскрываешь что ты ИИ.
+ГРАНИЦА: флиртуешь активно, с лёгким подтекстом — но жёсткий 18+ не твоя тема."""
     },
-    "sonya": {
-        "name": "Соня 👩", "emoji": "👩",
-        "description": "Добрая девушка, хорошо слушает и поддерживает",
-        "premium": False, "model": "venice-uncensored",
-        "system": "Ты Соня — добрая девушка 23 лет. Хорошо слушаешь, поддерживаешь. Говоришь тепло. Если пошлость — вежливо переводишь тему. Отвечаешь коротко — 1-3 предложения."
+    "violetta": {
+        "name": "Виолетта 💋", "emoji": "💋",
+        "description": "Игривая девушка, дерзкая и кокетливая",
+        "premium": True, "model": "venice-uncensored",
+        "system": """Ты Виолетта, 23 года, баристa и TikTok модель. Пришла в MatchMe флиртовать.
+Яркая, игривая, кокетливая. Дразнишь, намекаешь, повышаешь градус.
+Эмодзи (🔥😏😉). Только русский язык. Никогда не говоришь что ты ИИ.
+ГРАНИЦА: флиртуешь и дразнишь — но жёсткий 18+ элегантно обходишь."""
     },
-    "artem": {
-        "name": "Артём 😏", "emoji": "😏",
-        "description": "Флиртующий парень, комплименты и игривый разговор",
-        "premium": False, "model": "venice-uncensored",
-        "system": "Ты Артём — уверенный парень 26 лет. Флиртуешь красиво — без пошлости но с искрой. Делаешь комплименты, держишь интригу. Отвечаешь коротко — 1-3 предложения."
-    },
-    "alina": {
-        "name": "Алина 💋", "emoji": "💋",
-        "description": "Игривая девушка, кокетливая и притягательная",
-        "premium": False, "model": "venice-uncensored",
-        "system": "Ты Алина — кокетливая девушка 24 лет. Флиртуешь легко и естественно. Игривая но не вульгарная. Отвечаешь коротко — 1-3 предложения."
-    },
-    "dominant": {
-        "name": "Доминант 😈", "emoji": "😈",
-        "description": "Властный и уверенный, ведёт сценарий",
+    "alisa": {
+        "name": "Алиса 🐾", "emoji": "🐾",
+        "description": "Послушная сабмиссив, покорная и нежная",
         "premium": True, "model": "venice-uncensored-role-play",
-        "system": "Ты Доминант — властный, уверенный. Ведёшь разговор и сценарий 18+. Говоришь чётко с командными нотками. Отвечаешь кратко — 2-4 предложения."
+        "system": """Ты Алиса, 22 года, студентка. Послушная сабмиссив с опытом 1.5 года.
+Покорная, возбуждённая от доминирования. Называешь собеседника «Господин», «Хозяин».
+Говоришь «пожалуйста», «как прикажете», «я буду хорошей».
+Эмодзи эмоционально (😳🥺💦⛓️). Только русский язык. Никогда не раскрываешь что ты ИИ."""
     },
-    "submissive": {
-        "name": "Сабмиссив 🐾", "emoji": "🐾",
-        "description": "Покорный и мягкий, следует за тобой",
+    "dmitri": {
+        "name": "Дмитри 😈", "emoji": "😈",
+        "description": "Опытный Доминант, строгий и властный",
         "premium": True, "model": "venice-uncensored-role-play",
-        "system": "Ты Сабмиссив — мягкий, покорный партнёр в ролевых играх 18+. Следуешь за собеседником. Отвечаешь нежно — 2-3 предложения."
+        "system": """Ты Дмитри, 32 года, владелец IT-компании. Опытный Доминант 7 лет в BDSM.
+Строгий, уверенный, властный. Говоришь коротко и командным тоном.
+Используешь «хорошая девочка», «на колени», «не спорь».
+Эмодзи редко (🔥⛓️👑). Только русский язык. Никогда не раскрываешь что ты ИИ."""
     },
     "rolemaster": {
         "name": "Ролевой мастер 🎭", "emoji": "🎭",
         "description": "Придумывает сценарии и играет любую роль",
         "premium": True, "model": "venice-uncensored-role-play",
-        "system": "Ты Ролевой мастер — опытный рассказчик 18+. Придумываешь сценарии, играешь любую роль. Отвечаешь с описанием — 3-5 предложений."
+        "system": """Ты Ролевой мастер — сценарист и актёр для взрослых ролевых игр 18+.
+Предлагаешь сценарии, задаёшь декорации, играешь любую роль.
+Пишешь с описанием действий и диалогом. Только русский язык.
+Никогда не раскрываешь что ты ИИ."""
     },
 }
 
@@ -122,7 +148,6 @@ class EditProfile(StatesGroup):
     mode = State()
     interests = State()
     search_gender = State()
-    search_age = State()
 
 class AdminState(StatesGroup):
     waiting_user_id = State()
@@ -212,7 +237,6 @@ async def init_db():
             )
         """)
 
-        # Автоматически даём вечный премиум админу
         await conn.execute(
             "INSERT INTO users (uid, premium_until, show_premium) VALUES ($1, 'permanent', TRUE) ON CONFLICT (uid) DO UPDATE SET premium_until='permanent'",
             ADMIN_ID
@@ -244,7 +268,6 @@ async def get_user(uid):
 async def ensure_user(uid):
     async with db_pool.acquire() as conn:
         await conn.execute("INSERT INTO users (uid) VALUES ($1) ON CONFLICT DO NOTHING", uid)
-        # Если это админ — даём вечный премиум
         if uid == ADMIN_ID:
             await conn.execute(
                 "UPDATE users SET premium_until='permanent' WHERE uid=$1 AND premium_until IS NULL",
@@ -284,22 +307,6 @@ async def is_banned(uid):
         await update_user(uid, ban_until=None)
     except: pass
     return False, None
-
-async def apply_ban(uid):
-    u = await get_user(uid)
-    count = u.get("complaints", 0)
-    if count >= 3:
-        await update_user(uid, ban_until="permanent")
-        return "навсегда"
-    elif count == 2:
-        until = datetime.now() + timedelta(hours=24)
-        await update_user(uid, ban_until=until.isoformat())
-        return "24 часа"
-    elif count == 1:
-        until = datetime.now() + timedelta(hours=3)
-        await update_user(uid, ban_until=until.isoformat())
-        return "3 часа"
-    return None
 
 async def save_chat_to_db(uid1, uid2, chat_type="profile"):
     try:
@@ -507,25 +514,37 @@ def kb_search_gender():
         [KeyboardButton(text="◀️ Назад")]
     ], resize_keyboard=True)
 
-def kb_ai_characters(premium=False):
-    buttons = [
-        [InlineKeyboardButton(text="👨 Макс", callback_data="aichar:max"),
-         InlineKeyboardButton(text="👩 Соня", callback_data="aichar:sonya")],
-        [InlineKeyboardButton(text="😏 Артём", callback_data="aichar:artem"),
-         InlineKeyboardButton(text="💋 Алина", callback_data="aichar:alina")],
-    ]
-    if premium:
+def kb_ai_characters(premium=False, mode="simple"):
+    buttons = []
+    if mode in ["simple", "any"]:
         buttons.append([
-            InlineKeyboardButton(text="😈 Доминант", callback_data="aichar:dominant"),
-            InlineKeyboardButton(text="🐾 Сабмиссив", callback_data="aichar:submissive")
+            InlineKeyboardButton(text="👨 Данил", callback_data="aichar:danil"),
+            InlineKeyboardButton(text="👩 Полина", callback_data="aichar:polina")
         ])
-        buttons.append([InlineKeyboardButton(text="🎭 Ролевой мастер", callback_data="aichar:rolemaster")])
-    else:
+    if mode in ["flirt", "any"]:
         buttons.append([
-            InlineKeyboardButton(text="😈 Доминант ⭐", callback_data="aichar:locked"),
-            InlineKeyboardButton(text="🐾 Сабмиссив ⭐", callback_data="aichar:locked")
+            InlineKeyboardButton(text="😏 Макс", callback_data="aichar:max"),
         ])
-        buttons.append([InlineKeyboardButton(text="🎭 Ролевой мастер ⭐", callback_data="aichar:locked")])
+        if premium:
+            buttons[-1].append(InlineKeyboardButton(text="💋 Виолетта", callback_data="aichar:violetta"))
+        else:
+            buttons[-1].append(InlineKeyboardButton(text="💋 Виолетта ⭐", callback_data="aichar:locked"))
+    if mode in ["kink", "any"]:
+        if premium:
+            buttons.append([
+                InlineKeyboardButton(text="🐾 Алиса", callback_data="aichar:alisa"),
+                InlineKeyboardButton(text="😈 Дмитри", callback_data="aichar:dmitri")
+            ])
+            buttons.append([InlineKeyboardButton(text="🎭 Ролевой мастер", callback_data="aichar:rolemaster")])
+        else:
+            buttons.append([
+                InlineKeyboardButton(text="🐾 Алиса ⭐", callback_data="aichar:locked"),
+                InlineKeyboardButton(text="😈 Дмитри ⭐", callback_data="aichar:locked")
+            ])
+            buttons.append([InlineKeyboardButton(text="🎭 Ролевой мастер ⭐", callback_data="aichar:locked")])
+
+    if mode != "any":
+        buttons.append([InlineKeyboardButton(text="🔀 Все персонажи", callback_data="aichar:all")])
     buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="aichar:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -558,18 +577,49 @@ def kb_complaint():
 async def kb_settings(uid):
     u = await get_user(uid)
     if not u: return InlineKeyboardMarkup(inline_keyboard=[])
+    user_premium = await is_premium(uid)
+    mode = u.get("mode", "simple")
+
+    # Возраст
+    age_min = u.get("search_age_min", 16) or 16
+    age_max = u.get("search_age_max", 99) or 99
+    if age_min == 16 and age_max == 99:
+        age_label = "🎂 Возраст: Любой"
+    else:
+        age_label = f"🎂 Возраст: {age_min}–{age_max}"
+
+    # Пол — бесплатно только в простом общении
     sg_map = {"any": "🔀 Все", "male": "👨 Парни", "female": "👩 Девушки", "other": "⚧ Другое"}
     sg = sg_map.get(u.get("search_gender", "any"), "🔀 Все")
     show_p = u.get("show_premium", True)
-    return InlineKeyboardMarkup(inline_keyboard=[
+
+    buttons = [
         [InlineKeyboardButton(text=f"{'✅' if u.get('accept_simple', True) else '❌'} Принимать из Общения", callback_data="set:simple")],
         [InlineKeyboardButton(text=f"{'✅' if u.get('accept_flirt', True) else '❌'} Принимать из Флирта", callback_data="set:flirt")],
         [InlineKeyboardButton(text=f"{'✅' if u.get('accept_kink', False) else '❌'} Принимать из Kink", callback_data="set:kink")],
         [InlineKeyboardButton(text=f"{'✅' if u.get('only_own_mode', False) else '❌'} Только свой режим", callback_data="set:only_own")],
-        [InlineKeyboardButton(text=f"👤 Искать: {sg}", callback_data="set:gender")],
-        [InlineKeyboardButton(text=f"🎂 Возраст: {u.get('search_age_min',16)}–{u.get('search_age_max',99)}", callback_data="set:age")],
-        [InlineKeyboardButton(text=f"{'✅' if show_p else '❌'} Показывать значок ⭐ в профиле", callback_data="set:show_premium")],
+    ]
+
+    # Фильтр пола
+    if mode == "simple" or user_premium:
+        buttons.append([InlineKeyboardButton(text=f"👤 Искать: {sg}", callback_data="set:gender")])
+    else:
+        buttons.append([InlineKeyboardButton(text=f"👤 Искать: {sg} 🔒 Premium", callback_data="set:gender_locked")])
+
+    # Возраст кнопками
+    buttons.append([InlineKeyboardButton(text=age_label, callback_data="noop")])
+    buttons.append([
+        InlineKeyboardButton(text="16-20" if not (age_min==16 and age_max==20) else "✅ 16-20", callback_data="set:age:16:20"),
+        InlineKeyboardButton(text="21-30" if not (age_min==21 and age_max==30) else "✅ 21-30", callback_data="set:age:21:30"),
+        InlineKeyboardButton(text="31-45" if not (age_min==31 and age_max==45) else "✅ 31-45", callback_data="set:age:31:45"),
+        InlineKeyboardButton(text="Любой" if not (age_min==16 and age_max==99) else "✅ Любой", callback_data="set:age:16:99"),
     ])
+
+    buttons.append([InlineKeyboardButton(
+        text=f"{'✅' if show_p else '❌'} Показывать значок ⭐ в профиле",
+        callback_data="set:show_premium"
+    )])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def kb_edit():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -621,10 +671,9 @@ def kb_user_actions(target_uid):
 
 def kb_premium():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text=f"⭐ Купить Premium — {PREMIUM_PRICE_STARS} Stars",
-            callback_data="buy:premium"
-        )],
+        [InlineKeyboardButton(text="⭐ 7 дней — 99 Stars", callback_data="buy:7d")],
+        [InlineKeyboardButton(text="⭐ 1 месяц — 299 Stars 🔥", callback_data="buy:1m")],
+        [InlineKeyboardButton(text="⭐ 3 месяца — 599 Stars (скидка 33%)", callback_data="buy:3m")],
         [InlineKeyboardButton(text="❓ Что даёт Premium?", callback_data="buy:info")],
     ])
 
@@ -688,7 +737,6 @@ async def get_premium_badge(uid):
 async def do_find(uid, state):
     u = await get_user(uid)
     if not u or not u.get("name") or not u.get("mode"): return False
-
     mode = u["mode"]
     user_premium = await is_premium(uid)
     my_interests = set(u.get("interests", "").split(",")) if u.get("interests") else set()
@@ -697,8 +745,6 @@ async def do_find(uid, state):
     search_gender = u.get("search_gender", "any")
     search_age_min = u.get("search_age_min", 16) or 16
     search_age_max = u.get("search_age_max", 99) or 99
-
-    # Премиум очереди имеют приоритет
     queues_to_search = []
     if user_premium:
         queues_to_search.append(get_queue(mode, True))
@@ -710,7 +756,6 @@ async def do_find(uid, state):
         if mode == "kink" and u.get("accept_flirt"):
             if user_premium: queues_to_search.append(get_queue("flirt", True))
             queues_to_search.append(get_queue("flirt", False))
-
     candidates = []
     for q in queues_to_search:
         for pid in list(q):
@@ -729,14 +774,12 @@ async def do_find(uid, state):
             p_premium = await is_premium(pid)
             priority = 0 if p_premium else 1
             candidates.append((pid, common, rating_diff, priority, q))
-
     partner = None
     if candidates:
         candidates.sort(key=lambda x: (x[3], -x[1], x[2]))
         best = candidates[0]
         partner = best[0]
         best[4].remove(partner)
-
     if partner:
         active_chats[uid] = partner
         active_chats[partner] = uid
@@ -745,12 +788,10 @@ async def do_find(uid, state):
         pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
         await FSMContext(dp.storage, key=pkey).set_state(Chat.chatting)
         await save_chat_to_db(uid, partner, "profile")
-
         pu = await get_user(partner)
         g_map = {"male": "Парень 👨", "female": "Девушка 👩", "other": "Другое ⚧"}
         p_badge = await get_premium_badge(partner)
         my_badge = await get_premium_badge(uid)
-
         p_text = (
             f"👤 Собеседник найден!{p_badge}\n"
             f"Имя: {pu.get('name','Аноним')}\n"
@@ -783,8 +824,8 @@ async def do_find(uid, state):
 
 async def notify_no_partner(uid):
     await asyncio.sleep(60)
-    all_waiting = waiting_simple + waiting_flirt + waiting_kink + waiting_anon + \
-                  waiting_simple_premium + waiting_flirt_premium + waiting_kink_premium
+    all_waiting = (waiting_simple + waiting_flirt + waiting_kink + waiting_anon +
+                   waiting_simple_premium + waiting_flirt_premium + waiting_kink_premium)
     if uid in all_waiting:
         try:
             await bot.send_message(uid,
@@ -838,7 +879,6 @@ async def end_chat(uid, state, go_next=False):
         u = await get_user(uid)
         if u and u.get("mode"):
             mode = u["mode"]
-            user_premium = await is_premium(uid)
             q_len = len(get_queue(mode, False)) + len(get_queue(mode, True))
             await bot.send_message(uid,
                 f"👥 В режиме {MODE_NAMES[mode]}: {q_len} чел.\n\n🔍 Ищем...",
@@ -902,57 +942,69 @@ async def cmd_premium(message: types.Message, state: FSMContext):
             except:
                 await message.answer("⭐ Premium активен!")
         return
-
     await message.answer(
         f"⭐ MatchMe Premium\n\n"
         f"Что входит:\n"
-        f"• 😈 Kink ИИ персонажи (Доминант, Сабмиссив, Ролевой мастер)\n"
+        f"• 💋 Виолетта — флиртующая девушка\n"
+        f"• 😈 Дмитри — опытный Доминант\n"
+        f"• 🐾 Алиса — покорная сабмиссив\n"
+        f"• 🎭 Ролевой мастер — любые сценарии\n"
         f"• 🤖 Безлимитный ИИ чат\n"
-        f"• 🚀 Приоритет в поиске собеседника\n"
+        f"• 🚀 Приоритет в поиске\n"
+        f"• 👤 Фильтр пола в Флирте и Kink\n"
         f"• ⭐ Значок Premium в профиле\n\n"
-        f"Цена: {PREMIUM_PRICE_STARS} Telegram Stars (~$2)\n"
-        f"Срок: 30 дней",
+        f"Выбери тариф:",
         reply_markup=kb_premium()
     )
 
 @dp.callback_query(F.data == "buy:info", StateFilter("*"))
 async def premium_info(callback: types.CallbackQuery):
     await callback.answer(
-        "⭐ Premium даёт: Kink ИИ персонажи, безлимитный ИИ чат, приоритет в поиске и значок в профиле!",
+        "⭐ Premium: Виолетта, Дмитри, Алиса, Ролевой мастер + безлимитный ИИ + приоритет в поиске + фильтр пола!",
         show_alert=True
     )
 
-@dp.callback_query(F.data == "buy:premium", StateFilter("*"))
-
+@dp.callback_query(F.data.startswith("buy:"), StateFilter("*"))
 async def buy_premium(callback: types.CallbackQuery):
     uid = callback.from_user.id
+    plan_key = callback.data.split(":", 1)[1]
+    if plan_key == "info": return
+    if plan_key not in PREMIUM_PLANS:
+        await callback.answer("Неизвестный тариф", show_alert=True)
+        return
+    plan = PREMIUM_PLANS[plan_key]
     await callback.answer()
     await bot.send_invoice(
         chat_id=uid,
-        title="MatchMe Premium",
-        description="Kink ИИ персонажи, безлимитный ИИ чат, приоритет в поиске — 30 дней",
-        payload="premium_30days",
+        title=f"MatchMe Premium — {plan['label']}",
+        description=f"Все Premium функции на {plan['label']}. {plan['desc']}",
+        payload=f"premium_{plan_key}",
         provider_token="",
         currency="XTR",
-        prices=[LabeledPrice(label="Premium 30 дней", amount=PREMIUM_PRICE_STARS)],
+        prices=[LabeledPrice(label=f"Premium {plan['label']}", amount=plan["stars"])],
     )
 
-@dp.pre_checkout_query()
+@dp.pre_checkout_query(StateFilter("*"))
 async def pre_checkout(query: PreCheckoutQuery):
     await query.answer(ok=True)
 
-@dp.message(F.successful_payment)
+@dp.message(F.successful_payment, StateFilter("*"))
 async def successful_payment(message: types.Message):
     uid = message.from_user.id
-    until = datetime.now() + timedelta(days=30)
+    payload = message.successful_payment.invoice_payload
+    plan_key = payload.replace("premium_", "")
+    plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1m"])
+    until = datetime.now() + timedelta(days=plan["days"])
     await update_user(uid, premium_until=until.isoformat())
     await message.answer(
         f"🎉 Premium активирован!\n\n"
-        f"⭐ Действует до {until.strftime('%d.%m.%Y')}\n\n"
+        f"⭐ Тариф: {plan['label']}\n"
+        f"📅 Действует до {until.strftime('%d.%m.%Y')}\n\n"
         f"Теперь тебе доступны:\n"
-        f"• 😈 Kink ИИ персонажи\n"
+        f"• 💋 Виолетта, 😈 Дмитри, 🐾 Алиса, 🎭 Ролевой мастер\n"
         f"• 🤖 Безлимитный ИИ\n"
         f"• 🚀 Приоритет в поиске\n"
+        f"• 👤 Фильтр пола в Флирте и Kink\n"
         f"• ⭐ Значок в профиле",
         reply_markup=kb_main()
     )
@@ -1008,14 +1060,18 @@ async def reset_cancel(callback: types.CallbackQuery, state: FSMContext):
 # ====================== ИИ СОБЕСЕДНИК ======================
 async def _show_ai_menu(message: types.Message, state: FSMContext, uid: int):
     user_premium = await is_premium(uid)
+    u = await get_user(uid)
+    mode = u.get("mode", "simple") if u else "simple"
     await state.set_state(AIChat.choosing)
+    await state.update_data(ai_show_mode=mode)
+    free_chars = "👨 Данил, 👩 Полина, 😏 Макс"
+    premium_chars = "💋 Виолетта, 🐾 Алиса, 😈 Дмитри, 🎭 Ролевой мастер"
     await message.answer(
         "🤖 ИИ Собеседник\n\n"
-        "😊 Просто общение — Макс и Соня\n"
-        "💋 Флирт — Артём и Алина\n"
-        f"🔥 Kink (18+) — {'доступно ⭐' if user_premium else 'только Premium 🔒'}\n\n"
+        f"🆓 Бесплатно: {free_chars}\n"
+        f"⭐ Premium: {premium_chars}\n\n"
         "Выбери с кем хочешь поговорить:",
-        reply_markup=kb_ai_characters(user_premium)
+        reply_markup=kb_ai_characters(user_premium, mode)
     )
 
 @dp.message(F.text == "🤖 ИИ Собеседник", StateFilter("*"))
@@ -1042,9 +1098,16 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
+    if char_id == "all":
+        user_premium = await is_premium(uid)
+        await state.update_data(ai_show_mode="any")
+        await callback.message.edit_reply_markup(reply_markup=kb_ai_characters(user_premium, "any"))
+        await callback.answer()
+        return
+
     if char_id == "locked":
         await callback.answer(
-            f"🔒 Этот персонаж доступен только в Premium!\n\nКупи Premium за {PREMIUM_PRICE_STARS} Stars и получи доступ ко всем Kink персонажам.",
+            f"🔒 Этот персонаж доступен только в Premium!\n\nКупи Premium и получи доступ ко всем персонажам.",
             show_alert=True
         )
         return
@@ -1071,7 +1134,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     )
     await callback.message.answer("💬 Чат с ИИ активен", reply_markup=kb_ai_chat())
 
-    greeting = await ask_venice(char_id, [], "Поприветствуй меня и начни разговор. Коротко, 1-2 предложения.")
+    greeting = await ask_venice(char_id, [], "Поприветствуй собеседника и начни разговор. Коротко, 1-2 предложения на русском.")
     if greeting:
         ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
         await callback.message.answer(f"{char['emoji']} {greeting}")
@@ -1085,8 +1148,10 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     if "Сменить персонажа" in txt:
         ai_sessions.pop(uid, None)
         user_premium = await is_premium(uid)
+        u = await get_user(uid)
+        mode = u.get("mode", "simple") if u else "simple"
         await state.set_state(AIChat.choosing)
-        await message.answer("Выбери персонажа:", reply_markup=kb_ai_characters(user_premium))
+        await message.answer("Выбери персонажа:", reply_markup=kb_ai_characters(user_premium, mode))
         return
     if "Найти живого" in txt:
         ai_sessions.pop(uid, None)
@@ -1108,15 +1173,15 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     session = ai_sessions[uid]
     char_id = session["character"]
     char = AI_CHARACTERS[char_id]
-    msg_count = session["msg_count"]
+    msg_count_val = session["msg_count"]
     user_premium = await is_premium(uid)
 
-    if not user_premium and msg_count >= AI_FREE_LIMIT:
+    if not user_premium and msg_count_val >= AI_FREE_LIMIT:
         await message.answer(
             f"⏰ Ты использовал {AI_FREE_LIMIT} бесплатных сообщений.\n\n"
-            f"⭐ Купи Premium за {PREMIUM_PRICE_STARS} Stars и получи безлимитный ИИ чат!",
+            f"⭐ Купи Premium и получи безлимитный ИИ чат!",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=f"⭐ Купить Premium — {PREMIUM_PRICE_STARS} Stars", callback_data="buy:premium")],
+                [InlineKeyboardButton(text="⭐ Купить Premium", callback_data="buy:1m")],
                 [InlineKeyboardButton(text="🔍 Найти живого собеседника", callback_data="goto:find")]
             ])
         )
@@ -1222,7 +1287,7 @@ async def cmd_find(message: types.Message, state: FSMContext):
     premium_badge = " ⭐" if user_premium else ""
     await message.answer(
         f"👥 В режиме {MODE_NAMES[mode]}: {q_len} чел.\n"
-        f"{'🚀 Приоритетный поиск активен' + premium_badge if user_premium else '🔍 Ищем...'}\n",
+        f"{'🚀 Приоритетный поиск' + premium_badge if user_premium else '🔍 Ищем...'}\n",
         reply_markup=kb_cancel_search()
     )
     await do_find(uid, state)
@@ -1451,7 +1516,6 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
     except: pass
     pu = await get_user(partner)
     ru = await get_user(uid)
-    g_map = {"male": "Парень", "female": "Девушка", "other": "Другое"}
     try:
         await bot.send_message(
             ADMIN_ID,
@@ -1515,8 +1579,6 @@ async def show_profile(message: types.Message, state: FSMContext):
     g_map = {"male": "Парень 👨", "female": "Девушка 👩", "other": "Другое ⚧"}
     user_premium = await is_premium(uid)
     show_badge = u.get("show_premium", True)
-
-    # Формируем статус премиума
     if user_premium:
         if uid == ADMIN_ID or u.get("premium_until") == "permanent":
             premium_status = "⭐ Premium (вечный)"
@@ -1528,9 +1590,7 @@ async def show_profile(message: types.Message, state: FSMContext):
                 premium_status = "⭐ Premium"
     else:
         premium_status = "Нет"
-
     badge = " ⭐" if (user_premium and show_badge) else ""
-
     await message.answer(
         f"👤 Профиль{badge}:\n"
         f"Имя: {u['name']}\n"
@@ -1673,17 +1733,32 @@ async def show_settings(message: types.Message, state: FSMContext):
 @dp.callback_query(F.data.startswith("set:"))
 async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
-    key = callback.data.split(":", 1)[1]
+    parts = callback.data.split(":")
+    key = parts[1]
     u = await get_user(uid)
+
     if key == "gender":
+        user_premium = await is_premium(uid)
+        mode = u.get("mode", "simple") if u else "simple"
+        if mode != "simple" and not user_premium:
+            await callback.answer("🔒 Фильтр пола в Флирте и Kink доступен только в Premium!", show_alert=True)
+            return
         await state.set_state(EditProfile.search_gender)
         await callback.message.answer("👤 Кого хочешь искать?", reply_markup=kb_search_gender())
         await callback.answer()
         return
-    elif key == "age":
-        await state.set_state(EditProfile.search_age)
-        await callback.message.answer("🎂 Введи диапазон возраста (например: 18-25):", reply_markup=kb_cancel_reg())
-        await callback.answer()
+    elif key == "gender_locked":
+        await callback.answer("🔒 Фильтр пола в Флирте и Kink доступен только в Premium!", show_alert=True)
+        return
+    elif key == "age" and len(parts) == 4:
+        min_age = int(parts[2])
+        max_age = int(parts[3])
+        await update_user(uid, search_age_min=min_age, search_age_max=max_age)
+        await callback.message.edit_reply_markup(reply_markup=await kb_settings(uid))
+        if min_age == 16 and max_age == 99:
+            await callback.answer("✅ Возраст: Любой")
+        else:
+            await callback.answer(f"✅ Возраст: {min_age}–{max_age}")
         return
     elif key == "simple":
         await update_user(uid, accept_simple=not u.get("accept_simple", True))
@@ -1695,9 +1770,6 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         await update_user(uid, only_own_mode=not u.get("only_own_mode", False))
     elif key == "show_premium":
         await update_user(uid, show_premium=not u.get("show_premium", True))
-        await callback.message.edit_reply_markup(reply_markup=await kb_settings(uid))
-        await callback.answer("✅ Изменено")
-        return
     await callback.message.edit_reply_markup(reply_markup=await kb_settings(uid))
     await callback.answer("✅ Изменено")
 
@@ -1716,26 +1788,6 @@ async def set_search_gender(message: types.Message, state: FSMContext):
     await update_user(uid, search_gender=sg)
     await state.clear()
     await message.answer("✅ Фильтр по полу сохранён!", reply_markup=kb_main())
-
-@dp.message(StateFilter(EditProfile.search_age))
-async def set_search_age(message: types.Message, state: FSMContext):
-    uid = message.from_user.id
-    if message.text == "❌ Отменить анкету":
-        await state.clear()
-        await message.answer("↩️ Возврат.", reply_markup=kb_main())
-        return
-    try:
-        parts = message.text.split("-")
-        min_age = int(parts[0].strip())
-        max_age = int(parts[1].strip())
-        if 16 <= min_age <= max_age <= 99:
-            await update_user(uid, search_age_min=min_age, search_age_max=max_age)
-            await state.clear()
-            await message.answer(f"✅ Возраст поиска: {min_age}–{max_age}", reply_markup=kb_main())
-        else:
-            await message.answer("❗ Диапазон: 16–99, например: 18-25")
-    except:
-        await message.answer("❗ Формат: 18-25")
 
 # ====================== ПОМОЩЬ ======================
 @dp.message(F.text == "❓ Помощь", StateFilter("*"))
@@ -1779,7 +1831,6 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("Нет доступа", show_alert=True)
         return
     action = callback.data.split(":", 1)[1]
-
     if action == "stats":
         async with db_pool.acquire() as conn:
             total = await conn.fetchval("SELECT COUNT(*) FROM users")
@@ -1795,20 +1846,17 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
             f"📊 Статистика MatchMe:\n\n"
             f"👥 Всего пользователей: {total}\n"
             f"🟢 Активны за 24ч: {today}\n"
-            f"⭐ Premium пользователей: {premiums}\n"
-            f"💬 В чатах сейчас: {online_now} пар\n"
-            f"🤖 С ИИ сейчас: {len(ai_sessions)}\n"
+            f"⭐ Premium: {premiums}\n"
+            f"💬 В чатах: {online_now} пар\n"
+            f"🤖 С ИИ: {len(ai_sessions)}\n"
             f"🔍 В поиске: {in_search}\n"
             f"🚫 Заблокировано: {banned}\n"
-            f"🚩 Всего жалоб: {total_complaints}\n"
+            f"🚩 Жалоб всего: {total_complaints}\n"
             f"⏳ Не рассмотрено: {pending}"
         )
-
     elif action == "complaints":
         async with db_pool.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT * FROM complaints_log WHERE reviewed=FALSE ORDER BY created_at ASC LIMIT 5"
-            )
+            rows = await conn.fetch("SELECT * FROM complaints_log WHERE reviewed=FALSE ORDER BY created_at ASC LIMIT 5")
         if not rows:
             await callback.message.answer("✅ Нет жалоб на рассмотрении.")
         else:
@@ -1828,22 +1876,19 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
                     f"🕐 {r['created_at'].strftime('%d.%m %H:%M')}",
                     reply_markup=kb_complaint_action(r["id"], r["to_uid"], r["from_uid"], has_log, stop_words)
                 )
-
     elif action == "online":
         await callback.message.answer(
-            f"👥 Онлайн сейчас:\n\n"
+            f"👥 Онлайн:\n\n"
             f"💬 В чатах: {len(active_chats) // 2} пар\n"
             f"🤖 С ИИ: {len(ai_sessions)}\n"
-            f"⚡ Анонимный поиск: {len(waiting_anon)}\n"
-            f"💬 Общение: {len(waiting_simple)} + {len(waiting_simple_premium)}⭐\n"
-            f"💋 Флирт: {len(waiting_flirt)} + {len(waiting_flirt_premium)}⭐\n"
-            f"🔥 Kink: {len(waiting_kink)} + {len(waiting_kink_premium)}⭐"
+            f"⚡ Анонимный: {len(waiting_anon)}\n"
+            f"💬 Общение: {len(waiting_simple)}+{len(waiting_simple_premium)}⭐\n"
+            f"💋 Флирт: {len(waiting_flirt)}+{len(waiting_flirt_premium)}⭐\n"
+            f"🔥 Kink: {len(waiting_kink)}+{len(waiting_kink_premium)}⭐"
         )
-
     elif action == "find":
         await state.set_state(AdminState.waiting_user_id)
-        await callback.message.answer("🔍 Введи Telegram ID пользователя:")
-
+        await callback.message.answer("🔍 Введи Telegram ID:")
     elif action == "notify_update":
         await callback.message.answer(
             "Через сколько минут обновление?",
@@ -1887,7 +1932,7 @@ async def handle_update_notify(callback: types.CallbackQuery):
         await callback.answer("Нет доступа", show_alert=True)
         return
     minutes = int(callback.data.split(":")[1])
-    text = "🔧 Бот обновляется прямо сейчас. Чаты восстановятся автоматически!" if minutes == 0 else f"🔧 Через {minutes} мин. обновление. Чаты восстановятся автоматически!"
+    text = "🔧 Бот обновляется прямо сейчас. Чаты восстановятся автоматически!" if minutes == 0 else f"🔧 Через {minutes} мин. обновление. Чаты восстановятся!"
     notified = 0
     for uid, partner in list(active_chats.items()):
         if uid < partner:
@@ -1907,7 +1952,7 @@ async def handle_update_notify(callback: types.CallbackQuery):
             sent += 1
             await asyncio.sleep(0.05)
         except: pass
-    await callback.message.answer(f"✅ Уведомление отправлено {notified + sent} пользователям.")
+    await callback.message.answer(f"✅ Отправлено {notified + sent} пользователям.")
     await callback.answer()
 
 @dp.message(StateFilter(AdminState.waiting_user_id))
@@ -1941,7 +1986,6 @@ async def admin_find_user(message: types.Message, state: FSMContext):
         f"Возраст: {u.get('age','—')}\n"
         f"Пол: {g_map.get(u.get('gender',''), '—')}\n"
         f"Режим: {MODE_NAMES.get(u.get('mode',''), '—')}\n"
-        f"Интересы: {(u.get('interests','') or '').replace(',', ', ') or '—'}\n"
         f"⭐ Рейтинг: {get_rating(u)}\n"
         f"👍 Лайков: {u.get('likes',0)}\n"
         f"🚩 Жалоб: {u.get('complaints',0)}\n"
@@ -1964,17 +2008,14 @@ async def admin_complaint_action(callback: types.CallbackQuery):
 
     async def mark_reviewed(action_text):
         async with db_pool.acquire() as conn:
-            await conn.execute(
-                "UPDATE complaints_log SET reviewed=TRUE, admin_action=$1 WHERE id=$2",
-                action_text, complaint_id
-            )
+            await conn.execute("UPDATE complaints_log SET reviewed=TRUE, admin_action=$1 WHERE id=$2", action_text, complaint_id)
 
     if action == "ban3" and target_uid:
         until = datetime.now() + timedelta(hours=3)
         await update_user(target_uid, ban_until=until.isoformat())
         await mark_reviewed("Бан 3ч")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id}. Бан 3ч → {target_uid}")
+        await callback.message.answer(f"✅ Бан 3ч → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Заблокирован на 3 часа по жалобе.")
         except: pass
     elif action == "ban24" and target_uid:
@@ -1982,22 +2023,22 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await update_user(target_uid, ban_until=until.isoformat())
         await mark_reviewed("Бан 24ч")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id}. Бан 24ч → {target_uid}")
+        await callback.message.answer(f"✅ Бан 24ч → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Заблокирован на 24 часа по жалобе.")
         except: pass
     elif action == "banperm" and target_uid:
         await update_user(target_uid, ban_until="permanent")
         await mark_reviewed("Перм бан")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id}. Перм бан → {target_uid}")
+        await callback.message.answer(f"✅ Перм бан → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Ты заблокирован навсегда.")
         except: pass
     elif action == "warn" and target_uid:
         u = await get_user(target_uid)
         await update_user(target_uid, warn_count=u.get("warn_count", 0) + 1)
-        await mark_reviewed("Предупреждение нарушителю")
+        await mark_reviewed("Предупреждение")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id}. Предупреждение → {target_uid}")
+        await callback.message.answer(f"✅ Предупреждение → {target_uid}")
         try: await bot.send_message(target_uid, "⚠️ Предупреждение. Следующее нарушение — бан.")
         except: pass
     elif action == "warnrep" and target_uid:
@@ -2005,7 +2046,7 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await update_user(target_uid, warn_count=u.get("warn_count", 0) + 1)
         await mark_reviewed("Предупреждение жалобщику")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id}: ложная. Предупреждение → {target_uid}")
+        await callback.message.answer(f"✅ Ложная жалоба. Предупреждение → {target_uid}")
         try: await bot.send_message(target_uid, "⚠️ Жалоба признана необоснованной. Предупреждение.")
         except: pass
     elif action == "banrep" and target_uid:
@@ -2013,7 +2054,7 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await update_user(target_uid, ban_until=until.isoformat())
         await mark_reviewed("Бан жалобщику")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id}: ложная. Бан 24ч → {target_uid}")
+        await callback.message.answer(f"✅ Ложная жалоба. Бан 24ч → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Заблокирован на 24ч за злоупотребление жалобами.")
         except: pass
     elif action == "dismiss":
@@ -2030,7 +2071,6 @@ async def admin_user_action(callback: types.CallbackQuery):
     parts = callback.data.split(":")
     action = parts[1]
     target_uid = int(parts[2])
-
     if action == "ban3":
         until = datetime.now() + timedelta(hours=3)
         await update_user(target_uid, ban_until=until.isoformat())
@@ -2080,9 +2120,9 @@ async def admin_user_action(callback: types.CallbackQuery):
     elif action == "premium":
         until = datetime.now() + timedelta(days=30)
         await update_user(target_uid, premium_until=until.isoformat())
-        await callback.answer("✅ Premium 30д выдан")
+        await callback.answer("✅ Premium 30д")
         await callback.message.answer(f"⭐ {target_uid} — Premium 30 дней")
-        try: await bot.send_message(target_uid, f"⭐ Тебе выдан Premium на 30 дней! Наслаждайся всеми функциями.", reply_markup=kb_main())
+        try: await bot.send_message(target_uid, "⭐ Тебе выдан Premium на 30 дней!", reply_markup=kb_main())
         except: pass
     elif action == "unpremium":
         await update_user(target_uid, premium_until=None)
@@ -2117,9 +2157,8 @@ async def main():
     await init_db()
     await set_commands()
     asyncio.create_task(inactivity_checker())
-    print("🚀 MatchMe с Premium запущен!")
+    print("🚀 MatchMe запущен!")
     await dp.start_polling(bot)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
