@@ -180,9 +180,6 @@ class AIChat(StatesGroup):
     choosing = State()
     chatting = State()
 
-class Privacy(StatesGroup):
-    waiting = State()
-
 # ====================== БД ======================
 async def init_db():
     global db_pool
@@ -609,7 +606,7 @@ def kb_ai_characters(premium=False, mode="simple"):
             InlineKeyboardButton(text="👨 Данил", callback_data="aichar:danil"),
             InlineKeyboardButton(text="👩 Полина", callback_data="aichar:polina")
         ])
-    if mode in ["flirt", "any", "simple"]:
+    if mode in ["flirt", "any"]:
         row = [InlineKeyboardButton(text="😏 Макс", callback_data="aichar:max")]
         if premium:
             row.append(InlineKeyboardButton(text="💋 Виолетта", callback_data="aichar:violetta"))
@@ -859,7 +856,7 @@ async def do_find(uid, state):
                 pkey = StorageKey(bot_id=bot.id, chat_id=pid, user_id=pid)
                 p_fsm = FSMContext(dp.storage, key=pkey)
                 p_state_str = await p_fsm.get_state()
-                if p_state_str != Chat.waiting.state: continue
+                if p_state_str != str(Chat.waiting): continue
                 pu = await get_user(pid)
                 if not pu: continue
                 if search_gender != "any" and pu.get("gender") != search_gender: continue
@@ -991,18 +988,24 @@ async def end_chat(uid, state, go_next=False):
             await do_find(uid, state)
 
 async def _send_ad_delayed(uid, partner):
-    await asyncio.sleep(2)
-    if not await is_premium(uid):
+    await asyncio.sleep(3)
+    # Не отправляем рекламу если уже в новом чате
+    if uid not in active_chats and not await is_premium(uid):
         await send_ad_message(uid)
-    if not await is_premium(partner):
+    if partner not in active_chats and not await is_premium(partner):
         await send_ad_message(partner)
-
 # ====================== MUTUAL MATCH ======================
 @dp.callback_query(F.data.startswith("mutual:"), StateFilter("*"))
 async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
     partner_uid = int(callback.data.split(":", 1)[1])
-
+        # Проверяем что партнёр не в активном чате с кем-то другим
+    if partner_uid in active_chats and active_chats.get(partner_uid) != uid:
+        await callback.answer("😔 Собеседник уже общается с кем-то другим.", show_alert=True)
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except: pass
+        return
     # Убираем кнопки чтобы не нажали дважды
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
@@ -1065,9 +1068,13 @@ async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data == "mutual:decline", StateFilter("*"))
 async def mutual_decline(callback: types.CallbackQuery):
+    uid = callback.from_user.id
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
     except: pass
+    # Очищаем все взаимные лайки с этим пользователем
+    for key in list(mutual_likes.keys()):
+        mutual_likes[key].discard(uid)
     await callback.answer("Окей, не проблема!")
 
 async def _mutual_timeout(uid, partner_uid):
