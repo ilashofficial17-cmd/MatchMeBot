@@ -60,6 +60,9 @@ class EditProfile(StatesGroup):
 class AdminState(StatesGroup):
     waiting_user_id = State()
 
+class ResetProfile(StatesGroup):
+    confirm = State()
+
 # ====================== БД ======================
 async def init_db():
     global db_pool
@@ -91,7 +94,6 @@ async def init_db():
                 last_seen TIMESTAMP DEFAULT NOW()
             )
         """)
-        # Добавляем колонки если их нет (для старых баз)
         for col, definition in [
             ("last_seen", "TIMESTAMP DEFAULT NOW()"),
             ("warn_count", "INTEGER DEFAULT 0"),
@@ -119,6 +121,33 @@ async def init_db():
             await conn.execute("ALTER TABLE complaints_log ADD COLUMN IF NOT EXISTS admin_action TEXT DEFAULT NULL")
         except: pass
 
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS active_chats_db (
+                uid1 BIGINT PRIMARY KEY,
+                uid2 BIGINT,
+                chat_type TEXT DEFAULT 'profile',
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+
+    await restore_chats()
+
+async def restore_chats():
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("SELECT uid1, uid2 FROM active_chats_db")
+    restored = 0
+    for r in rows:
+        uid1, uid2 = r["uid1"], r["uid2"]
+        active_chats[uid1] = uid2
+        active_chats[uid2] = uid1
+        restored += 1
+        try:
+            await bot.send_message(uid1, "🔄 Бот обновлён. Твой чат восстановлен!", reply_markup=kb_chat())
+            await bot.send_message(uid2, "🔄 Бот обновлён. Твой чат восстановлен!", reply_markup=kb_chat())
+        except: pass
+    if restored:
+        print(f"✅ Восстановлено {restored} чатов")
+
 async def get_user(uid):
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM users WHERE uid=$1", uid)
@@ -126,14 +155,10 @@ async def get_user(uid):
 
 async def ensure_user(uid):
     async with db_pool.acquire() as conn:
-        await conn.execute(
-            "INSERT INTO users (uid) VALUES ($1) ON CONFLICT DO NOTHING", uid
-        )
+        await conn.execute("INSERT INTO users (uid) VALUES ($1) ON CONFLICT DO NOTHING", uid)
 
 async def update_user(uid, **kwargs):
-    if not kwargs:
-        return
-    # Не добавляем last_seen автоматически чтобы не было конфликтов
+    if not kwargs: return
     sets = ", ".join(f"{k}=${i+2}" for i, k in enumerate(kwargs))
     vals = list(kwargs.values())
     async with db_pool.acquire() as conn:
@@ -141,14 +166,11 @@ async def update_user(uid, **kwargs):
 
 async def is_banned(uid):
     u = await get_user(uid)
-    if not u or not u.get("ban_until"):
-        return False, None
-    if u["ban_until"] == "permanent":
-        return True, "permanent"
+    if not u or not u.get("ban_until"): return False, None
+    if u["ban_until"] == "permanent": return True, "permanent"
     try:
         ban_until = datetime.fromisoformat(u["ban_until"])
-        if datetime.now() < ban_until:
-            return True, ban_until
+        if datetime.now() < ban_until: return True, ban_until
         await update_user(uid, ban_until=None)
     except: pass
     return False, None
@@ -169,6 +191,28 @@ async def apply_ban(uid):
         return "3 часа"
     return None
 
+async def save_chat_to_db(uid1, uid2, chat_type="profile"):
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO active_chats_db (uid1, uid2, chat_type) VALUES ($1,$2,$3) ON CONFLICT (uid1) DO UPDATE SET uid2=$2",
+                uid1, uid2, chat_type
+            )
+            await conn.execute(
+                "INSERT INTO active_chats_db (uid1, uid2, chat_type) VALUES ($1,$2,$3) ON CONFLICT (uid1) DO UPDATE SET uid2=$2",
+                uid2, uid1, chat_type
+            )
+    except: pass
+
+async def remove_chat_from_db(uid1, uid2=None):
+    try:
+        async with db_pool.acquire() as conn:
+            if uid2:
+                await conn.execute("DELETE FROM active_chats_db WHERE uid1=$1 OR uid1=$2", uid1, uid2)
+            else:
+                await conn.execute("DELETE FROM active_chats_db WHERE uid1=$1", uid1)
+    except: pass
+
 # ====================== ТЕКСТЫ ======================
 WELCOME_TEXT = (
     "👋 Привет! Я MatchMe — анонимный чат для общения, флирта и знакомств.\n\n"
@@ -181,7 +225,7 @@ RULES_RU = """📜 Правила MatchMe:
 ✅ Разрешено:
 • Общение, флирт, ролевые игры (18+)
 • Уважительное общение
-• Лайки и дизлайки собеседникам
+• Лайки собеседникам
 • Жалобы при реальных нарушениях
 
 ❌ Запрещено:
@@ -189,7 +233,6 @@ RULES_RU = """📜 Правила MatchMe:
 • Контент с несовершеннолетними — бан навсегда
 • Угрозы, оскорбления, травля
 • Необоснованные жалобы — бан за злоупотребление
-• Намеренные дизлайки без причины
 
 ⚠️ Система модерации:
 • 1-я жалоба: бан 3 часа
@@ -201,12 +244,11 @@ RULES_RU = """📜 Правила MatchMe:
 
 Нажми ✅ Принять правила для продолжения."""
 
-RULES_PROFILE = """📜 Правила общения в чате:
+RULES_PROFILE = """📜 Правила общения:
 
 • Уважай собеседника
-• Лайк 👍 — если понравилось общение
-• Дизлайк влияет на рейтинг собеседника
-• Жалоба 🚩 — только при реальных нарушениях
+• 👍 Лайк — если понравилось общение
+• 🚩 Жалоба — только при реальных нарушениях
 • Ложная жалоба = санкции против тебя
 • Администратор проверяет каждую жалобу вручную
 
@@ -219,9 +261,7 @@ INTERESTS_MAP = {
     "kink":   ["BDSM 🖤", "Bondage 🔗", "Roleplay 🎭", "Dom/Sub ⛓", "Pet play 🐾", "Другой фетиш ✨"],
 }
 
-# ====================== ДИНАМИЧЕСКИЕ КЛАВИАТУРЫ ======================
-
-# Главное меню
+# ====================== КЛАВИАТУРЫ ======================
 def kb_main():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="⚡ Анонимный поиск")],
@@ -231,13 +271,11 @@ def kb_main():
         [KeyboardButton(text="❓ Помощь")]
     ], resize_keyboard=True)
 
-# Только выбор языка
 def kb_lang():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇬🇧 English")]
     ], resize_keyboard=True)
 
-# Только принятие правил
 def kb_rules():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="✅ Принять правила")]
@@ -248,13 +286,11 @@ def kb_rules_profile():
         [KeyboardButton(text="✅ Понятно, начать анкету")]
     ], resize_keyboard=True)
 
-# Только отмена — во время анкеты
 def kb_cancel_reg():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="❌ Отменить анкету")]
     ], resize_keyboard=True)
 
-# Выбор пола
 def kb_gender():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="👨 Парень"), KeyboardButton(text="👩 Девушка")],
@@ -262,7 +298,6 @@ def kb_gender():
         [KeyboardButton(text="❌ Отменить анкету")]
     ], resize_keyboard=True)
 
-# Выбор режима
 def kb_mode():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="💬 Просто общение")],
@@ -271,13 +306,11 @@ def kb_mode():
         [KeyboardButton(text="❌ Отменить анкету")]
     ], resize_keyboard=True)
 
-# Только отмена поиска
 def kb_cancel_search():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="❌ Отменить поиск")]
     ], resize_keyboard=True)
 
-# Кнопки в чате
 def kb_chat():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="⏭ Следующий"), KeyboardButton(text="❌ Стоп")],
@@ -285,7 +318,6 @@ def kb_chat():
         [KeyboardButton(text="🏠 Главное меню")]
     ], resize_keyboard=True)
 
-# Фильтр по полу в настройках
 def kb_search_gender():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="👨 Парня"), KeyboardButton(text="👩 Девушку")],
@@ -293,7 +325,6 @@ def kb_search_gender():
         [KeyboardButton(text="◀️ Назад")]
     ], resize_keyboard=True)
 
-# Инлайн кнопки интересов
 def kb_interests(mode, selected):
     interests = INTERESTS_MAP.get(mode, [])
     buttons = []
@@ -306,7 +337,6 @@ def kb_interests(mode, selected):
     buttons.append([InlineKeyboardButton(text="✅ Готово — сохранить", callback_data="int:done")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-# Жалоба
 def kb_complaint():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔞 Несовершеннолетние", callback_data="rep:minor")],
@@ -316,11 +346,9 @@ def kb_complaint():
         [InlineKeyboardButton(text="◀️ Отмена", callback_data="rep:cancel")],
     ])
 
-# Настройки
 async def kb_settings(uid):
     u = await get_user(uid)
-    if not u:
-        return InlineKeyboardMarkup(inline_keyboard=[])
+    if not u: return InlineKeyboardMarkup(inline_keyboard=[])
     sg_map = {"any": "🔀 Все", "male": "👨 Парни", "female": "👩 Девушки", "other": "⚧ Другое"}
     sg = sg_map.get(u.get("search_gender", "any"), "🔀 Все")
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -342,7 +370,6 @@ async def kb_settings(uid):
             callback_data="set:age")],
     ])
 
-# Редактирование профиля
 def kb_edit():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✏️ Имя", callback_data="edit:name"),
@@ -352,16 +379,15 @@ def kb_edit():
         [InlineKeyboardButton(text="🎯 Интересы", callback_data="edit:interests")],
     ])
 
-# Админ главное меню
 def kb_admin_main():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats")],
         [InlineKeyboardButton(text="🚩 Жалобы на рассмотрение", callback_data="admin:complaints")],
         [InlineKeyboardButton(text="👥 Онлайн", callback_data="admin:online")],
         [InlineKeyboardButton(text="🔍 Найти пользователя по ID", callback_data="admin:find")],
+        [InlineKeyboardButton(text="🔧 Уведомить об обновлении", callback_data="admin:notify_update")],
     ])
 
-# Действия с жалобой
 def kb_complaint_action(complaint_id, accused_uid, reporter_uid):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚫 Бан 3ч нарушителю", callback_data=f"cadm:ban3:{complaint_id}:{accused_uid}")],
@@ -373,7 +399,6 @@ def kb_complaint_action(complaint_id, accused_uid, reporter_uid):
         [InlineKeyboardButton(text="✅ Отклонить жалобу", callback_data=f"cadm:dismiss:{complaint_id}:0")],
     ])
 
-# Действия с пользователем (поиск по ID)
 def kb_user_actions(target_uid):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚫 Бан 3ч", callback_data=f"uadm:ban3:{target_uid}"),
@@ -398,9 +423,14 @@ async def cleanup(uid, state=None):
     for q in [waiting_anon, waiting_simple, waiting_flirt, waiting_kink]:
         if uid in q: q.remove(uid)
     partner = active_chats.pop(uid, None)
-    if partner: active_chats.pop(partner, None)
+    if partner:
+        active_chats.pop(partner, None)
+        await remove_chat_from_db(uid, partner)
     if state: await state.clear()
     return partner
+
+async def unavailable(message: types.Message, reason="сначала заверши текущее действие"):
+    await message.answer(f"⚠️ Сейчас недоступно — {reason}.")
 
 async def set_commands():
     await bot.set_my_commands([
@@ -410,18 +440,14 @@ async def set_commands():
         BotCommand(command="next", description="Следующий собеседник"),
         BotCommand(command="profile", description="Мой профиль"),
         BotCommand(command="settings", description="Настройки"),
+        BotCommand(command="reset", description="Сбросить профиль полностью"),
         BotCommand(command="help", description="Помощь"),
         BotCommand(command="admin", description="Админ панель"),
     ])
 
-# Сообщение "недоступно" — для команд в неподходящий момент
-async def unavailable(message: types.Message, reason="сначала заверши текущее действие"):
-    await message.answer(f"⚠️ Сейчас недоступно — {reason}.")
-
 async def do_find(uid, state):
     u = await get_user(uid)
-    if not u or not u.get("name") or not u.get("mode"):
-        return False
+    if not u or not u.get("name") or not u.get("mode"): return False
 
     mode = u["mode"]
     my_interests = set(u.get("interests", "").split(",")) if u.get("interests") else set()
@@ -467,6 +493,7 @@ async def do_find(uid, state):
         await state.set_state(Chat.chatting)
         pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
         await FSMContext(dp.storage, key=pkey).set_state(Chat.chatting)
+        await save_chat_to_db(uid, partner, "profile")
 
         pu = await get_user(partner)
         g_map = {"male": "Парень 👨", "female": "Девушка 👩", "other": "Другое ⚧"}
@@ -476,7 +503,7 @@ async def do_find(uid, state):
             f"Возраст: {pu.get('age','?')}\n"
             f"Пол: {g_map.get(pu.get('gender',''),'?')}\n"
             f"Режим: {MODE_NAMES.get(pu.get('mode',''),'—')}\n"
-            f"Интересы: {pu.get('interests','—').replace(',', ', ')}\n"
+            f"Интересы: {(pu.get('interests','') or '').replace(',', ', ') or '—'}\n"
             f"⭐ Рейтинг: {get_rating(pu)}"
         )
         my_text = (
@@ -485,7 +512,7 @@ async def do_find(uid, state):
             f"Возраст: {u.get('age','?')}\n"
             f"Пол: {g_map.get(u.get('gender',''),'?')}\n"
             f"Режим: {MODE_NAMES.get(u.get('mode',''),'—')}\n"
-            f"Интересы: {u.get('interests','—').replace(',', ', ')}\n"
+            f"Интересы: {(u.get('interests','') or '').replace(',', ', ') or '—'}\n"
             f"⭐ Рейтинг: {get_rating(u)}"
         )
         await bot.send_message(uid, p_text)
@@ -495,8 +522,7 @@ async def do_find(uid, state):
         return True
     else:
         q = get_queue(mode)
-        if uid not in q:
-            q.append(uid)
+        if uid not in q: q.append(uid)
         await state.set_state(Chat.waiting)
         asyncio.create_task(notify_no_partner(uid))
         return False
@@ -514,7 +540,9 @@ async def notify_no_partner(uid):
 
 async def end_chat(uid, state, go_next=False):
     partner = active_chats.pop(uid, None)
-    if partner: active_chats.pop(partner, None)
+    if partner:
+        active_chats.pop(partner, None)
+        await remove_chat_from_db(uid, partner)
     for q in [waiting_anon, waiting_simple, waiting_flirt, waiting_kink]:
         if uid in q: q.remove(uid)
     await state.clear()
@@ -543,7 +571,6 @@ async def cmd_start(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     await cleanup(uid, state)
     await ensure_user(uid)
-
     banned, until = await is_banned(uid)
     if banned:
         if until == "permanent":
@@ -551,7 +578,6 @@ async def cmd_start(message: types.Message, state: FSMContext):
         else:
             await message.answer(f"🚫 Ты заблокирован до {until.strftime('%H:%M %d.%m.%Y')}")
         return
-
     u = await get_user(uid)
     if not u or not u.get("accepted_rules"):
         await state.set_state(Rules.waiting)
@@ -575,25 +601,80 @@ async def accept_rules(message: types.Message, state: FSMContext):
     await message.answer("✅ Правила приняты! Добро пожаловать в MatchMe!", reply_markup=kb_main())
 
 @dp.message(StateFilter(Rules.waiting))
-async def rules_waiting_other(message: types.Message, state: FSMContext):
+async def rules_other(message: types.Message):
     await message.answer("👆 Выбери язык чтобы продолжить.")
+
+# ====================== СБРОС ПРОФИЛЯ ======================
+@dp.message(Command("reset"), StateFilter("*"))
+async def cmd_reset(message: types.Message, state: FSMContext):
+    uid = message.from_user.id
+    current = await state.get_state()
+    if current == str(Chat.chatting):
+        await unavailable(message, "сначала выйди из чата")
+        return
+    await state.set_state(ResetProfile.confirm)
+    await message.answer(
+        "⚠️ Полный сброс профиля!\n\n"
+        "Будут удалены:\n"
+        "• Имя, возраст, пол\n"
+        "• Режим и интересы\n"
+        "• Настройки поиска\n"
+        "• Рейтинг и лайки\n\n"
+        "❗ Бан и предупреждения сохранятся.\n\n"
+        "Ты уверен?",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да, сбросить всё", callback_data="reset:confirm")],
+            [InlineKeyboardButton(text="❌ Нет, отмена", callback_data="reset:cancel")],
+        ])
+    )
+
+@dp.callback_query(F.data == "reset:confirm", StateFilter(ResetProfile.confirm))
+async def reset_confirm(callback: types.CallbackQuery, state: FSMContext):
+    uid = callback.from_user.id
+    await cleanup(uid, state)
+    async with db_pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE users SET
+                name=NULL, age=NULL, gender=NULL, mode=NULL,
+                interests='', likes=0, dislikes=0,
+                accept_simple=TRUE, accept_flirt=TRUE, accept_kink=FALSE,
+                only_own_mode=FALSE, search_gender='any',
+                search_age_min=16, search_age_max=99
+            WHERE uid=$1
+        """, uid)
+    await callback.message.edit_text("✅ Профиль полностью сброшен!")
+    await callback.message.answer(
+        "👋 Добро пожаловать снова!\nНажми '🔍 Поиск по анкете' чтобы заполнить анкету заново.",
+        reply_markup=kb_main()
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "reset:cancel", StateFilter(ResetProfile.confirm))
+async def reset_cancel(callback: types.CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_text("❌ Сброс отменён.")
+    await callback.message.answer("Возврат в меню.", reply_markup=kb_main())
+    await callback.answer()
 
 # ====================== АНОНИМНЫЙ ПОИСК ======================
 @dp.message(F.text == "⚡ Анонимный поиск", StateFilter("*"))
 async def anon_search(message: types.Message, state: FSMContext):
     uid = message.from_user.id
-    current_state = await state.get_state()
-
-    if current_state in [Reg.name, Reg.age, Reg.gender, Reg.mode, Reg.interests]:
+    current = await state.get_state()
+    if current in [str(Reg.name), str(Reg.age), str(Reg.gender), str(Reg.mode), str(Reg.interests)]:
         await unavailable(message, "сначала заверши заполнение анкеты")
         return
-
+    if current == str(Chat.chatting):
+        await unavailable(message, "ты уже в чате")
+        return
     await cleanup(uid, state)
     banned, until = await is_banned(uid)
     if banned:
-        await message.answer("🚫 Ты заблокирован.")
+        if until == "permanent":
+            await message.answer("🚫 Ты заблокирован навсегда.")
+        else:
+            await message.answer(f"🚫 Ты заблокирован до {until.strftime('%H:%M %d.%m.%Y')}")
         return
-
     await ensure_user(uid)
     await message.answer("⚡ Ищем анонимного собеседника...", reply_markup=kb_cancel_search())
 
@@ -603,7 +684,6 @@ async def anon_search(message: types.Message, state: FSMContext):
             if pid != uid:
                 partner = waiting_anon.pop(i)
                 break
-
         if partner:
             active_chats[uid] = partner
             active_chats[partner] = uid
@@ -611,6 +691,7 @@ async def anon_search(message: types.Message, state: FSMContext):
             await state.set_state(Chat.chatting)
             pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
             await FSMContext(dp.storage, key=pkey).set_state(Chat.chatting)
+            await save_chat_to_db(uid, partner, "anon")
             await bot.send_message(uid, "👤 Соединено с анонимным собеседником! Удачи! 🎉", reply_markup=kb_chat())
             await bot.send_message(partner, "👤 Соединено с анонимным собеседником! Удачи! 🎉", reply_markup=kb_chat())
         else:
@@ -622,18 +703,15 @@ async def anon_search(message: types.Message, state: FSMContext):
 @dp.message(Command("find"), StateFilter("*"))
 async def cmd_find(message: types.Message, state: FSMContext):
     uid = message.from_user.id
-    current_state = await state.get_state()
-
-    if current_state in [Reg.name, Reg.age, Reg.gender, Reg.mode, Reg.interests]:
+    current = await state.get_state()
+    if current in [str(Reg.name), str(Reg.age), str(Reg.gender), str(Reg.mode), str(Reg.interests)]:
         await unavailable(message, "сначала заверши заполнение анкеты")
         return
-    if current_state == Chat.chatting:
-        await unavailable(message, "ты уже в чате — нажми ❌ Стоп чтобы выйти")
+    if current == str(Chat.chatting):
+        await unavailable(message, "ты уже в чате — нажми ❌ Стоп")
         return
-
     await cleanup(uid, state)
     await ensure_user(uid)
-
     banned, until = await is_banned(uid)
     if banned:
         if until == "permanent":
@@ -641,15 +719,11 @@ async def cmd_find(message: types.Message, state: FSMContext):
         else:
             await message.answer(f"🚫 Ты заблокирован до {until.strftime('%H:%M %d.%m.%Y')}")
         return
-
     u = await get_user(uid)
     if not u or not u.get("name") or not u.get("mode"):
-        # Показываем правила анкеты перед началом
         await state.set_state(Reg.name)
-        await state.update_data(show_profile_rules=True)
         await message.answer(RULES_PROFILE, reply_markup=kb_rules_profile())
         return
-
     mode = u["mode"]
     online = len(get_queue(mode))
     await message.answer(
@@ -658,27 +732,23 @@ async def cmd_find(message: types.Message, state: FSMContext):
     )
     await do_find(uid, state)
 
-# ====================== ПРАВИЛА ПРОФИЛЯ ======================
+# ====================== РЕГИСТРАЦИЯ ======================
 @dp.message(F.text == "✅ Понятно, начать анкету", StateFilter(Reg.name))
-async def start_reg_after_rules(message: types.Message, state: FSMContext):
+async def start_reg(message: types.Message, state: FSMContext):
     await message.answer("📝 Как тебя зовут?", reply_markup=kb_cancel_reg())
 
-# ====================== РЕГИСТРАЦИЯ ======================
 @dp.message(F.text == "❌ Отменить анкету", StateFilter("*"))
 async def cancel_reg(message: types.Message, state: FSMContext):
-    current = await state.get_state()
-    if current in [str(Reg.name), str(Reg.age), str(Reg.gender), str(Reg.mode), str(Reg.interests)]:
-        await state.clear()
-        await message.answer("❌ Анкета отменена.", reply_markup=kb_main())
-    else:
-        await state.clear()
-        await message.answer("↩️ Возврат в меню.", reply_markup=kb_main())
+    await state.clear()
+    await message.answer("❌ Анкета отменена.", reply_markup=kb_main())
+
+BLOCKED_TEXTS = ["⚡ Анонимный поиск", "🔍 Поиск по анкете", "👤 Мой профиль", "⚙️ Настройки", "❓ Помощь"]
 
 @dp.message(StateFilter(Reg.name))
 async def reg_name(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     txt = message.text or ""
-    if txt.startswith("/") or txt in ["⚡ Анонимный поиск", "🔍 Поиск по анкете", "👤 Мой профиль", "⚙️ Настройки", "❓ Помощь"]:
+    if txt.startswith("/") or txt in BLOCKED_TEXTS:
         await unavailable(message, "сначала введи имя")
         return
     if txt == "✅ Понятно, начать анкету":
@@ -693,7 +763,7 @@ async def reg_name(message: types.Message, state: FSMContext):
 async def reg_age(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     txt = message.text or ""
-    if txt.startswith("/") or txt in ["⚡ Анонимный поиск", "🔍 Поиск по анкете", "👤 Мой профиль", "⚙️ Настройки", "❓ Помощь"]:
+    if txt.startswith("/") or txt in BLOCKED_TEXTS:
         await unavailable(message, "сначала введи возраст")
         return
     if not txt.isdigit():
@@ -714,7 +784,7 @@ async def reg_age(message: types.Message, state: FSMContext):
 async def reg_gender(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     txt = message.text or ""
-    if txt.startswith("/") or txt in ["⚡ Анонимный поиск", "🔍 Поиск по анкете", "👤 Мой профиль", "⚙️ Настройки", "❓ Помощь"]:
+    if txt.startswith("/") or txt in BLOCKED_TEXTS:
         await unavailable(message, "сначала выбери пол")
         return
     if "Парень" in txt: gender = "male"
@@ -730,20 +800,21 @@ async def reg_gender(message: types.Message, state: FSMContext):
 @dp.message(StateFilter(Reg.mode))
 async def reg_mode(message: types.Message, state: FSMContext):
     uid = message.from_user.id
-    txt = (message.text or "").lower()
-    if message.text and (message.text.startswith("/") or message.text in ["⚡ Анонимный поиск", "🔍 Поиск по анкете", "👤 Мой профиль", "⚙️ Настройки", "❓ Помощь"]):
+    txt = message.text or ""
+    if txt.startswith("/") or txt in BLOCKED_TEXTS:
         await unavailable(message, "сначала выбери режим")
         return
-    if "общение" in txt: mode = "simple"
-    elif "флирт" in txt: mode = "flirt"
-    elif "kink" in txt or "ролевые" in txt: mode = "kink"
+    txt_lower = txt.lower()
+    if "общение" in txt_lower: mode = "simple"
+    elif "флирт" in txt_lower: mode = "flirt"
+    elif "kink" in txt_lower or "ролевые" in txt_lower: mode = "kink"
     else:
         await message.answer("Выбери режим из кнопок 👇", reply_markup=kb_mode())
         return
     await update_user(uid, mode=mode)
     await state.update_data(temp_interests=[], reg_mode=mode)
     await state.set_state(Reg.interests)
-    await message.answer("🎯 Выбери 1–3 интереса (нажимай кнопки):", reply_markup=ReplyKeyboardRemove())
+    await message.answer("🎯 Выбери 1–3 интереса:", reply_markup=ReplyKeyboardRemove())
     await message.answer("👇", reply_markup=kb_interests(mode, []))
 
 @dp.callback_query(F.data.startswith("int:"), StateFilter(Reg.interests))
@@ -753,7 +824,6 @@ async def reg_interest(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     sel = data.get("temp_interests", [])
     mode = data.get("reg_mode", "simple")
-
     if val == "done":
         if not sel:
             await callback.answer("Выбери хотя бы один!", show_alert=True)
@@ -771,7 +841,6 @@ async def reg_interest(callback: types.CallbackQuery, state: FSMContext):
         )
         await do_find(uid, state)
         return
-
     if val in sel:
         sel.remove(val)
         await callback.answer(f"Убрано: {val}")
@@ -789,11 +858,10 @@ async def reg_interest(callback: types.CallbackQuery, state: FSMContext):
 async def relay(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     txt = message.text or ""
-
     if "⏭" in txt or txt == "⏭ Следующий":
         await end_chat(uid, state, go_next=True)
         return
-    if txt in ["❌ Стоп", "Стоп"]:
+    if txt == "❌ Стоп":
         await end_chat(uid, state, go_next=False)
         return
     if "🚩" in txt or txt == "🚩 Жалоба":
@@ -806,7 +874,7 @@ async def relay(message: types.Message, state: FSMContext):
             pu = await get_user(partner)
             await update_user(partner, likes=pu.get("likes", 0) + 1)
             await message.answer("👍 Лайк отправлен!")
-            try: await bot.send_message(partner, "👍 Собеседник поставил тебе лайк! Твой рейтинг растёт ⭐")
+            try: await bot.send_message(partner, "👍 Собеседник поставил тебе лайк! ⭐")
             except: pass
         return
     if "🏠" in txt or txt == "🏠 Главное меню":
@@ -815,12 +883,10 @@ async def relay(message: types.Message, state: FSMContext):
     if txt.startswith("/start"):
         await end_chat(uid, state, go_next=False)
         return
-
     if uid not in active_chats:
         await state.clear()
         await message.answer("Ты не в чате.", reply_markup=kb_main())
         return
-
     partner = active_chats[uid]
     now = datetime.now()
     msg_count.setdefault(uid, [])
@@ -830,7 +896,6 @@ async def relay(message: types.Message, state: FSMContext):
         return
     msg_count[uid].append(now)
     last_msg_time[uid] = last_msg_time[partner] = now
-
     try:
         if message.text: await bot.send_message(partner, message.text)
         elif message.sticker: await bot.send_sticker(partner, message.sticker.file_id)
@@ -845,7 +910,6 @@ async def relay(message: types.Message, state: FSMContext):
 # ====================== ЖАЛОБА ======================
 @dp.callback_query(F.data == "rep:cancel", StateFilter(Complaint.reason))
 async def complaint_cancel(callback: types.CallbackQuery, state: FSMContext):
-    uid = callback.from_user.id
     await state.set_state(Chat.chatting)
     await callback.message.edit_text("↩️ Жалоба отменена.")
     await callback.answer()
@@ -860,14 +924,11 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
         "other": "Другое"
     }
     reason = reason_map.get(callback.data.split(":", 1)[1], "Другое")
-
     partner = active_chats.get(uid)
     if not partner:
         await callback.message.edit_text("Ты не в чате.")
         await state.clear()
         return
-
-    # Сохраняем жалобу
     async with db_pool.acquire() as conn:
         complaint_id = await conn.fetchval(
             "INSERT INTO complaints_log (from_uid, to_uid, reason) VALUES ($1,$2,$3) RETURNING id",
@@ -875,21 +936,19 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
         )
         pu = await get_user(partner)
         await update_user(partner, complaints=pu.get("complaints", 0) + 1)
-
-    # Завершаем чат
     active_chats.pop(uid, None)
     active_chats.pop(partner, None)
+    await remove_chat_from_db(uid, partner)
     await state.clear()
-
-    await callback.message.edit_text(f"🚩 Жалоба отправлена на проверку.\nПричина: {reason}\n\nАдминистратор рассмотрит её вручную.")
+    await callback.message.edit_text(
+        f"🚩 Жалоба #{complaint_id} отправлена.\nПричина: {reason}\n\nАдминистратор рассмотрит её вручную."
+    )
     await bot.send_message(uid, "Чат завершён.", reply_markup=kb_main())
     try:
         await bot.send_message(partner, "⚠️ На тебя подана жалоба. Администратор рассматривает её.", reply_markup=kb_main())
         pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
         await FSMContext(dp.storage, key=pkey).clear()
     except: pass
-
-    # Уведомляем админа
     pu = await get_user(partner)
     ru = await get_user(uid)
     g_map = {"male": "Парень", "female": "Девушка", "other": "Другое"}
@@ -898,10 +957,10 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
             ADMIN_ID,
             f"🚩 Новая жалоба #{complaint_id}!\n\n"
             f"👤 Жалобщик: {uid}\n"
-            f"Имя: {ru.get('name','?')} | Возраст: {ru.get('age','?')} | {g_map.get(ru.get('gender',''),'?')}\n\n"
+            f"Имя: {ru.get('name','?') if ru else '?'} | Возраст: {ru.get('age','?') if ru else '?'} | {g_map.get(ru.get('gender',''),'?') if ru else '?'}\n\n"
             f"👤 Обвиняемый: {partner}\n"
-            f"Имя: {pu.get('name','?')} | Возраст: {pu.get('age','?')} | {g_map.get(pu.get('gender',''),'?')}\n"
-            f"Жалоб всего: {pu.get('complaints', 0)}\n\n"
+            f"Имя: {pu.get('name','?') if pu else '?'} | Возраст: {pu.get('age','?') if pu else '?'} | {g_map.get(pu.get('gender',''),'?') if pu else '?'}\n"
+            f"Жалоб на нём: {pu.get('complaints', 0) if pu else '?'}\n\n"
             f"📋 Причина: {reason}\n"
             f"🕐 {datetime.now().strftime('%d.%m.%Y %H:%M')}",
             reply_markup=kb_complaint_action(complaint_id, partner, uid)
@@ -943,7 +1002,7 @@ async def show_profile(message: types.Message, state: FSMContext):
         await unavailable(message, "сначала заверши заполнение анкеты")
         return
     if current == str(Chat.chatting):
-        await unavailable(message, "ты в чате — нажми ❌ Стоп чтобы выйти")
+        await unavailable(message, "ты в чате — нажми ❌ Стоп")
         return
     await ensure_user(uid)
     u = await get_user(uid)
@@ -957,7 +1016,7 @@ async def show_profile(message: types.Message, state: FSMContext):
         f"Возраст: {u.get('age', '—')}\n"
         f"Пол: {g_map.get(u.get('gender',''), '—')}\n"
         f"Режим: {MODE_NAMES.get(u.get('mode',''), '—')}\n"
-        f"Интересы: {u.get('interests','—').replace(',', ', ')}\n"
+        f"Интересы: {(u.get('interests','') or '').replace(',', ', ') or '—'}\n"
         f"⭐ Рейтинг: {get_rating(u)}\n"
         f"👍 Лайков: {u.get('likes',0)}\n"
         f"⚠️ Предупреждений: {u.get('warn_count',0)}",
@@ -1050,7 +1109,6 @@ async def edit_interest(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     sel = data.get("temp_interests", [])
     mode = data.get("edit_mode", "simple")
-
     if val == "done":
         if not sel:
             await callback.answer("Выбери хотя бы один!", show_alert=True)
@@ -1061,7 +1119,6 @@ async def edit_interest(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer("Готово!", reply_markup=kb_main())
         await callback.answer()
         return
-
     if val in sel:
         sel.remove(val)
         await callback.answer(f"Убрано: {val}")
@@ -1094,7 +1151,6 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
     key = callback.data.split(":", 1)[1]
     u = await get_user(uid)
-
     if key == "gender":
         await state.set_state(EditProfile.search_gender)
         await callback.message.answer("👤 Кого хочешь искать?", reply_markup=kb_search_gender())
@@ -1113,7 +1169,6 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         await update_user(uid, accept_kink=not u.get("accept_kink", False))
     elif key == "only_own":
         await update_user(uid, only_own_mode=not u.get("only_own_mode", False))
-
     await callback.message.edit_reply_markup(reply_markup=await kb_settings(uid))
     await callback.answer("✅ Изменено")
 
@@ -1166,8 +1221,9 @@ async def show_help(message: types.Message, state: FSMContext):
         "В чате:\n"
         "⏭ Следующий — другой собеседник\n"
         "❌ Стоп — завершить чат\n"
-        "🚩 Жалоба — пожаловаться (только при реальных нарушениях!)\n"
+        "🚩 Жалоба — только при реальных нарушениях!\n"
         "👍 Лайк — поднять рейтинг собеседнику\n\n"
+        "/reset — полный сброс профиля\n"
         "Если что-то сломалось — /start",
         reply_markup=kb_main()
     )
@@ -1180,9 +1236,7 @@ async def cmd_restart(message: types.Message, state: FSMContext):
 # ====================== АДМИН ПАНЕЛЬ ======================
 @dp.message(Command("admin"), StateFilter("*"))
 async def admin_panel(message: types.Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID:
-        await unavailable(message, "нет доступа")
-        return
+    if message.from_user.id != ADMIN_ID: return
     await message.answer("🛡 Админ панель MatchMe", reply_markup=kb_admin_main())
 
 @dp.callback_query(F.data.startswith("admin:"))
@@ -1190,22 +1244,15 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
     if callback.from_user.id != ADMIN_ID:
         await callback.answer("Нет доступа", show_alert=True)
         return
-
     action = callback.data.split(":", 1)[1]
 
     if action == "stats":
         async with db_pool.acquire() as conn:
             total = await conn.fetchval("SELECT COUNT(*) FROM users")
-            today = await conn.fetchval(
-                "SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '24 hours'"
-            )
-            banned = await conn.fetchval(
-                "SELECT COUNT(*) FROM users WHERE ban_until IS NOT NULL"
-            )
+            today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '24 hours'")
+            banned = await conn.fetchval("SELECT COUNT(*) FROM users WHERE ban_until IS NOT NULL")
             total_complaints = await conn.fetchval("SELECT COUNT(*) FROM complaints_log")
-            pending = await conn.fetchval(
-                "SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE"
-            )
+            pending = await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE")
         online_now = len(active_chats) // 2
         in_search = len(waiting_anon) + len(waiting_simple) + len(waiting_flirt) + len(waiting_kink)
         await callback.message.answer(
@@ -1234,11 +1281,9 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
                 await callback.message.answer(
                     f"🚩 Жалоба #{r['id']}\n\n"
                     f"👤 Жалобщик: {r['from_uid']}\n"
-                    f"Имя: {ru.get('name','?') if ru else '?'} | "
-                    f"Возраст: {ru.get('age','?') if ru else '?'}\n\n"
+                    f"Имя: {ru.get('name','?') if ru else '?'} | Возраст: {ru.get('age','?') if ru else '?'}\n\n"
                     f"👤 Обвиняемый: {r['to_uid']}\n"
-                    f"Имя: {pu.get('name','?') if pu else '?'} | "
-                    f"Возраст: {pu.get('age','?') if pu else '?'}\n"
+                    f"Имя: {pu.get('name','?') if pu else '?'} | Возраст: {pu.get('age','?') if pu else '?'}\n"
                     f"Жалоб на нём: {pu.get('complaints',0) if pu else '?'}\n\n"
                     f"📋 Причина: {r['reason']}\n"
                     f"🕐 {r['created_at'].strftime('%d.%m %H:%M')}",
@@ -1259,35 +1304,81 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
         await state.set_state(AdminState.waiting_user_id)
         await callback.message.answer("🔍 Введи Telegram ID пользователя:")
 
+    elif action == "notify_update":
+        await callback.message.answer(
+            "Через сколько минут обновление?",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="1 мин", callback_data="upd:1"),
+                 InlineKeyboardButton(text="2 мин", callback_data="upd:2")],
+                [InlineKeyboardButton(text="5 мин", callback_data="upd:5"),
+                 InlineKeyboardButton(text="🔴 Сейчас", callback_data="upd:0")],
+            ])
+        )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("upd:"))
+async def handle_update_notify(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+    minutes = int(callback.data.split(":")[1])
+    if minutes == 0:
+        text = "🔧 Бот обновляется прямо сейчас. Активные чаты восстановятся автоматически!"
+    else:
+        text = f"🔧 Через {minutes} мин. бот будет обновлён. Активные чаты восстановятся автоматически!"
+
+    notified = 0
+    for uid, partner in list(active_chats.items()):
+        if uid < partner:
+            try:
+                await bot.send_message(uid, text, reply_markup=kb_main())
+                await bot.send_message(partner, text, reply_markup=kb_main())
+                notified += 2
+            except: pass
+
+    async with db_pool.acquire() as conn:
+        all_users = await conn.fetch(
+            "SELECT uid FROM users WHERE last_seen > NOW() - INTERVAL '7 days'"
+        )
+    active_uids = set(active_chats.keys())
+    sent = 0
+    for row in all_users:
+        if row["uid"] in active_uids: continue
+        try:
+            await bot.send_message(row["uid"], text)
+            sent += 1
+            await asyncio.sleep(0.05)
+        except: pass
+
+    await callback.message.answer(f"✅ Уведомление отправлено {notified + sent} пользователям.")
     await callback.answer()
 
 @dp.message(StateFilter(AdminState.waiting_user_id))
 async def admin_find_user(message: types.Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID:
-        return
+    if message.from_user.id != ADMIN_ID: return
     await state.clear()
-    txt = message.text.strip()
+    txt = (message.text or "").strip()
     if not txt.isdigit():
         await message.answer("❗ ID должен быть числом.")
         return
     target_uid = int(txt)
     u = await get_user(target_uid)
     if not u:
-        await message.answer(f"❌ Пользователь {target_uid} не найден в базе.")
+        await message.answer(f"❌ Пользователь {target_uid} не найден.")
         return
     g_map = {"male": "Парень 👨", "female": "Девушка 👩", "other": "Другое ⚧"}
     ban_status = "Нет"
     if u.get("ban_until"):
-        ban_status = "Навсегда" if u["ban_until"] == "permanent" else f"до {u['ban_until'][:16]}"
-    in_chat = "Да" if target_uid in active_chats else "Нет"
-    in_queue = "Да" if any(target_uid in q for q in [waiting_anon, waiting_simple, waiting_flirt, waiting_kink]) else "Нет"
+        ban_status = "Навсегда 🚫" if u["ban_until"] == "permanent" else f"до {u['ban_until'][:16]}"
+    in_chat = "✅ Да" if target_uid in active_chats else "❌ Нет"
+    in_queue = "✅ Да" if any(target_uid in q for q in [waiting_anon, waiting_simple, waiting_flirt, waiting_kink]) else "❌ Нет"
     await message.answer(
         f"👤 Пользователь {target_uid}:\n\n"
         f"Имя: {u.get('name','—')}\n"
         f"Возраст: {u.get('age','—')}\n"
         f"Пол: {g_map.get(u.get('gender',''), '—')}\n"
         f"Режим: {MODE_NAMES.get(u.get('mode',''), '—')}\n"
-        f"Интересы: {u.get('interests','—')}\n"
+        f"Интересы: {(u.get('interests','') or '').replace(',', ', ') or '—'}\n"
         f"⭐ Рейтинг: {get_rating(u)}\n"
         f"👍 Лайков: {u.get('likes',0)}\n"
         f"🚩 Жалоб: {u.get('complaints',0)}\n"
@@ -1298,13 +1389,12 @@ async def admin_find_user(message: types.Message, state: FSMContext):
         reply_markup=kb_user_actions(target_uid)
     )
 
-# Действия с жалобой
+# ====================== ДЕЙСТВИЯ С ЖАЛОБОЙ ======================
 @dp.callback_query(F.data.startswith("cadm:"))
 async def admin_complaint_action(callback: types.CallbackQuery):
     if callback.from_user.id != ADMIN_ID:
         await callback.answer("Нет доступа", show_alert=True)
         return
-
     parts = callback.data.split(":")
     action = parts[1]
     complaint_id = int(parts[2])
@@ -1322,7 +1412,7 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await update_user(target_uid, ban_until=until.isoformat())
         await mark_reviewed("Бан 3ч")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id} рассмотрена. Бан 3ч → {target_uid}")
+        await callback.message.answer(f"✅ Жалоба #{complaint_id}. Бан 3ч → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Тебя заблокировали на 3 часа по жалобе.")
         except: pass
 
@@ -1331,7 +1421,7 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await update_user(target_uid, ban_until=until.isoformat())
         await mark_reviewed("Бан 24ч")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id} рассмотрена. Бан 24ч → {target_uid}")
+        await callback.message.answer(f"✅ Жалоба #{complaint_id}. Бан 24ч → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Тебя заблокировали на 24 часа по жалобе.")
         except: pass
 
@@ -1339,7 +1429,7 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await update_user(target_uid, ban_until="permanent")
         await mark_reviewed("Перм бан")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id} рассмотрена. Перм бан → {target_uid}")
+        await callback.message.answer(f"✅ Жалоба #{complaint_id}. Перм бан → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Ты заблокирован навсегда.")
         except: pass
 
@@ -1348,26 +1438,26 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await update_user(target_uid, warn_count=u.get("warn_count", 0) + 1)
         await mark_reviewed("Предупреждение нарушителю")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id} рассмотрена. Предупреждение → {target_uid}")
-        try: await bot.send_message(target_uid, "⚠️ Тебе вынесено предупреждение от администратора. Следующее нарушение — бан.")
+        await callback.message.answer(f"✅ Жалоба #{complaint_id}. Предупреждение → {target_uid}")
+        try: await bot.send_message(target_uid, "⚠️ Предупреждение от администратора. Следующее нарушение — бан.")
         except: pass
 
     elif action == "warnrep" and target_uid:
         u = await get_user(target_uid)
         await update_user(target_uid, warn_count=u.get("warn_count", 0) + 1)
-        await mark_reviewed("Предупреждение жалобщику (ложная жалоба)")
+        await mark_reviewed("Предупреждение жалобщику (ложная)")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id}: ложная. Предупреждение жалобщику {target_uid}")
-        try: await bot.send_message(target_uid, "⚠️ Твоя жалоба признана необоснованной. Предупреждение. Злоупотребление жалобами = бан.")
+        await callback.message.answer(f"✅ Жалоба #{complaint_id}: ложная. Предупреждение → {target_uid}")
+        try: await bot.send_message(target_uid, "⚠️ Твоя жалоба признана необоснованной. Предупреждение. Злоупотребление = бан.")
         except: pass
 
     elif action == "banrep" and target_uid:
         until = datetime.now() + timedelta(hours=24)
         await update_user(target_uid, ban_until=until.isoformat())
-        await mark_reviewed("Бан жалобщику (ложная жалоба)")
+        await mark_reviewed("Бан жалобщику (ложная)")
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(f"✅ Жалоба #{complaint_id}: ложная. Бан 24ч жалобщику {target_uid}")
-        try: await bot.send_message(target_uid, "🚫 Ты заблокирован за злоупотребление жалобами на 24 часа.")
+        await callback.message.answer(f"✅ Жалоба #{complaint_id}: ложная. Бан 24ч → {target_uid}")
+        try: await bot.send_message(target_uid, "🚫 Заблокирован на 24ч за злоупотребление жалобами.")
         except: pass
 
     elif action == "dismiss":
@@ -1377,13 +1467,12 @@ async def admin_complaint_action(callback: types.CallbackQuery):
 
     await callback.answer()
 
-# Действия с пользователем (поиск по ID)
+# ====================== ДЕЙСТВИЯ С ПОЛЬЗОВАТЕЛЕМ ======================
 @dp.callback_query(F.data.startswith("uadm:"))
 async def admin_user_action(callback: types.CallbackQuery):
     if callback.from_user.id != ADMIN_ID:
         await callback.answer("Нет доступа", show_alert=True)
         return
-
     parts = callback.data.split(":")
     action = parts[1]
     target_uid = int(parts[2])
@@ -1430,6 +1519,7 @@ async def admin_user_action(callback: types.CallbackQuery):
         if target_uid in active_chats:
             partner = active_chats.pop(target_uid, None)
             if partner: active_chats.pop(partner, None)
+            await remove_chat_from_db(target_uid, partner)
             try: await bot.send_message(target_uid, "❌ Тебя кикнул администратор.", reply_markup=kb_main())
             except: pass
             if partner:
@@ -1454,6 +1544,7 @@ async def inactivity_checker():
         for uid, partner in to_end:
             active_chats.pop(uid, None)
             active_chats.pop(partner, None)
+            await remove_chat_from_db(uid, partner)
             try: await bot.send_message(uid, "⏰ Чат завершён из-за неактивности (7 мин).", reply_markup=kb_main())
             except: pass
             try: await bot.send_message(partner, "⏰ Чат завершён из-за неактивности (7 мин).", reply_markup=kb_main())
