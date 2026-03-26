@@ -932,6 +932,7 @@ async def buy_premium(callback: types.CallbackQuery):
         title="MatchMe Premium",
         description="Kink ИИ персонажи, безлимитный ИИ чат, приоритет в поиске — 30 дней",
         payload="premium_30days",
+        provider_token="",
         currency="XTR",
         prices=[LabeledPrice(label="Premium 30 дней", amount=PREMIUM_PRICE_STARS)],
     )
