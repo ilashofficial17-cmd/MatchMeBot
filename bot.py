@@ -507,9 +507,16 @@ PRIVACY_TEXT = """🔒 Политика конфиденциальности Mat
 • Данные НЕ передаются третьим лицам
 • Переписка НЕ хранится постоянно
 
-⚠️ Контент 18+:
-• Kink режим только для совершеннолетних (18+)
-• Нажимая "Принять" подтверждаешь что тебе 18+
+👤 Возрастные ограничения:
+• Минимальный возраст: 16 лет
+• 16–17 лет: доступны режимы «Общение» и «Флирт»
+• 18+: доступны все режимы включая Kink
+• Пользователь несёт полную ответственность за достоверность указанного возраста
+
+⚖️ Ответственность:
+• Администрация не несёт ответственности за содержание переписок между пользователями
+• Пользуясь ботом вы подтверждаете что указали реальный возраст
+• За предоставление ложного возраста — перманентный бан
 
 📋 Правила Telegram:
 • Запрещён контент нарушающий TOS Telegram
@@ -529,6 +536,11 @@ RULES_RU = """📜 Правила MatchMe:
 • Уважительное общение
 • Лайки собеседникам
 • Жалобы при реальных нарушениях
+
+👤 Возраст:
+• 16–17 лет — Общение и Флирт
+• 18+ — все режимы включая Kink
+• Указание ложного возраста = перм бан
 
 ❌ Запрещено:
 • Реклама любых услуг — бан без предупреждения
@@ -1119,10 +1131,14 @@ async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
         if partner_uid in mutual_likes:
             mutual_likes[partner_uid].discard(uid)
 
-        # Соединяем в чат
-        active_chats[uid] = partner_uid
-        active_chats[partner_uid] = uid
-        last_msg_time[uid] = last_msg_time[partner_uid] = datetime.now()
+        # Соединяем в чат — атомарно внутри лока
+        async with pairing_lock:
+            if uid in active_chats or partner_uid in active_chats:
+                await callback.answer("😔 Кто-то из вас уже в чате.", show_alert=True)
+                return
+            active_chats[uid] = partner_uid
+            active_chats[partner_uid] = uid
+            last_msg_time[uid] = last_msg_time[partner_uid] = datetime.now()
         await state.set_state(Chat.chatting)
         pkey = StorageKey(bot_id=bot.id, chat_id=partner_uid, user_id=partner_uid)
         await FSMContext(dp.storage, key=pkey).set_state(Chat.chatting)
@@ -1808,6 +1824,17 @@ async def reg_mode(message: types.Message, state: FSMContext):
     else:
         await message.answer("Выбери режим из кнопок 👇", reply_markup=kb_mode())
         return
+    # Проверка возраста для Kink
+    if mode == "kink":
+        u = await get_user(uid)
+        age = u.get("age", 0) if u else 0
+        if age < 18:
+            await message.answer(
+                "🔞 Kink / ролевые игры доступны только с 18 лет.\n"
+                "Выбери другой режим:",
+                reply_markup=kb_mode()
+            )
+            return
     await update_user(uid, mode=mode)
     await state.update_data(temp_interests=[], reg_mode=mode)
     await state.set_state(Reg.interests)
@@ -1961,8 +1988,9 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
             uid, partner, reason, log_text, stop_found
         )
         await increment_user(partner, complaints=1)
-    active_chats.pop(uid, None)
-    active_chats.pop(partner, None)
+    async with pairing_lock:
+        active_chats.pop(uid, None)
+        active_chats.pop(partner, None)
     await remove_chat_from_db(uid, partner)
     clear_chat_log(uid, partner)
     await state.clear()
@@ -2145,7 +2173,18 @@ async def edit_mode(message: types.Message, state: FSMContext):
     else:
         await message.answer("Выбери режим из кнопок 👇", reply_markup=kb_mode())
         return
-    await update_user(uid, mode=mode)
+    # Проверка возраста для Kink
+    if mode == "kink":
+        u = await get_user(uid)
+        age = u.get("age", 0) if u else 0
+        if age < 18:
+            await message.answer(
+                "🔞 Kink / ролевые игры доступны только с 18 лет.\n"
+                "Выбери другой режим:",
+                reply_markup=kb_mode()
+            )
+            return
+    await update_user(uid, mode=mode, accept_cross_mode=False)
     await state.set_state(EditProfile.interests)
     await state.update_data(temp_interests=[], edit_mode=mode)
     await message.answer("🎯 Выбери новые интересы:", reply_markup=kb_interests(mode, []))
@@ -2586,8 +2625,9 @@ async def inactivity_checker():
                 if (now - last).total_seconds() > 420:
                     to_end.append((uid, partner))
         for uid, partner in to_end:
-            active_chats.pop(uid, None)
-            active_chats.pop(partner, None)
+            async with pairing_lock:
+                active_chats.pop(uid, None)
+                active_chats.pop(partner, None)
             await remove_chat_from_db(uid, partner)
             clear_chat_log(uid, partner)
             # Очищаем FSM state обоих пользователей
@@ -2604,7 +2644,8 @@ async def inactivity_checker():
 
         # Очистка памяти: удаляем старые записи msg_count и last_msg_time
         for uid_key in list(last_msg_time.keys()):
-            if uid_key not in active_chats and (now - last_msg_time[uid_key]).total_seconds() > 600:
+            last_time = last_msg_time.get(uid_key)
+            if last_time and uid_key not in active_chats and (now - last_time).total_seconds() > 600:
                 last_msg_time.pop(uid_key, None)
                 msg_count.pop(uid_key, None)
 
