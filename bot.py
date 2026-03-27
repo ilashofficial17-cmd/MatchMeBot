@@ -71,6 +71,7 @@ chat_logs = {}
 ai_sessions = {}
 mutual_likes = {}  # uid -> set of partner_uids которым лайкнул
 
+# Стоп-слова для логирования жалоб
 STOP_WORDS = [
     "предлагаю услуги", "оказываю услуги", "интим услуги",
     "досуг", "escort", "эскорт", "проститутка", "проститут",
@@ -80,6 +81,24 @@ STOP_WORDS = [
     "крипта х10", "пассивный доход",
     "мне 12", "мне 13", "мне 14", "мне 15",
     "школьница ищу", "школьник ищу", "продаю", "порно за деньги",
+]
+
+# Авто shadow ban — спам, реклама, продажа (мелочёвка)
+SHADOW_BAN_WORDS = [
+    "предлагаю услуги", "оказываю услуги", "интим услуги",
+    "escort", "эскорт", "проститутка", "проститут",
+    "вирт за деньги", "вирт платно", "за донат",
+    "подпишись на канал", "перейди по ссылке", "мой канал",
+    "казино", "ставки на спорт", "заработок в телеграм",
+    "крипта х10", "пассивный доход", "продаю фото", "продаю видео",
+    "продаю интим", "купи подписку", "пиши в лс за", "скидка на услуги",
+]
+
+# Авто реальный бан — серьёзное (ЦП, несовершеннолетние)
+HARD_BAN_WORDS = [
+    "мне 12", "мне 13", "мне 14", "мне 15",
+    "школьница ищу", "школьник ищу", "порно за деньги",
+    "детское порно", "цп продаю", "малолетка",
 ]
 
 AI_CHARACTERS = {
@@ -223,6 +242,7 @@ async def init_db():
                 complaints INTEGER DEFAULT 0,
                 warn_count INTEGER DEFAULT 0,
                 ban_until TEXT DEFAULT NULL,
+                shadow_ban BOOLEAN DEFAULT FALSE,
                 accept_simple BOOLEAN DEFAULT TRUE,
                 accept_flirt BOOLEAN DEFAULT TRUE,
                 accept_kink BOOLEAN DEFAULT FALSE,
@@ -251,6 +271,7 @@ async def init_db():
             ("premium_until", "TEXT DEFAULT NULL"),
             ("show_premium", "BOOLEAN DEFAULT TRUE"),
             ("accept_cross_mode", "BOOLEAN DEFAULT FALSE"),
+            ("shadow_ban", "BOOLEAN DEFAULT FALSE"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
@@ -820,16 +841,21 @@ def kb_complaint_action(complaint_id, accused_uid, reporter_uid, has_log=False, 
         [InlineKeyboardButton(text="⚠️ Предупреждение нарушителю", callback_data=f"cadm:warn:{complaint_id}:{accused_uid}")],
         [InlineKeyboardButton(text="⚠️ Предупреждение жалобщику", callback_data=f"cadm:warnrep:{complaint_id}:{reporter_uid}")],
         [InlineKeyboardButton(text="🚫 Бан жалобщику", callback_data=f"cadm:banrep:{complaint_id}:{reporter_uid}")],
+        [InlineKeyboardButton(text="👻 Shadow ban нарушителю", callback_data=f"cadm:shadow:{complaint_id}:{accused_uid}")],
         [InlineKeyboardButton(text="✅ Отклонить жалобу", callback_data=f"cadm:dismiss:{complaint_id}:0")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def kb_user_actions(target_uid):
+def kb_user_actions(target_uid, is_shadow=False):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚫 Бан 3ч", callback_data=f"uadm:ban3:{target_uid}"),
          InlineKeyboardButton(text="🚫 Бан 24ч", callback_data=f"uadm:ban24:{target_uid}")],
         [InlineKeyboardButton(text="🚫 Перм бан", callback_data=f"uadm:banperm:{target_uid}"),
          InlineKeyboardButton(text="✅ Разбан", callback_data=f"uadm:unban:{target_uid}")],
+        [InlineKeyboardButton(
+            text="👻 Снять shadow ban" if is_shadow else "👻 Shadow ban",
+            callback_data=f"uadm:shadowtoggle:{target_uid}"
+         )],
         [InlineKeyboardButton(text="⚠️ Предупреждение", callback_data=f"uadm:warn:{target_uid}"),
          InlineKeyboardButton(text="❌ Кик", callback_data=f"uadm:kick:{target_uid}")],
         [InlineKeyboardButton(text="⭐ Дать Premium 30д", callback_data=f"uadm:premium:{target_uid}"),
@@ -926,6 +952,7 @@ async def do_find(uid, state):
     user_premium = await is_premium(uid)
     my_interests = set(u.get("interests", "").split(",")) if u.get("interests") else set()
     my_rating = get_rating(u)
+    my_shadow = u.get("shadow_ban", False)
     cross = u.get("accept_cross_mode", False)
     search_gender = u.get("search_gender", "any")
     search_age_min = u.get("search_age_min", 16) or 16
@@ -950,6 +977,9 @@ async def do_find(uid, state):
             if pid == uid or pid in active_chats: continue
             pu = await get_user(pid)
             if not pu: continue
+            # Shadow ban: теневые юзеры матчатся только между собой
+            p_shadow = pu.get("shadow_ban", False)
+            if my_shadow != p_shadow: continue
             if search_gender != "any" and pu.get("gender") != search_gender: continue
             p_age = pu.get("age", 0) or 0
             if p_age < search_age_min or p_age > search_age_max: continue
@@ -1671,13 +1701,23 @@ async def anon_search(message: types.Message, state: FSMContext):
         return
     await ensure_user(uid)
     await message.answer("⚡ Ищем анонимного собеседника...", reply_markup=kb_cancel_search())
+    # Shadow ban check
+    u = await get_user(uid)
+    my_shadow = u.get("shadow_ban", False) if u else False
+    # Собираем кандидатов ВНЕ лока
+    anon_candidates = []
+    for pid in list(waiting_anon):
+        if pid != uid and pid not in active_chats:
+            pu = await get_user(pid)
+            if pu and pu.get("shadow_ban", False) == my_shadow:
+                anon_candidates.append(pid)
     # Внутри лока — только атомарное спаривание
     partner = None
     async with pairing_lock:
         if uid in active_chats:
             return
-        for pid in list(waiting_anon):
-            if pid != uid and pid not in active_chats:
+        for pid in anon_candidates:
+            if pid not in active_chats and pid in waiting_anon:
                 partner = pid
                 waiting_anon.discard(pid)
                 break
@@ -1934,6 +1974,31 @@ async def relay(message: types.Message, state: FSMContext):
     partner = active_chats[uid]
     if message.text:
         log_message(uid, partner, uid, message.text)
+        # Авто-модерация в реальном времени
+        txt_lower = message.text.lower()
+        # Жёсткий бан — ЦП и т.д.
+        hard_match = [w for w in HARD_BAN_WORDS if w in txt_lower]
+        if hard_match:
+            logger.warning(f"HARD BAN trigger uid={uid}: {hard_match}")
+            await update_user(uid, ban_until="permanent")
+            await end_chat(uid, state, go_next=False)
+            await message.answer("🚫 Перманентный бан за нарушение правил.")
+            try:
+                await bot.send_message(ADMIN_ID,
+                    f"🚨 Авто-бан!\nUID: {uid}\nСлова: {hard_match}\nТекст: {message.text[:200]}")
+            except Exception: pass
+            return
+        # Теневой бан — спам, реклама
+        shadow_match = [w for w in SHADOW_BAN_WORDS if w in txt_lower]
+        if shadow_match:
+            u_check = await get_user(uid)
+            if not u_check or not u_check.get("shadow_ban"):
+                logger.info(f"Shadow ban trigger uid={uid}: {shadow_match}")
+                await update_user(uid, shadow_ban=True)
+                try:
+                    await bot.send_message(ADMIN_ID,
+                        f"👻 Авто shadow ban\nUID: {uid}\nСлова: {shadow_match}\nТекст: {message.text[:200]}")
+                except Exception: pass
     now = datetime.now()
     # Обновляем last_seen
     await update_user(uid, last_seen=now)
@@ -2477,6 +2542,8 @@ async def admin_find_user(message: types.Message, state: FSMContext):
     in_chat = "✅" if target_uid in active_chats else "❌"
     with_ai = "✅" if target_uid in ai_sessions else "❌"
     in_queue = "✅" if any(target_uid in q for q in get_all_queues()) else "❌"
+    is_shadow = u.get("shadow_ban", False)
+    shadow_status = "👻 ДА" if is_shadow else "Нет"
     await message.answer(
         f"👤 {target_uid}:\n"
         f"Имя: {u.get('name','—')} | Возраст: {u.get('age','—')}\n"
@@ -2485,8 +2552,9 @@ async def admin_find_user(message: types.Message, state: FSMContext):
         f"💬 Чатов: {u.get('total_chats',0)} | 🚩 Жалоб: {u.get('complaints',0)}\n"
         f"⚠️ Предупреждений: {u.get('warn_count',0)}\n"
         f"🚫 Бан: {ban_status} | 💎 Premium: {prem_status}\n"
+        f"👻 Shadow ban: {shadow_status}\n"
         f"💬 В чате: {in_chat} | 🤖 С ИИ: {with_ai} | 🔍 В поиске: {in_queue}",
-        reply_markup=kb_user_actions(target_uid)
+        reply_markup=kb_user_actions(target_uid, is_shadow=is_shadow)
     )
 
 @dp.callback_query(F.data.startswith("cadm:"), StateFilter("*"))
@@ -2546,6 +2614,10 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await callback.message.answer(f"✅ Ложная жалоба. Бан 24ч → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Бан за злоупотребление жалобами.")
         except Exception: pass
+    elif action == "shadow" and target_uid:
+        await update_user(target_uid, shadow_ban=True)
+        await mark_reviewed("Shadow ban")
+        await callback.message.answer(f"👻 Shadow ban → {target_uid}")
     elif action == "dismiss":
         await mark_reviewed("Отклонена")
         await callback.message.answer(f"✅ Жалоба #{complaint_id} отклонена.")
@@ -2610,6 +2682,16 @@ async def admin_user_action(callback: types.CallbackQuery):
         await callback.answer("✅ Premium забран")
         try: await bot.send_message(target_uid, "❌ Premium отменён администратором.")
         except Exception: pass
+    elif action == "shadowtoggle":
+        tu = await get_user(target_uid)
+        current = tu.get("shadow_ban", False) if tu else False
+        await update_user(target_uid, shadow_ban=not current)
+        if current:
+            await callback.answer("✅ Shadow ban снят")
+            await callback.message.answer(f"👻 Shadow ban снят с {target_uid}")
+        else:
+            await callback.answer("✅ Shadow ban установлен")
+            await callback.message.answer(f"👻 Shadow ban установлен для {target_uid}")
 
 # ====================== ТАЙМЕР НЕАКТИВНОСТИ ======================
 async def inactivity_checker():
