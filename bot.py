@@ -2,6 +2,7 @@ import asyncio
 import os
 import aiohttp
 import random
+import logging
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, StateFilter
@@ -15,6 +16,9 @@ from aiogram.types import (
     LabeledPrice, PreCheckoutQuery
 )
 import asyncpg
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("matchme")
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -230,7 +234,7 @@ async def init_db():
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
-            except: pass
+            except Exception: pass
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS complaints_log (
@@ -253,7 +257,7 @@ async def init_db():
         ]:
             try:
                 await conn.execute(f"ALTER TABLE complaints_log ADD COLUMN IF NOT EXISTS {col} {definition}")
-            except: pass
+            except Exception: pass
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS active_chats_db (
@@ -285,16 +289,20 @@ async def restore_chats():
         try:
             await bot.send_message(uid1, "🔄 Бот обновлён. Твой чат восстановлен!", reply_markup=kb_chat())
             await bot.send_message(uid2, "🔄 Бот обновлён. Твой чат восстановлен!", reply_markup=kb_chat())
-        except: pass
+        except Exception: pass
     if restored:
-        print(f"✅ Восстановлено {restored} чатов")
+        logger.info(f"Восстановлено {restored} чатов")
 
 async def get_user(uid):
+    if not db_pool:
+        return None
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM users WHERE uid=$1", uid)
         return dict(row) if row else None
 
 async def ensure_user(uid):
+    if not db_pool:
+        return
     async with db_pool.acquire() as conn:
         await conn.execute("INSERT INTO users (uid) VALUES ($1) ON CONFLICT DO NOTHING", uid)
         if uid == ADMIN_ID:
@@ -303,8 +311,18 @@ async def ensure_user(uid):
             )
 
 async def update_user(uid, **kwargs):
-    if not kwargs: return
+    if not kwargs or not db_pool:
+        return
     sets = ", ".join(f"{k}=${i+2}" for i, k in enumerate(kwargs))
+    vals = list(kwargs.values())
+    async with db_pool.acquire() as conn:
+        await conn.execute(f"UPDATE users SET {sets} WHERE uid=$1", uid, *vals)
+
+async def increment_user(uid, **kwargs):
+    """Атомарный инкремент полей: increment_user(uid, likes=1, total_chats=1)"""
+    if not kwargs or not db_pool:
+        return
+    sets = ", ".join(f"{k}={k}+${i+2}" for i, k in enumerate(kwargs))
     vals = list(kwargs.values())
     async with db_pool.acquire() as conn:
         await conn.execute(f"UPDATE users SET {sets} WHERE uid=$1", uid, *vals)
@@ -322,7 +340,7 @@ async def is_premium(uid):
         if datetime.now() < premium_until:
             return True
         await update_user(uid, premium_until=None)
-    except: pass
+    except Exception: pass
     return False
 
 async def is_banned(uid):
@@ -333,14 +351,14 @@ async def is_banned(uid):
         ban_until = datetime.fromisoformat(u["ban_until"])
         if datetime.now() < ban_until: return True, ban_until
         await update_user(uid, ban_until=None)
-    except: pass
+    except Exception: pass
     return False, None
 
 async def check_channel_subscription(uid):
     try:
         member = await bot.get_chat_member(CHANNEL_ID, uid)
         return member.status in ["member", "administrator", "creator"]
-    except:
+    except Exception:
         return False
 
 async def save_chat_to_db(uid1, uid2, chat_type="profile"):
@@ -354,7 +372,8 @@ async def save_chat_to_db(uid1, uid2, chat_type="profile"):
                 "INSERT INTO active_chats_db (uid1, uid2, chat_type) VALUES ($1,$2,$3) ON CONFLICT (uid1) DO UPDATE SET uid2=$2",
                 uid2, uid1, chat_type
             )
-    except: pass
+    except Exception as e:
+        logger.error(f"save_chat_to_db failed: {e}")
 
 async def remove_chat_from_db(uid1, uid2=None):
     try:
@@ -363,7 +382,8 @@ async def remove_chat_from_db(uid1, uid2=None):
                 await conn.execute("DELETE FROM active_chats_db WHERE uid1=$1 OR uid1=$2", uid1, uid2)
             else:
                 await conn.execute("DELETE FROM active_chats_db WHERE uid1=$1", uid1)
-    except: pass
+    except Exception as e:
+        logger.error(f"remove_chat_from_db failed: {e}")
 
 # ====================== ЛОГИРОВАНИЕ ======================
 def get_chat_key(uid1, uid2):
@@ -440,7 +460,7 @@ async def ask_venice(character_id: str, history: list, user_message: str) -> str
                     return "💳 ИИ временно недоступен — нет средств на балансе."
                 else:
                     return "😔 ИИ временно недоступен. Попробуй позже."
-    except:
+    except Exception:
         return "😔 Ошибка соединения с ИИ."
 
 # ====================== ТЕКСТЫ ======================
@@ -818,7 +838,7 @@ async def send_ad_message(uid):
                 [InlineKeyboardButton(text="⭐ Убрать рекламу", callback_data="buy:1m")]
             ])
         )
-    except: pass
+    except Exception: pass
 
 async def do_find(uid, state):
     if uid in active_chats:
@@ -834,93 +854,98 @@ async def do_find(uid, state):
     search_age_min = u.get("search_age_min", 16) or 16
     search_age_max = u.get("search_age_max", 99) or 99
 
+    # Собираем кандидатов ВНЕ лока (await-запросы к БД)
+    queues_to_search = []
+    if user_premium:
+        queues_to_search.append(get_queue(mode, True))
+    queues_to_search.append(get_queue(mode, False))
+    if not only_own:
+        if mode == "flirt" and u.get("accept_kink"):
+            if user_premium: queues_to_search.append(get_queue("kink", True))
+            queues_to_search.append(get_queue("kink", False))
+        if mode == "kink" and u.get("accept_flirt"):
+            if user_premium: queues_to_search.append(get_queue("flirt", True))
+            queues_to_search.append(get_queue("flirt", False))
+
+    candidates = []
+    for q in queues_to_search:
+        for pid in list(q):
+            if pid == uid or pid in active_chats: continue
+            pu = await get_user(pid)
+            if not pu: continue
+            if search_gender != "any" and pu.get("gender") != search_gender: continue
+            p_age = pu.get("age", 0) or 0
+            if p_age < search_age_min or p_age > search_age_max: continue
+            if mode == "simple" and not pu.get("accept_simple", True): continue
+            if mode == "flirt" and not pu.get("accept_flirt", True): continue
+            if mode == "kink" and not pu.get("accept_kink", False): continue
+            p_interests = set(pu.get("interests", "").split(",")) if pu.get("interests") else set()
+            common = len(my_interests & p_interests)
+            rating_diff = abs(get_rating(pu) - my_rating)
+            p_premium = await is_premium(pid)
+            priority = 0 if p_premium else 1
+            candidates.append((pid, common, rating_diff, priority, q))
+
+    if candidates:
+        candidates.sort(key=lambda x: (x[3], -x[1], x[2]))
+
+    # Внутри лока — только атомарное спаривание (без await к БД)
+    partner = None
     async with pairing_lock:
         if uid in active_chats:
             return False
-        queues_to_search = []
-        if user_premium:
-            queues_to_search.append(get_queue(mode, True))
-        queues_to_search.append(get_queue(mode, False))
-        if not only_own:
-            if mode == "flirt" and u.get("accept_kink"):
-                if user_premium: queues_to_search.append(get_queue("kink", True))
-                queues_to_search.append(get_queue("kink", False))
-            if mode == "kink" and u.get("accept_flirt"):
-                if user_premium: queues_to_search.append(get_queue("flirt", True))
-                queues_to_search.append(get_queue("flirt", False))
-
-        candidates = []
-        for q in queues_to_search:
-            for pid in list(q):
-                if pid == uid or pid in active_chats: continue
-                pkey = StorageKey(bot_id=bot.id, chat_id=pid, user_id=pid)
-                p_fsm = FSMContext(dp.storage, key=pkey)
-                p_state_str = await p_fsm.get_state()
-                if p_state_str != str(Chat.waiting): continue
-                pu = await get_user(pid)
-                if not pu: continue
-                if search_gender != "any" and pu.get("gender") != search_gender: continue
-                p_age = pu.get("age", 0) or 0
-                if p_age < search_age_min or p_age > search_age_max: continue
-                if mode == "simple" and not pu.get("accept_simple", True): continue
-                if mode == "flirt" and not pu.get("accept_flirt", True): continue
-                if mode == "kink" and not pu.get("accept_kink", False): continue
-                p_interests = set(pu.get("interests", "").split(",")) if pu.get("interests") else set()
-                common = len(my_interests & p_interests)
-                rating_diff = abs(get_rating(pu) - my_rating)
-                p_premium = await is_premium(pid)
-                priority = 0 if p_premium else 1
-                candidates.append((pid, common, rating_diff, priority, q))
-
-        partner = None
-        if candidates:
-            candidates.sort(key=lambda x: (x[3], -x[1], x[2]))
-            best = candidates[0]
-            partner = best[0]
-            best[4].discard(partner)
+        for cand_pid, _, _, _, cand_q in candidates:
+            if cand_pid not in active_chats and cand_pid in cand_q:
+                partner = cand_pid
+                cand_q.discard(partner)
+                break
 
         if partner:
             active_chats[uid] = partner
             active_chats[partner] = uid
             last_msg_time[uid] = last_msg_time[partner] = datetime.now()
-            await state.set_state(Chat.chatting)
-            pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
-            p_fsm = FSMContext(dp.storage, key=pkey)
-            await p_fsm.set_state(Chat.chatting)
-            await save_chat_to_db(uid, partner, "profile")
-            pu = await get_user(partner)
-            await update_user(uid, total_chats=u.get("total_chats", 0) + 1)
-            await update_user(partner, total_chats=pu.get("total_chats", 0) + 1)
-            g_map = {"male": "Парень 👨", "female": "Девушка 👩", "other": "Другое ⚧"}
-            p_badge = await get_premium_badge(partner)
-            my_badge = await get_premium_badge(uid)
-            await bot.send_message(uid,
-                f"👤 Собеседник найден!{p_badge}\n"
-                f"Имя: {pu.get('name','Аноним')}\n"
-                f"Возраст: {pu.get('age','?')}\n"
-                f"Пол: {g_map.get(pu.get('gender',''),'?')}\n"
-                f"Режим: {MODE_NAMES.get(pu.get('mode',''),'—')}\n"
-                f"Интересы: {(pu.get('interests','') or '').replace(',', ', ') or '—'}\n"
-                f"⭐ Рейтинг: {get_rating(pu)}"
-            )
-            await bot.send_message(partner,
-                f"👤 Собеседник найден!{my_badge}\n"
-                f"Имя: {u.get('name','Аноним')}\n"
-                f"Возраст: {u.get('age','?')}\n"
-                f"Пол: {g_map.get(u.get('gender',''),'?')}\n"
-                f"Режим: {MODE_NAMES.get(u.get('mode',''),'—')}\n"
-                f"Интересы: {(u.get('interests','') or '').replace(',', ', ') or '—'}\n"
-                f"⭐ Рейтинг: {get_rating(u)}"
-            )
-            await bot.send_message(uid, "✅ Начинайте общение!", reply_markup=kb_chat())
-            await bot.send_message(partner, "✅ Начинайте общение!", reply_markup=kb_chat())
-            return True
         else:
             q = get_queue(mode, user_premium)
             q.add(uid)
-            await state.set_state(Chat.waiting)
-            asyncio.create_task(notify_no_partner(uid))
-            return False
+
+    # Все await-операции — ПОСЛЕ лока
+    if partner:
+        await state.set_state(Chat.chatting)
+        pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
+        p_fsm = FSMContext(dp.storage, key=pkey)
+        await p_fsm.set_state(Chat.chatting)
+        await save_chat_to_db(uid, partner, "profile")
+        pu = await get_user(partner)
+        await increment_user(uid, total_chats=1)
+        await increment_user(partner, total_chats=1)
+        g_map = {"male": "Парень 👨", "female": "Девушка 👩", "other": "Другое ⚧"}
+        p_badge = await get_premium_badge(partner)
+        my_badge = await get_premium_badge(uid)
+        await bot.send_message(uid,
+            f"👤 Собеседник найден!{p_badge}\n"
+            f"Имя: {pu.get('name','Аноним')}\n"
+            f"Возраст: {pu.get('age','?')}\n"
+            f"Пол: {g_map.get(pu.get('gender',''),'?')}\n"
+            f"Режим: {MODE_NAMES.get(pu.get('mode',''),'—')}\n"
+            f"Интересы: {(pu.get('interests','') or '').replace(',', ', ') or '—'}\n"
+            f"⭐ Рейтинг: {get_rating(pu)}"
+        )
+        await bot.send_message(partner,
+            f"👤 Собеседник найден!{my_badge}\n"
+            f"Имя: {u.get('name','Аноним')}\n"
+            f"Возраст: {u.get('age','?')}\n"
+            f"Пол: {g_map.get(u.get('gender',''),'?')}\n"
+            f"Режим: {MODE_NAMES.get(u.get('mode',''),'—')}\n"
+            f"Интересы: {(u.get('interests','') or '').replace(',', ', ') or '—'}\n"
+            f"⭐ Рейтинг: {get_rating(u)}"
+        )
+        await bot.send_message(uid, "✅ Начинайте общение!", reply_markup=kb_chat())
+        await bot.send_message(partner, "✅ Начинайте общение!", reply_markup=kb_chat())
+        return True
+    else:
+        await state.set_state(Chat.waiting)
+        asyncio.create_task(notify_no_partner(uid))
+        return False
 
 async def notify_no_partner(uid):
     await asyncio.sleep(60)
@@ -937,7 +962,7 @@ async def notify_no_partner(uid):
                     [InlineKeyboardButton(text="⏳ Продолжить ждать", callback_data="goto:wait")],
                 ])
             )
-        except: pass
+        except Exception: pass
 
 async def end_chat(uid, state, go_next=False):
     partner = active_chats.pop(uid, None)
@@ -953,7 +978,7 @@ async def end_chat(uid, state, go_next=False):
                 "Понравился собеседник?\nПредложи продолжить общение анонимно — если он тоже захочет, вас соединят 😊",
                 reply_markup=kb_after_chat(partner)
             )
-        except: pass
+        except Exception: pass
 
         try:
             await bot.send_message(partner, "😔 Собеседник покинул чат.", reply_markup=kb_main())
@@ -963,7 +988,7 @@ async def end_chat(uid, state, go_next=False):
             )
             pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
             await FSMContext(dp.storage, key=pkey).clear()
-        except: pass
+        except Exception: pass
 
         # Реклама для не-Premium (через задержку)
         asyncio.create_task(_send_ad_delayed(uid, partner))
@@ -1004,12 +1029,12 @@ async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("😔 Собеседник уже общается с кем-то другим.", show_alert=True)
         try:
             await callback.message.edit_reply_markup(reply_markup=None)
-        except: pass
+        except Exception: pass
         return
     # Убираем кнопки чтобы не нажали дважды
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
-    except: pass
+    except Exception: pass
 
     # Инициализируем если нужно
     if uid not in mutual_likes:
@@ -1061,7 +1086,7 @@ async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
                     [InlineKeyboardButton(text="❌ Нет спасибо", callback_data="mutual:decline")],
                 ])
             )
-        except: pass
+        except Exception: pass
         asyncio.create_task(_mutual_timeout(uid, partner_uid))
 
     await callback.answer()
@@ -1071,7 +1096,7 @@ async def mutual_decline(callback: types.CallbackQuery):
     uid = callback.from_user.id
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
-    except: pass
+    except Exception: pass
     # Очищаем все взаимные лайки с этим пользователем
     for key in list(mutual_likes.keys()):
         mutual_likes[key].discard(uid)
@@ -1083,7 +1108,7 @@ async def _mutual_timeout(uid, partner_uid):
         mutual_likes[uid].discard(partner_uid)
         try:
             await bot.send_message(uid, "😔 Собеседник не ответил на запрос продолжения.")
-        except: pass
+        except Exception: pass
 
 # ====================== СТАРТ ======================
 @dp.message(Command("start"), StateFilter("*"))
@@ -1122,7 +1147,7 @@ async def privacy_accept(callback: types.CallbackQuery, state: FSMContext):
     await update_user(uid, accepted_privacy=True)
     try:
         await callback.message.edit_text("✅ Политика конфиденциальности принята!")
-    except: pass
+    except Exception: pass
 
     # Предлагаем подписку на канал
     await callback.message.answer(
@@ -1139,7 +1164,7 @@ async def privacy_decline(callback: types.CallbackQuery):
             "❌ Без принятия политики конфиденциальности использование бота невозможно.\n\n"
             "Нажми /start чтобы попробовать снова."
         )
-    except: pass
+    except Exception: pass
     await callback.answer()
 
 # ====================== БОНУС ЗА КАНАЛ ======================
@@ -1166,7 +1191,7 @@ async def channel_check(callback: types.CallbackQuery, state: FSMContext):
             f"⭐ Premium активирован на 3 дня!\n"
             f"До {until.strftime('%d.%m.%Y')}"
         )
-    except: pass
+    except Exception: pass
     await _proceed_to_rules(callback.message, state, uid)
     await callback.answer()
 
@@ -1175,7 +1200,7 @@ async def channel_skip(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
     try:
         await callback.message.edit_text("Окей! Можешь подписаться позже через /premium 😊")
-    except: pass
+    except Exception: pass
     await _proceed_to_rules(callback.message, state, uid)
     await callback.answer()
 
@@ -1224,7 +1249,7 @@ async def cmd_stats(message: types.Message):
             try:
                 until = datetime.fromisoformat(u["premium_until"])
                 premium_text = f"⭐ Premium до {until.strftime('%d.%m.%Y')}"
-            except:
+            except Exception:
                 premium_text = "⭐ Premium активен"
     else:
         premium_text = "💎 Premium: Нет"
@@ -1252,7 +1277,7 @@ async def cmd_premium(message: types.Message):
             try:
                 until = datetime.fromisoformat(u["premium_until"])
                 await message.answer(f"⭐ Premium активен до {until.strftime('%d.%m.%Y %H:%M')}")
-            except:
+            except Exception:
                 await message.answer("⭐ Premium активен!")
         return
     await message.answer(
@@ -1352,7 +1377,7 @@ async def reset_confirm(callback: types.CallbackQuery, state: FSMContext):
         """, uid)
     try:
         await callback.message.edit_text("✅ Профиль сброшен!")
-    except: pass
+    except Exception: pass
     await callback.message.answer("👋 Нажми '🔍 Поиск по анкете' чтобы заполнить анкету заново.", reply_markup=kb_main())
     await callback.answer()
 
@@ -1361,7 +1386,7 @@ async def reset_cancel(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
     try:
         await callback.message.edit_text("❌ Сброс отменён.")
-    except: pass
+    except Exception: pass
     await callback.message.answer("Возврат в меню.", reply_markup=kb_main())
     await callback.answer()
 
@@ -1407,7 +1432,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(ai_show_mode="any")
         try:
             await callback.message.edit_reply_markup(reply_markup=kb_ai_characters(user_premium, "any"))
-        except: pass
+        except Exception: pass
         await callback.answer()
         return
     if char_id == "locked":
@@ -1429,7 +1454,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
             f"{'✅' if not char['premium'] else '🔥'} Ты общаешься с {char['name']}\n"
             f"{char['description']}\n\n{limit_text}\n\nНапиши что-нибудь!"
         )
-    except: pass
+    except Exception: pass
     await callback.message.answer("💬 Чат с ИИ активен", reply_markup=kb_ai_chat())
     greeting = await ask_venice(char_id, [], "Поприветствуй собеседника и начни разговор. Коротко, 1-2 предложения на русском.")
     if greeting:
@@ -1478,6 +1503,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         )
         return
     await bot.send_chat_action(uid, "typing")
+    await update_user(uid, last_seen=datetime.now())
     session["history"].append({"role": "user", "content": txt})
     response = await ask_venice(char_id, session["history"][:-1], txt)
     session["history"].append({"role": "assistant", "content": response})
@@ -1496,7 +1522,7 @@ async def goto_action(callback: types.CallbackQuery, state: FSMContext):
     action = callback.data.split(":", 1)[1]
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
-    except: pass
+    except Exception: pass
     if action == "ai":
         async with pairing_lock:
             for q in get_all_queues():
@@ -1561,10 +1587,8 @@ async def anon_search(message: types.Message, state: FSMContext):
             pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
             await FSMContext(dp.storage, key=pkey).set_state(Chat.chatting)
             await save_chat_to_db(uid, partner, "anon")
-            u = await get_user(uid)
-            pu = await get_user(partner)
-            await update_user(uid, total_chats=u.get("total_chats", 0) + 1)
-            await update_user(partner, total_chats=pu.get("total_chats", 0) + 1)
+            await increment_user(uid, total_chats=1)
+            await increment_user(partner, total_chats=1)
             await bot.send_message(uid, "👤 Соединено! Удачи! 🎉", reply_markup=kb_chat())
             await bot.send_message(partner, "👤 Соединено! Удачи! 🎉", reply_markup=kb_chat())
         else:
@@ -1715,7 +1739,7 @@ async def reg_interest(callback: types.CallbackQuery, state: FSMContext):
         await state.clear()
         try:
             await callback.message.edit_text("✅ Анкета заполнена!")
-        except: pass
+        except Exception: pass
         await callback.answer()
         u = await get_user(uid)
         mode = u.get("mode", "simple")
@@ -1738,7 +1762,7 @@ async def reg_interest(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(temp_interests=sel)
     try:
         await callback.message.edit_reply_markup(reply_markup=kb_interests(mode, sel))
-    except: pass
+    except Exception: pass
 
 # ====================== ЧАТ ======================
 @dp.message(StateFilter(Chat.chatting))
@@ -1758,11 +1782,19 @@ async def relay(message: types.Message, state: FSMContext):
     if "👍" in txt or txt == "👍 Лайк":
         if uid in active_chats:
             partner = active_chats[uid]
-            pu = await get_user(partner)
-            await update_user(partner, likes=pu.get("likes", 0) + 1)
+            # Защита от спама лайков — 1 лайк за чат
+            chat_key = get_chat_key(uid, partner)
+            if not hasattr(do_find, '_liked_chats'):
+                do_find._liked_chats = set()
+            like_key = (uid, chat_key)
+            if like_key in do_find._liked_chats:
+                await message.answer("👍 Ты уже ставил лайк этому собеседнику!")
+                return
+            do_find._liked_chats.add(like_key)
+            await increment_user(partner, likes=1)
             await message.answer("👍 Лайк отправлен!")
             try: await bot.send_message(partner, "👍 Собеседник поставил тебе лайк! ⭐")
-            except: pass
+            except Exception: pass
         return
     if "🎲 Дай тему" in txt:
         if uid in active_chats:
@@ -1770,7 +1802,7 @@ async def relay(message: types.Message, state: FSMContext):
             topic = random.choice(CHAT_TOPICS)
             await message.answer(f"🎲 Тема для разговора:\n\n{topic}")
             try: await bot.send_message(partner, f"🎲 Собеседник предлагает тему:\n\n{topic}")
-            except: pass
+            except Exception: pass
         return
     if "🏠" in txt or txt == "🏠 Главное меню":
         await end_chat(uid, state, go_next=False)
@@ -1786,6 +1818,8 @@ async def relay(message: types.Message, state: FSMContext):
     if message.text:
         log_message(uid, partner, uid, message.text)
     now = datetime.now()
+    # Обновляем last_seen
+    await update_user(uid, last_seen=now)
     msg_count.setdefault(uid, [])
     msg_count[uid] = [t for t in msg_count[uid] if (now - t).total_seconds() < 5]
     if len(msg_count[uid]) >= 5:
@@ -1802,7 +1836,8 @@ async def relay(message: types.Message, state: FSMContext):
         elif message.video_note: await bot.send_video_note(partner, message.video_note.file_id)
         elif message.document: await bot.send_document(partner, message.document.file_id, caption=message.caption)
         elif message.audio: await bot.send_audio(partner, message.audio.file_id)
-    except: pass
+    except Exception as e:
+        logger.warning(f"Relay failed {uid}->{partner}: {e}")
 
 # ====================== ЖАЛОБА ======================
 @dp.callback_query(F.data == "rep:cancel", StateFilter(Complaint.reason))
@@ -1810,7 +1845,7 @@ async def complaint_cancel(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(Chat.chatting)
     try:
         await callback.message.edit_text("↩️ Жалоба отменена.")
-    except: pass
+    except Exception: pass
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("rep:"), StateFilter(Complaint.reason))
@@ -1825,7 +1860,7 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
     if not partner:
         try:
             await callback.message.edit_text("Ты не в чате.")
-        except: pass
+        except Exception: pass
         await state.clear()
         return
     log_text = get_chat_log_text(uid, partner)
@@ -1835,8 +1870,7 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
             "INSERT INTO complaints_log (from_uid, to_uid, reason, chat_log, stop_words_found) VALUES ($1,$2,$3,$4,$5) RETURNING id",
             uid, partner, reason, log_text, stop_found
         )
-        pu = await get_user(partner)
-        await update_user(partner, complaints=pu.get("complaints", 0) + 1)
+        await increment_user(partner, complaints=1)
     active_chats.pop(uid, None)
     active_chats.pop(partner, None)
     await remove_chat_from_db(uid, partner)
@@ -1844,13 +1878,13 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
     try:
         await callback.message.edit_text(f"🚩 Жалоба #{complaint_id} отправлена. Администратор рассмотрит её.")
-    except: pass
+    except Exception: pass
     await bot.send_message(uid, "Чат завершён.", reply_markup=kb_main())
     try:
         await bot.send_message(partner, "⚠️ На тебя подана жалоба.", reply_markup=kb_main())
         pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
         await FSMContext(dp.storage, key=pkey).clear()
-    except: pass
+    except Exception: pass
     pu = await get_user(partner)
     ru = await get_user(uid)
     try:
@@ -1864,7 +1898,7 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
             f"🕐 {datetime.now().strftime('%d.%m.%Y %H:%M')}",
             reply_markup=kb_complaint_action(complaint_id, partner, uid, bool(log_text), stop_found)
         )
-    except: pass
+    except Exception: pass
     await callback.answer()
 
 # ====================== ОТМЕНА ПОИСКА ======================
@@ -1919,7 +1953,7 @@ async def show_profile(message: types.Message, state: FSMContext):
             try:
                 until = datetime.fromisoformat(u["premium_until"])
                 premium_status = f"⭐ Premium до {until.strftime('%d.%m.%Y')}"
-            except:
+            except Exception:
                 premium_status = "⭐ Premium"
     else:
         premium_status = "Нет"
@@ -1999,7 +2033,10 @@ async def edit_gender(message: types.Message, state: FSMContext):
     txt = message.text or ""
     if "Парень" in txt: g = "male"
     elif "Девушка" in txt: g = "female"
-    else: g = "other"
+    elif "Другое" in txt: g = "other"
+    else:
+        await message.answer("Выбери пол из кнопок 👇", reply_markup=kb_gender())
+        return
     await update_user(uid, gender=g)
     await state.clear()
     await message.answer("✅ Пол обновлён!", reply_markup=kb_main())
@@ -2014,7 +2051,10 @@ async def edit_mode(message: types.Message, state: FSMContext):
     txt = (message.text or "").lower()
     if "общение" in txt: mode = "simple"
     elif "флирт" in txt: mode = "flirt"
-    else: mode = "kink"
+    elif "kink" in txt or "ролевые" in txt: mode = "kink"
+    else:
+        await message.answer("Выбери режим из кнопок 👇", reply_markup=kb_mode())
+        return
     await update_user(uid, mode=mode)
     await state.set_state(EditProfile.interests)
     await state.update_data(temp_interests=[], edit_mode=mode)
@@ -2035,7 +2075,7 @@ async def edit_interest(callback: types.CallbackQuery, state: FSMContext):
         await state.clear()
         try:
             await callback.message.edit_text("✅ Интересы обновлены!")
-        except: pass
+        except Exception: pass
         await callback.message.answer("Готово!", reply_markup=kb_main())
         await callback.answer()
         return
@@ -2051,7 +2091,7 @@ async def edit_interest(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(temp_interests=sel)
     try:
         await callback.message.edit_reply_markup(reply_markup=kb_interests(mode, sel))
-    except: pass
+    except Exception: pass
 
 # ====================== НАСТРОЙКИ ======================
 @dp.message(F.text == "⚙️ Настройки", StateFilter("*"))
@@ -2093,7 +2133,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         await update_user(uid, search_age_min=min_age, search_age_max=max_age)
         try:
             await callback.message.edit_reply_markup(reply_markup=await kb_settings(uid))
-        except: pass
+        except Exception: pass
         await callback.answer(f"✅ Возраст: {min_age}–{max_age}" if not (min_age==16 and max_age==99) else "✅ Возраст: Любой")
         return
     elif key == "simple":
@@ -2108,7 +2148,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         await update_user(uid, show_premium=not u.get("show_premium", True))
     try:
         await callback.message.edit_reply_markup(reply_markup=await kb_settings(uid))
-    except: pass
+    except Exception: pass
     await callback.answer("✅ Изменено")
 
 @dp.message(StateFilter(EditProfile.search_gender))
@@ -2256,7 +2296,7 @@ async def show_chat_log(callback: types.CallbackQuery):
             )
     elif action == "delete":
         try: await callback.message.delete()
-        except: pass
+        except Exception: pass
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("upd:"), StateFilter("*"))
@@ -2273,7 +2313,7 @@ async def handle_update_notify(callback: types.CallbackQuery):
                 await bot.send_message(uid, text, reply_markup=kb_main())
                 await bot.send_message(partner, text, reply_markup=kb_main())
                 sent += 2
-            except: pass
+            except Exception: pass
     async with db_pool.acquire() as conn:
         all_users = await conn.fetch("SELECT uid FROM users WHERE last_seen > NOW() - INTERVAL '7 days'")
     active_uids = set(active_chats.keys())
@@ -2283,7 +2323,7 @@ async def handle_update_notify(callback: types.CallbackQuery):
             await bot.send_message(row["uid"], text)
             sent += 1
             await asyncio.sleep(0.05)
-        except: pass
+        except Exception: pass
     await callback.message.answer(f"✅ Отправлено {sent} пользователям.")
     await callback.answer()
 
@@ -2338,7 +2378,7 @@ async def admin_complaint_action(callback: types.CallbackQuery):
 
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
-    except: pass
+    except Exception: pass
 
     if action == "ban3" and target_uid:
         until = datetime.now() + timedelta(hours=3)
@@ -2346,41 +2386,39 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await mark_reviewed("Бан 3ч")
         await callback.message.answer(f"✅ Бан 3ч → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Бан на 3 часа по жалобе.")
-        except: pass
+        except Exception: pass
     elif action == "ban24" and target_uid:
         until = datetime.now() + timedelta(hours=24)
         await update_user(target_uid, ban_until=until.isoformat())
         await mark_reviewed("Бан 24ч")
         await callback.message.answer(f"✅ Бан 24ч → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Бан на 24 часа по жалобе.")
-        except: pass
+        except Exception: pass
     elif action == "banperm" and target_uid:
         await update_user(target_uid, ban_until="permanent")
         await mark_reviewed("Перм бан")
         await callback.message.answer(f"✅ Перм бан → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Перманентный бан.")
-        except: pass
+        except Exception: pass
     elif action == "warn" and target_uid:
-        u = await get_user(target_uid)
-        await update_user(target_uid, warn_count=u.get("warn_count", 0) + 1)
+        await increment_user(target_uid, warn_count=1)
         await mark_reviewed("Предупреждение")
         await callback.message.answer(f"✅ Предупреждение → {target_uid}")
         try: await bot.send_message(target_uid, "⚠️ Предупреждение. Следующее — бан.")
-        except: pass
+        except Exception: pass
     elif action == "warnrep" and target_uid:
-        u = await get_user(target_uid)
-        await update_user(target_uid, warn_count=u.get("warn_count", 0) + 1)
+        await increment_user(target_uid, warn_count=1)
         await mark_reviewed("Предупреждение жалобщику")
         await callback.message.answer(f"✅ Ложная жалоба. Предупреждение → {target_uid}")
         try: await bot.send_message(target_uid, "⚠️ Жалоба признана необоснованной.")
-        except: pass
+        except Exception: pass
     elif action == "banrep" and target_uid:
         until = datetime.now() + timedelta(hours=24)
         await update_user(target_uid, ban_until=until.isoformat())
         await mark_reviewed("Бан жалобщику")
         await callback.message.answer(f"✅ Ложная жалоба. Бан 24ч → {target_uid}")
         try: await bot.send_message(target_uid, "🚫 Бан за злоупотребление жалобами.")
-        except: pass
+        except Exception: pass
     elif action == "dismiss":
         await mark_reviewed("Отклонена")
         await callback.message.answer(f"✅ Жалоба #{complaint_id} отклонена.")
@@ -2399,39 +2437,38 @@ async def admin_user_action(callback: types.CallbackQuery):
         await update_user(target_uid, ban_until=until.isoformat())
         await callback.answer("✅ Бан 3ч")
         try: await bot.send_message(target_uid, "🚫 Бан на 3 часа.")
-        except: pass
+        except Exception: pass
     elif action == "ban24":
         until = datetime.now() + timedelta(hours=24)
         await update_user(target_uid, ban_until=until.isoformat())
         await callback.answer("✅ Бан 24ч")
         try: await bot.send_message(target_uid, "🚫 Бан на 24 часа.")
-        except: pass
+        except Exception: pass
     elif action == "banperm":
         await update_user(target_uid, ban_until="permanent")
         await callback.answer("✅ Перм бан")
         try: await bot.send_message(target_uid, "🚫 Перманентный бан.")
-        except: pass
+        except Exception: pass
     elif action == "unban":
         await update_user(target_uid, ban_until=None)
         await callback.answer("✅ Разбан")
         try: await bot.send_message(target_uid, "✅ Ты разблокирован! Добро пожаловать обратно.")
-        except: pass
+        except Exception: pass
     elif action == "warn":
-        u = await get_user(target_uid)
-        await update_user(target_uid, warn_count=u.get("warn_count", 0) + 1)
+        await increment_user(target_uid, warn_count=1)
         await callback.answer("✅ Предупреждение")
         try: await bot.send_message(target_uid, "⚠️ Предупреждение от администратора.")
-        except: pass
+        except Exception: pass
     elif action == "kick":
         if target_uid in active_chats:
             partner = active_chats.pop(target_uid, None)
             if partner: active_chats.pop(partner, None)
             await remove_chat_from_db(target_uid, partner)
             try: await bot.send_message(target_uid, "❌ Кик от администратора.", reply_markup=kb_main())
-            except: pass
+            except Exception: pass
             if partner:
                 try: await bot.send_message(partner, "😔 Собеседник покинул чат.", reply_markup=kb_main())
-                except: pass
+                except Exception: pass
             await callback.answer("✅ Кикнут")
         else:
             await callback.answer("Не в чате", show_alert=True)
@@ -2440,18 +2477,20 @@ async def admin_user_action(callback: types.CallbackQuery):
         await update_user(target_uid, premium_until=until.isoformat())
         await callback.answer("✅ Premium 30д")
         try: await bot.send_message(target_uid, "⭐ Тебе выдан Premium на 30 дней!", reply_markup=kb_main())
-        except: pass
+        except Exception: pass
     elif action == "unpremium":
         await update_user(target_uid, premium_until=None)
         await callback.answer("✅ Premium забран")
         try: await bot.send_message(target_uid, "❌ Premium отменён администратором.")
-        except: pass
+        except Exception: pass
 
 # ====================== ТАЙМЕР НЕАКТИВНОСТИ ======================
 async def inactivity_checker():
     while True:
         await asyncio.sleep(60)
         now = datetime.now()
+
+        # Завершаем неактивные чаты
         to_end = []
         for uid, partner in list(active_chats.items()):
             if uid < partner:
@@ -2463,17 +2502,42 @@ async def inactivity_checker():
             active_chats.pop(partner, None)
             await remove_chat_from_db(uid, partner)
             clear_chat_log(uid, partner)
+            # Очищаем FSM state обоих пользователей
+            for chat_uid in (uid, partner):
+                try:
+                    key = StorageKey(bot_id=bot.id, chat_id=chat_uid, user_id=chat_uid)
+                    await FSMContext(dp.storage, key=key).clear()
+                except Exception:
+                    pass
             try: await bot.send_message(uid, "⏰ Чат завершён — 7 мин неактивности.", reply_markup=kb_main())
-            except: pass
+            except Exception: pass
             try: await bot.send_message(partner, "⏰ Чат завершён — 7 мин неактивности.", reply_markup=kb_main())
-            except: pass
+            except Exception: pass
+
+        # Очистка памяти: удаляем старые записи msg_count и last_msg_time
+        for uid_key in list(last_msg_time.keys()):
+            if uid_key not in active_chats and (now - last_msg_time[uid_key]).total_seconds() > 600:
+                last_msg_time.pop(uid_key, None)
+                msg_count.pop(uid_key, None)
+
+        # Очистка мёртвых душ из очередей (по last_seen)
+        async with pairing_lock:
+            for q in get_all_queues():
+                for uid_key in list(q):
+                    if uid_key in active_chats:
+                        q.discard(uid_key)
+
+        # Очистка просроченных mutual_likes (старше 15 мин уже не актуальны)
+        for uid_key in list(mutual_likes.keys()):
+            if not mutual_likes[uid_key]:
+                del mutual_likes[uid_key]
 
 # ====================== ЗАПУСК ======================
 async def main():
     await init_db()
     await set_commands()
     asyncio.create_task(inactivity_checker())
-    print("🚀 MatchMe запущен!")
+    logger.info("MatchMe запущен!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
