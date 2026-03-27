@@ -540,6 +540,13 @@ async def ask_claude_channel(system_prompt: str, user_prompt: str) -> str:
                     return data["content"][0]["text"]
                 else:
                     logger.warning(f"Claude API error: status={resp.status}")
+                    if resp.status in (401, 402, 429):
+                        try:
+                            await bot.send_message(ADMIN_ID,
+                                f"⚠️ Claude API ошибка {resp.status}!\n"
+                                f"{'Нет денег на балансе' if resp.status == 402 else 'Проблема с ключом' if resp.status == 401 else 'Превышен лимит запросов'}\n"
+                                f"AI-контент канала временно недоступен.")
+                        except Exception: pass
     except Exception as e:
         logger.error(f"Claude API error: {e}")
     return None
