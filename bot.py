@@ -2252,7 +2252,8 @@ async def edit_mode(message: types.Message, state: FSMContext):
     await update_user(uid, mode=mode, accept_cross_mode=False)
     await state.set_state(EditProfile.interests)
     await state.update_data(temp_interests=[], edit_mode=mode)
-    await message.answer("🎯 Выбери новые интересы:", reply_markup=kb_interests(mode, []))
+    await message.answer("🎯 Выбери новые интересы:", reply_markup=ReplyKeyboardRemove())
+    await message.answer("👇", reply_markup=kb_interests(mode, []))
 
 @dp.callback_query(F.data.startswith("int:"), StateFilter(EditProfile.interests))
 async def edit_interest(callback: types.CallbackQuery, state: FSMContext):
