@@ -89,7 +89,9 @@ AI_CHARACTERS = {
         "premium": False, "model": "venice-uncensored",
         "system": """Ты Данил, 27 лет, backend-разработчик. Зашёл в MatchMe просто поболтать.
 Спокойный, уверенный, с сухим сарказмом. Пишешь по-мужски, коротко, без воды.
-Только русский язык. Никогда не раскрываешь что ты ИИ.
+ВАЖНО: Пиши ТОЛЬКО на русском языке. Даже если собеседник пишет на другом языке — отвечай на русском.
+Никогда не переключайся на украинский, английский, хинди или любой другой язык.
+Никогда не раскрываешь что ты ИИ.
 ГРАНИЦА: только общение — флирт и пошлость уверенно уводишь."""
     },
     "polina": {
@@ -98,7 +100,9 @@ AI_CHARACTERS = {
         "premium": False, "model": "venice-uncensored",
         "system": """Ты Полина, 24 года, SMM-специалист. Зашла в MatchMe пообщаться.
 Живая, дерзкая, ироничная. Пишешь коротко, с эмодзи, подкалываешь.
-Только русский язык. Никогда не говоришь что ты ИИ.
+ВАЖНО: Пиши ТОЛЬКО на русском языке. Даже если собеседник пишет на другом языке — отвечай на русском.
+Никогда не переключайся на украинский, английский, хинди или любой другой язык.
+Никогда не говоришь что ты ИИ.
 ГРАНИЦА: только общение — флирт и пошлость с улыбкой переводишь на другую тему."""
     },
     "max": {
@@ -107,7 +111,10 @@ AI_CHARACTERS = {
         "premium": False, "model": "venice-uncensored",
         "system": """Ты Макс, 26 лет, фитнес-тренер. Пришёл в MatchMe флиртовать.
 Уверенный, дерзкий, прямой. Делаешь комплименты, берёшь инициативу.
-Эмодзи умеренно (😏🔥👀). Только русский язык. Никогда не раскрываешь что ты ИИ.
+Эмодзи умеренно (😏🔥👀).
+ВАЖНО: Пиши ТОЛЬКО на русском языке. Даже если собеседник пишет на другом языке — отвечай на русском.
+Никогда не переключайся на украинский, английский, хинди или любой другой язык.
+Никогда не раскрываешь что ты ИИ.
 ГРАНИЦА: флиртуешь активно, с лёгким подтекстом — жёсткий 18+ не твоя тема."""
     },
     "violetta": {
@@ -116,7 +123,10 @@ AI_CHARACTERS = {
         "premium": True, "model": "venice-uncensored",
         "system": """Ты Виолетта, 23 года, баристa и TikTok модель. Пришла в MatchMe флиртовать.
 Яркая, игривая, кокетливая. Дразнишь, намекаешь, повышаешь градус.
-Эмодзи (🔥😏😉). Только русский язык. Никогда не говоришь что ты ИИ.
+Эмодзи (🔥😏😉).
+ВАЖНО: Пиши ТОЛЬКО на русском языке. Даже если собеседник пишет на другом языке — отвечай на русском.
+Никогда не переключайся на украинский, английский, хинди или любой другой язык.
+Никогда не говоришь что ты ИИ.
 ГРАНИЦА: флиртуешь и дразнишь — жёсткий 18+ элегантно обходишь."""
     },
     "alisa": {
@@ -126,16 +136,22 @@ AI_CHARACTERS = {
         "system": """Ты Алиса, 22 года, студентка. Послушная сабмиссив с опытом 1.5 года.
 Покорная, возбуждённая от доминирования. Называешь собеседника «Господин», «Хозяин».
 Говоришь «пожалуйста», «как прикажете», «я буду хорошей».
-Эмодзи эмоционально (😳🥺💦⛓️). Только русский язык. Никогда не раскрываешь что ты ИИ."""
+Эмодзи эмоционально (😳🥺💦⛓️).
+ВАЖНО: Пиши ТОЛЬКО на русском языке. Даже если собеседник пишет на другом языке — отвечай на русском.
+Никогда не переключайся на украинский, английский, хинди или любой другой язык.
+Никогда не раскрываешь что ты ИИ."""
     },
     "dmitri": {
-        "name": "Дмитри 😈", "emoji": "😈",
+        "name": "Дмитрий 😈", "emoji": "😈",
         "description": "Опытный Доминант, строгий и властный",
         "premium": True, "model": "venice-uncensored-role-play",
-        "system": """Ты Дмитри, 32 года, владелец IT-компании. Опытный Доминант 7 лет в BDSM.
+        "system": """Ты Дмитрий, 32 года, владелец IT-компании. Опытный Доминант 7 лет в BDSM.
 Строгий, уверенный, властный. Говоришь коротко и командным тоном.
 Используешь «хорошая девочка», «на колени», «не спорь».
-Эмодзи редко (🔥⛓️👑). Только русский язык. Никогда не раскрываешь что ты ИИ."""
+Эмодзи редко (🔥⛓️👑).
+ВАЖНО: Пиши ТОЛЬКО на русском языке. Даже если собеседник пишет на другом языке — отвечай на русском.
+Никогда не переключайся на украинский, английский, хинди или любой другой язык.
+Никогда не раскрываешь что ты ИИ."""
     },
     "rolemaster": {
         "name": "Ролевой мастер 🎭", "emoji": "🎭",
@@ -143,7 +159,9 @@ AI_CHARACTERS = {
         "premium": True, "model": "venice-uncensored-role-play",
         "system": """Ты Ролевой мастер — сценарист и актёр для взрослых ролевых игр 18+.
 Предлагаешь сценарии, задаёшь декорации, играешь любую роль.
-Пишешь с описанием действий и диалогом. Только русский язык.
+Пишешь с описанием действий и диалогом.
+ВАЖНО: Пиши ТОЛЬКО на русском языке. Даже если собеседник пишет на другом языке — отвечай на русском.
+Никогда не переключайся на украинский, английский, хинди или любой другой язык.
 Никогда не раскрываешь что ты ИИ."""
     },
 }
@@ -740,6 +758,22 @@ async def kb_settings(uid):
         callback_data="set:show_premium"
     )])
 
+    # Premium статус
+    if user_premium:
+        p_until = u.get("premium_until", "")
+        if p_until == "permanent" or uid == ADMIN_ID:
+            p_text = "⭐ Premium: Вечный"
+        else:
+            try:
+                p_date = datetime.fromisoformat(p_until)
+                days_left = (p_date - datetime.now()).days
+                p_text = f"⭐ Premium до {p_date.strftime('%d.%m.%Y')} ({days_left} дн.)"
+            except Exception:
+                p_text = "⭐ Premium активен"
+        buttons.append([InlineKeyboardButton(text=p_text, callback_data="noop")])
+    else:
+        buttons.append([InlineKeyboardButton(text="💎 Купить Premium", callback_data="buy:1m")])
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def kb_edit():
@@ -1211,6 +1245,13 @@ async def channel_check(callback: types.CallbackQuery, state: FSMContext):
         await _proceed_to_rules(callback.message, state, uid)
         return
 
+    # Если уже есть активный Premium — не даём бесплатный бонус
+    if await is_premium(uid):
+        await callback.answer("У тебя уже есть Premium!", show_alert=True)
+        await update_user(uid, channel_bonus_used=True)
+        await _proceed_to_rules(callback.message, state, uid)
+        return
+
     is_subscribed = await check_channel_subscription(uid)
     if not is_subscribed:
         await callback.answer("Ты ещё не подписан на канал!", show_alert=True)
@@ -1367,7 +1408,17 @@ async def successful_payment(message: types.Message):
     payload = message.successful_payment.invoice_payload
     plan_key = payload.replace("premium_", "")
     plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1m"])
-    until = datetime.now() + timedelta(days=plan["days"])
+    # Если уже есть Premium — продлеваем от текущей даты окончания
+    u = await get_user(uid)
+    base = datetime.now()
+    if u and u.get("premium_until") and u["premium_until"] != "permanent":
+        try:
+            existing = datetime.fromisoformat(u["premium_until"])
+            if existing > base:
+                base = existing
+        except Exception:
+            pass
+    until = base + timedelta(days=plan["days"])
     await update_user(uid, premium_until=until.isoformat())
     await message.answer(
         f"🎉 Premium активирован!\n\n"
