@@ -69,6 +69,7 @@ msg_count = {}
 pairing_lock = asyncio.Lock()
 chat_logs = {}
 ai_sessions = {}
+last_ai_msg = {}  # uid -> datetime последнего сообщения в AI чат
 mutual_likes = {}  # uid -> set of partner_uids которым лайкнул
 
 # Стоп-слова для логирования жалоб
@@ -708,7 +709,7 @@ def kb_ai_characters(premium=False, mode="simple"):
 
 def kb_ai_chat():
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="🔄 Сменить персонажа")],
+        [KeyboardButton(text="🔄 Сменить персонажа"), KeyboardButton(text="❌ Завершить чат")],
         [KeyboardButton(text="🔍 Найти живого собеседника")],
         [KeyboardButton(text="🏠 Главное меню")]
     ], resize_keyboard=True)
@@ -980,9 +981,17 @@ async def do_find(uid, state):
             # Shadow ban: теневые юзеры матчатся только между собой
             p_shadow = pu.get("shadow_ban", False)
             if my_shadow != p_shadow: continue
+            # Двусторонняя проверка пола: мой фильтр → пол партнёра И фильтр партнёра → мой пол
             if search_gender != "any" and pu.get("gender") != search_gender: continue
+            p_search_gender = pu.get("search_gender", "any")
+            if p_search_gender != "any" and u.get("gender") != p_search_gender: continue
+            # Двусторонняя проверка возраста
             p_age = pu.get("age", 0) or 0
+            my_age = u.get("age", 0) or 0
             if p_age < search_age_min or p_age > search_age_max: continue
+            p_age_min = pu.get("search_age_min", 16) or 16
+            p_age_max = pu.get("search_age_max", 99) or 99
+            if my_age < p_age_min or my_age > p_age_max: continue
             p_mode = pu.get("mode", "simple")
             # Общение — изолировано: партнёр тоже должен быть в Общении
             if mode == "simple" and p_mode != "simple": continue
@@ -1578,6 +1587,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("🔒 Только для Premium!", show_alert=True)
         return
     ai_sessions[uid] = {"character": char_id, "history": [], "msg_count": 0}
+    last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
     limit_text = "⭐ Premium: безлимит" if user_premium else f"🆓 Бесплатно: {AI_FREE_LIMIT} сообщений"
     try:
@@ -1597,6 +1607,12 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
 async def ai_chat_message(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     txt = message.text or ""
+    if "Завершить чат" in txt:
+        ai_sessions.pop(uid, None)
+        last_ai_msg.pop(uid, None)
+        await state.clear()
+        await message.answer("✅ Чат с ИИ завершён.", reply_markup=kb_main())
+        return
     if "Сменить персонажа" in txt:
         ai_sessions.pop(uid, None)
         user_premium = await is_premium(uid)
@@ -1625,14 +1641,20 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     char = AI_CHARACTERS[char_id]
     user_premium = await is_premium(uid)
     if not user_premium and session["msg_count"] >= AI_FREE_LIMIT:
+        ai_sessions.pop(uid, None)
+        last_ai_msg.pop(uid, None)
+        await state.clear()
         await message.answer(
             f"⏰ Использовано {AI_FREE_LIMIT} бесплатных сообщений.\n\n⭐ Купи Premium для безлимита!",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⭐ Купить Premium", callback_data="buy:1m")],
-                [InlineKeyboardButton(text="🔍 Найти живого собеседника", callback_data="goto:find")]
+                [InlineKeyboardButton(text="🔍 Найти живого собеседника", callback_data="goto:find")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="goto:menu")]
             ])
         )
+        await message.answer("Лимит исчерпан.", reply_markup=kb_main())
         return
+    last_ai_msg[uid] = datetime.now()
     await bot.send_chat_action(uid, "typing")
     await update_user(uid, last_seen=datetime.now())
     session["history"].append({"role": "user", "content": txt})
@@ -2249,7 +2271,7 @@ async def edit_mode(message: types.Message, state: FSMContext):
                 reply_markup=kb_mode()
             )
             return
-    await update_user(uid, mode=mode, accept_cross_mode=False)
+    await update_user(uid, mode=mode, accept_cross_mode=False, interests="")
     await state.set_state(EditProfile.interests)
     await state.update_data(temp_interests=[], edit_mode=mode)
     await message.answer("🎯 Выбери новые интересы:", reply_markup=ReplyKeyboardRemove())
@@ -2723,6 +2745,23 @@ async def inactivity_checker():
             try: await bot.send_message(uid, "⏰ Чат завершён — 7 мин неактивности.", reply_markup=kb_main())
             except Exception: pass
             try: await bot.send_message(partner, "⏰ Чат завершён — 7 мин неактивности.", reply_markup=kb_main())
+            except Exception: pass
+
+        # Завершаем неактивные AI чаты (10 мин)
+        ai_to_end = []
+        for uid_key in list(ai_sessions.keys()):
+            last_ai = last_ai_msg.get(uid_key)
+            if last_ai and (now - last_ai).total_seconds() > 600:
+                ai_to_end.append(uid_key)
+        for uid_key in ai_to_end:
+            ai_sessions.pop(uid_key, None)
+            last_ai_msg.pop(uid_key, None)
+            try:
+                key = StorageKey(bot_id=bot.id, chat_id=uid_key, user_id=uid_key)
+                await FSMContext(dp.storage, key=key).clear()
+            except Exception: pass
+            try:
+                await bot.send_message(uid_key, "⏰ AI чат завершён — 10 мин неактивности.", reply_markup=kb_main())
             except Exception: pass
 
         # Очистка памяти: удаляем старые записи msg_count и last_msg_time
