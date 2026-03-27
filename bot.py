@@ -951,7 +951,7 @@ async def do_find(uid, state):
     if not u or not u.get("name") or not u.get("mode"): return False
     mode = u["mode"]
     user_premium = await is_premium(uid)
-    my_interests = set(u.get("interests", "").split(",")) if u.get("interests") else set()
+    my_interests = set(filter(None, u.get("interests", "").split(","))) if u.get("interests") else set()
     my_rating = get_rating(u)
     my_shadow = u.get("shadow_ban", False)
     cross = u.get("accept_cross_mode", False)
@@ -977,7 +977,17 @@ async def do_find(uid, state):
         for pid in list(q):
             if pid == uid or pid in active_chats: continue
             pu = await get_user(pid)
-            if not pu: continue
+            if not pu or not pu.get("name") or not pu.get("gender") or not pu.get("mode"): continue
+            # Забаненные не участвуют в матчинге
+            if pu.get("ban_until"):
+                ban_v = pu["ban_until"]
+                if ban_v == "permanent":
+                    continue
+                try:
+                    if datetime.now() < datetime.fromisoformat(ban_v):
+                        continue
+                except Exception:
+                    pass
             # Shadow ban: теневые юзеры матчатся только между собой
             p_shadow = pu.get("shadow_ban", False)
             if my_shadow != p_shadow: continue
@@ -997,7 +1007,7 @@ async def do_find(uid, state):
             if mode == "simple" and p_mode != "simple": continue
             # Кросс-режим: партнёр тоже должен принимать кросс, если режимы разные
             if p_mode != mode and not pu.get("accept_cross_mode", False): continue
-            p_interests = set(pu.get("interests", "").split(",")) if pu.get("interests") else set()
+            p_interests = set(filter(None, pu.get("interests", "").split(","))) if pu.get("interests") else set()
             common = len(my_interests & p_interests)
             rating_diff = abs(get_rating(pu) - my_rating)
             p_premium = await is_premium(pid)
@@ -1556,6 +1566,12 @@ async def ai_menu(message: types.Message, state: FSMContext):
     if current in [Reg.name.state, Reg.age.state, Reg.gender.state, Reg.mode.state, Reg.interests.state]:
         await unavailable(message, "сначала заверши анкету")
         return
+    await ensure_user(uid)
+    u = await get_user(uid)
+    if not u or not u.get("name"):
+        await state.set_state(Reg.name)
+        await message.answer("Сначала заполни анкету!", reply_markup=kb_main())
+        return
     await _show_ai_menu(message, state, uid)
 
 @dp.callback_query(F.data.startswith("aichar:"), StateFilter(AIChat.choosing))
@@ -1943,6 +1959,14 @@ async def reg_interest(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_reply_markup(reply_markup=kb_interests(mode, sel))
     except Exception: pass
 
+@dp.message(StateFilter(Reg.interests))
+async def reg_interest_text(message: types.Message, state: FSMContext):
+    if message.text == "❌ Отменить анкету":
+        await state.clear()
+        await message.answer("❌ Анкета отменена.", reply_markup=kb_main())
+        return
+    await message.answer("👆 Нажми на кнопки выше, чтобы выбрать интересы.")
+
 # ====================== ЧАТ ======================
 @dp.message(StateFilter(Chat.chatting))
 async def relay(message: types.Message, state: FSMContext):
@@ -2309,6 +2333,14 @@ async def edit_interest(callback: types.CallbackQuery, state: FSMContext):
     try:
         await callback.message.edit_reply_markup(reply_markup=kb_interests(mode, sel))
     except Exception: pass
+
+@dp.message(StateFilter(EditProfile.interests))
+async def edit_interest_text(message: types.Message, state: FSMContext):
+    if message.text == "❌ Отменить анкету":
+        await state.clear()
+        await message.answer("↩️ Возврат.", reply_markup=kb_main())
+        return
+    await message.answer("👆 Нажми на кнопки выше, чтобы выбрать интересы.")
 
 # ====================== НАСТРОЙКИ ======================
 @dp.message(F.text == "⚙️ Настройки", StateFilter("*"))
