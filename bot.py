@@ -209,6 +209,7 @@ async def init_db():
                 accept_flirt BOOLEAN DEFAULT TRUE,
                 accept_kink BOOLEAN DEFAULT FALSE,
                 only_own_mode BOOLEAN DEFAULT FALSE,
+                accept_cross_mode BOOLEAN DEFAULT FALSE,
                 search_gender TEXT DEFAULT 'any',
                 search_age_min INTEGER DEFAULT 16,
                 search_age_max INTEGER DEFAULT 99,
@@ -231,6 +232,7 @@ async def init_db():
             ("search_age_max", "INTEGER DEFAULT 99"),
             ("premium_until", "TEXT DEFAULT NULL"),
             ("show_premium", "BOOLEAN DEFAULT TRUE"),
+            ("accept_cross_mode", "BOOLEAN DEFAULT FALSE"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
@@ -459,8 +461,10 @@ async def ask_venice(character_id: str, history: list, user_message: str) -> str
                 elif resp.status == 402:
                     return "💳 ИИ временно недоступен — нет средств на балансе."
                 else:
+                    logger.warning(f"Venice API error: status={resp.status}")
                     return "😔 ИИ временно недоступен. Попробуй позже."
-    except Exception:
+    except Exception as e:
+        logger.error(f"Venice API connection error: {e}")
         return "😔 Ошибка соединения с ИИ."
 
 # ====================== ТЕКСТЫ ======================
@@ -688,16 +692,40 @@ async def kb_settings(uid):
     sg_map = {"any": "🔀 Все", "male": "👨 Парни", "female": "👩 Девушки", "other": "⚧ Другое"}
     sg = sg_map.get(u.get("search_gender", "any"), "🔀 Все")
     show_p = u.get("show_premium", True)
-    buttons = [
-        [InlineKeyboardButton(text=f"{'✅' if u.get('accept_simple', True) else '❌'} Принимать из Общения", callback_data="set:simple")],
-        [InlineKeyboardButton(text=f"{'✅' if u.get('accept_flirt', True) else '❌'} Принимать из Флирта", callback_data="set:flirt")],
-        [InlineKeyboardButton(text=f"{'✅' if u.get('accept_kink', False) else '❌'} Принимать из Kink", callback_data="set:kink")],
-        [InlineKeyboardButton(text=f"{'✅' if u.get('only_own_mode', False) else '❌'} Только свой режим", callback_data="set:only_own")],
-    ]
+    cross = u.get("accept_cross_mode", False)
+
+    buttons = []
+
+    # Заголовок — текущий режим
+    buttons.append([InlineKeyboardButton(
+        text=f"📌 Режим: {MODE_NAMES.get(mode, '—')}",
+        callback_data="noop"
+    )])
+
+    # Кросс-режим — только для Флирт и Kink (Общение всегда изолировано)
+    if mode == "flirt":
+        buttons.append([InlineKeyboardButton(
+            text=f"{'✅' if cross else '❌'} Также принимать из Kink 🔥",
+            callback_data="set:cross"
+        )])
+    elif mode == "kink":
+        buttons.append([InlineKeyboardButton(
+            text=f"{'✅' if cross else '❌'} Также принимать из Флирта 💋",
+            callback_data="set:cross"
+        )])
+    elif mode == "simple":
+        buttons.append([InlineKeyboardButton(
+            text="🔒 Поиск только среди «Общение»",
+            callback_data="noop"
+        )])
+
+    # Фильтр пола
     if mode == "simple" or user_premium:
         buttons.append([InlineKeyboardButton(text=f"👤 Искать: {sg}", callback_data="set:gender")])
     else:
         buttons.append([InlineKeyboardButton(text=f"👤 Искать: {sg} 🔒 Premium", callback_data="set:gender_locked")])
+
+    # Фильтр возраста
     buttons.append([InlineKeyboardButton(text=age_label, callback_data="noop")])
     buttons.append([
         InlineKeyboardButton(text="✅ 16-20" if (age_min==16 and age_max==20) else "16-20", callback_data="set:age:16:20"),
@@ -705,10 +733,13 @@ async def kb_settings(uid):
         InlineKeyboardButton(text="✅ 31-45" if (age_min==31 and age_max==45) else "31-45", callback_data="set:age:31:45"),
         InlineKeyboardButton(text="✅ Любой" if (age_min==16 and age_max==99) else "Любой", callback_data="set:age:16:99"),
     ])
+
+    # Значок Premium
     buttons.append([InlineKeyboardButton(
         text=f"{'✅' if show_p else '❌'} Значок ⭐ в профиле",
         callback_data="set:show_premium"
     )])
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def kb_edit():
@@ -849,23 +880,23 @@ async def do_find(uid, state):
     user_premium = await is_premium(uid)
     my_interests = set(u.get("interests", "").split(",")) if u.get("interests") else set()
     my_rating = get_rating(u)
-    only_own = u.get("only_own_mode", False)
+    cross = u.get("accept_cross_mode", False)
     search_gender = u.get("search_gender", "any")
     search_age_min = u.get("search_age_min", 16) or 16
     search_age_max = u.get("search_age_max", 99) or 99
 
     # Собираем кандидатов ВНЕ лока (await-запросы к БД)
+    # Общение — всегда изолировано, кросс-режим только Флирт↔Kink
     queues_to_search = []
     if user_premium:
         queues_to_search.append(get_queue(mode, True))
     queues_to_search.append(get_queue(mode, False))
-    if not only_own:
-        if mode == "flirt" and u.get("accept_kink"):
-            if user_premium: queues_to_search.append(get_queue("kink", True))
-            queues_to_search.append(get_queue("kink", False))
-        if mode == "kink" and u.get("accept_flirt"):
-            if user_premium: queues_to_search.append(get_queue("flirt", True))
-            queues_to_search.append(get_queue("flirt", False))
+    if cross and mode == "flirt":
+        if user_premium: queues_to_search.append(get_queue("kink", True))
+        queues_to_search.append(get_queue("kink", False))
+    elif cross and mode == "kink":
+        if user_premium: queues_to_search.append(get_queue("flirt", True))
+        queues_to_search.append(get_queue("flirt", False))
 
     candidates = []
     for q in queues_to_search:
@@ -876,9 +907,11 @@ async def do_find(uid, state):
             if search_gender != "any" and pu.get("gender") != search_gender: continue
             p_age = pu.get("age", 0) or 0
             if p_age < search_age_min or p_age > search_age_max: continue
-            if mode == "simple" and not pu.get("accept_simple", True): continue
-            if mode == "flirt" and not pu.get("accept_flirt", True): continue
-            if mode == "kink" and not pu.get("accept_kink", False): continue
+            p_mode = pu.get("mode", "simple")
+            # Общение — изолировано: партнёр тоже должен быть в Общении
+            if mode == "simple" and p_mode != "simple": continue
+            # Кросс-режим: партнёр тоже должен принимать кросс, если режимы разные
+            if p_mode != mode and not pu.get("accept_cross_mode", False): continue
             p_interests = set(pu.get("interests", "").split(",")) if pu.get("interests") else set()
             common = len(my_interests & p_interests)
             rating_diff = abs(get_rating(pu) - my_rating)
@@ -1372,6 +1405,7 @@ async def reset_confirm(callback: types.CallbackQuery, state: FSMContext):
             UPDATE users SET name=NULL, age=NULL, gender=NULL, mode=NULL,
                 interests='', likes=0, dislikes=0, accept_simple=TRUE,
                 accept_flirt=TRUE, accept_kink=FALSE, only_own_mode=FALSE,
+                accept_cross_mode=FALSE,
                 search_gender='any', search_age_min=16, search_age_max=99
             WHERE uid=$1
         """, uid)
@@ -1570,10 +1604,11 @@ async def anon_search(message: types.Message, state: FSMContext):
         return
     await ensure_user(uid)
     await message.answer("⚡ Ищем анонимного собеседника...", reply_markup=kb_cancel_search())
+    # Внутри лока — только атомарное спаривание
+    partner = None
     async with pairing_lock:
         if uid in active_chats:
             return
-        partner = None
         for pid in list(waiting_anon):
             if pid != uid and pid not in active_chats:
                 partner = pid
@@ -1583,18 +1618,22 @@ async def anon_search(message: types.Message, state: FSMContext):
             active_chats[uid] = partner
             active_chats[partner] = uid
             last_msg_time[uid] = last_msg_time[partner] = datetime.now()
-            await state.set_state(Chat.chatting)
-            pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
-            await FSMContext(dp.storage, key=pkey).set_state(Chat.chatting)
-            await save_chat_to_db(uid, partner, "anon")
-            await increment_user(uid, total_chats=1)
-            await increment_user(partner, total_chats=1)
-            await bot.send_message(uid, "👤 Соединено! Удачи! 🎉", reply_markup=kb_chat())
-            await bot.send_message(partner, "👤 Соединено! Удачи! 🎉", reply_markup=kb_chat())
         else:
             waiting_anon.add(uid)
-            await state.set_state(Chat.waiting)
-            asyncio.create_task(notify_no_partner(uid))
+
+    # Все await-операции — ПОСЛЕ лока
+    if partner:
+        await state.set_state(Chat.chatting)
+        pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
+        await FSMContext(dp.storage, key=pkey).set_state(Chat.chatting)
+        await save_chat_to_db(uid, partner, "anon")
+        await increment_user(uid, total_chats=1)
+        await increment_user(partner, total_chats=1)
+        await bot.send_message(uid, "👤 Соединено! Удачи! 🎉", reply_markup=kb_chat())
+        await bot.send_message(partner, "👤 Соединено! Удачи! 🎉", reply_markup=kb_chat())
+    else:
+        await state.set_state(Chat.waiting)
+        asyncio.create_task(notify_no_partner(uid))
 
 # ====================== ПОИСК ПО АНКЕТЕ ======================
 @dp.message(F.text.in_(["🔍 Поиск по анкете", "🔍 Найти собеседника"]), StateFilter("*"))
@@ -2136,14 +2175,12 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         except Exception: pass
         await callback.answer(f"✅ Возраст: {min_age}–{max_age}" if not (min_age==16 and max_age==99) else "✅ Возраст: Любой")
         return
-    elif key == "simple":
-        await update_user(uid, accept_simple=not u.get("accept_simple", True))
-    elif key == "flirt":
-        await update_user(uid, accept_flirt=not u.get("accept_flirt", True))
-    elif key == "kink":
-        await update_user(uid, accept_kink=not u.get("accept_kink", False))
-    elif key == "only_own":
-        await update_user(uid, only_own_mode=not u.get("only_own_mode", False))
+    elif key == "cross":
+        mode = u.get("mode", "simple") if u else "simple"
+        if mode == "simple":
+            await callback.answer("В режиме «Общение» кросс-режим недоступен", show_alert=True)
+            return
+        await update_user(uid, accept_cross_mode=not u.get("accept_cross_mode", False))
     elif key == "show_premium":
         await update_user(uid, show_premium=not u.get("show_premium", True))
     try:
