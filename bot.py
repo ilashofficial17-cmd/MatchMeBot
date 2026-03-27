@@ -875,6 +875,7 @@ async def kb_admin_main():
         [InlineKeyboardButton(text="🔧 Уведомить об обновлении", callback_data="admin:notify_update")],
         [InlineKeyboardButton(text=f"📢 Канал: {ch_status}", callback_data="admin:channel_toggle"),
          InlineKeyboardButton(text="📝 Пост в канал", callback_data="admin:channel_post")],
+        [InlineKeyboardButton(text="🔌 Статус API", callback_data="admin:api_status")],
     ])
 
 def kb_complaint_action(complaint_id, accused_uid, reporter_uid, has_log=False, stop_words=False):
@@ -2586,6 +2587,67 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
                 [InlineKeyboardButton(text="📈 Итоги недели", callback_data="chpost:weekly_recap")],
             ])
         )
+    elif action == "api_status":
+        await callback.message.answer("⏳ Проверяю API...")
+        results = []
+        # Claude API check
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": ANTHROPIC_API_KEY or "",
+                        "anthropic-version": "2023-06-01",
+                        "Content-Type": "application/json",
+                    },
+                    json={"model": "claude-haiku-4-5-20251001", "max_tokens": 10,
+                          "messages": [{"role": "user", "content": "Hi"}]},
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp:
+                    if resp.status == 200:
+                        results.append("🟢 Claude API — активен ✅")
+                    elif resp.status == 401:
+                        results.append("🔴 Claude API — неверный ключ ❌")
+                    elif resp.status == 402:
+                        results.append("🔴 Claude API — нет средств на балансе 💰")
+                    elif resp.status == 429:
+                        results.append("🟡 Claude API — лимит запросов (но работает)")
+                    else:
+                        results.append(f"🟡 Claude API — ошибка {resp.status}")
+        except Exception as e:
+            results.append(f"🔴 Claude API — недоступен ({e})")
+        # Venice API check
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    VENICE_API_URL,
+                    headers={"Authorization": f"Bearer {VENICE_API_KEY or ''}",
+                             "Content-Type": "application/json"},
+                    json={"model": "venice-uncensored", "messages": [{"role": "user", "content": "Hi"}],
+                          "max_tokens": 10},
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp:
+                    if resp.status == 200:
+                        results.append("🟢 Venice API — активен ✅")
+                    elif resp.status == 401:
+                        results.append("🔴 Venice API — неверный ключ ❌")
+                    elif resp.status == 402:
+                        results.append("🔴 Venice API — нет средств 💰")
+                    else:
+                        results.append(f"🟡 Venice API — ошибка {resp.status}")
+        except Exception as e:
+            results.append(f"🔴 Venice API — недоступен ({e})")
+        # DB check
+        try:
+            async with db_pool.acquire() as conn:
+                await conn.fetchval("SELECT 1")
+            results.append("🟢 PostgreSQL — активна ✅")
+        except Exception:
+            results.append("🔴 PostgreSQL — недоступна ❌")
+
+        await callback.message.answer(
+            "🔌 Статус сервисов\n\n" + "\n".join(results)
+        )
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("clog:"), StateFilter("*"))
@@ -2909,6 +2971,14 @@ CHANNEL_SCHEDULE = {
 
 BOT_USERNAME = "matchme_hub_bot"
 
+CHANNEL_STYLE_PROMPT = (
+    "Ты креативный копирайтер телеграм-канала MatchMe — анонимного чат-бота для знакомств. "
+    "Пишешь ТОЛЬКО на русском. Стиль: дерзкий, молодёжный, с эмодзи и лёгким юмором. "
+    "Используй разделители (── ·  ✦  · ──), пустые строки для воздуха, эмодзи-акценты. "
+    "Текст должен выглядеть как стильный пост в телеграм-канале, НЕ как сообщение бота. "
+    "НИКАКИХ хештегов. В конце ВСЕГДА добавляй: @matchme_hub_bot"
+)
+
 async def generate_daily_stats():
     try:
         async with db_pool.acquire() as conn:
@@ -2918,21 +2988,33 @@ async def generate_daily_stats():
             genders = await conn.fetch("SELECT gender, COUNT(*) as cnt FROM users WHERE gender IS NOT NULL GROUP BY gender")
             modes = await conn.fetch("SELECT mode, COUNT(*) as cnt FROM users WHERE mode IS NOT NULL GROUP BY mode ORDER BY cnt DESC")
             premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL")
-        g_text = " | ".join(f"{GENDER_RU.get(r['gender'], r['gender'])}: {r['cnt']}" for r in genders)
-        m_text = "\n".join(f"  {MODE_EMOJI.get(r['mode'], '❓')} {MODE_NAMES.get(r['mode'], r['mode'])}: {r['cnt']}" for r in modes)
+        g_map = {"male": "парней", "female": "девушек", "other": "other"}
+        g_parts = [f"{r['cnt']} {g_map.get(r['gender'], r['gender'])}" for r in genders]
+        m_parts = [f"{MODE_NAMES.get(r['mode'], r['mode'])}: {r['cnt']}" for r in modes]
         online = len(active_chats) // 2
         searching = sum(len(q) for q in get_all_queues())
+        raw_data = (
+            f"Всего юзеров: {total}, новых за 24ч: {new_today}, активных: {active}, "
+            f"сейчас в чатах: {online} пар, ищут: {searching}, premium: {premiums}, "
+            f"пол: {', '.join(g_parts)}, режимы: {', '.join(m_parts)}"
+        )
+        styled = await ask_claude_channel(
+            CHANNEL_STYLE_PROMPT,
+            f"Оформи ежедневную статистику MatchMe в красивый пост для канала. "
+            f"Данные: {raw_data}. "
+            f"Сделай визуально привлекательно с разделителями и эмодзи. Кратко но стильно."
+        )
+        if styled:
+            return styled
+        # Fallback если Claude недоступен
         return (
-            f"📊 Статистика MatchMe\n\n"
-            f"👥 Всего пользователей: {total}\n"
-            f"🆕 Новых за 24ч: {new_today}\n"
-            f"🟢 Активных за 24ч: {active}\n"
-            f"💬 Сейчас в чатах: {online} пар\n"
-            f"🔍 Ищут собеседника: {searching}\n"
-            f"⭐ Premium: {premiums}\n\n"
-            f"⚧ Пол:\n  {g_text}\n\n"
-            f"🎯 Режимы:\n{m_text}\n\n"
-            f"Присоединяйся 👉 @{BOT_USERNAME}"
+            f"┌─── ✦ СТАТИСТИКА ✦ ───┐\n\n"
+            f"👥  {total} пользователей\n"
+            f"🆕  +{new_today} за сегодня\n"
+            f"🟢  {active} активных\n"
+            f"💬  {online} пар в чатах\n"
+            f"🔍  {searching} ищут прямо сейчас\n\n"
+            f"└─── @{BOT_USERNAME} ───┘"
         )
     except Exception as e:
         logger.error(f"generate_daily_stats error: {e}")
@@ -2943,33 +3025,42 @@ async def generate_peak_hour():
     searching = sum(len(q) for q in get_all_queues())
     if online + searching < 1:
         return None
+    styled = await ask_claude_channel(
+        CHANNEL_STYLE_PROMPT,
+        f"Напиши короткий энергичный пост-алерт для канала: сейчас в MatchMe активность! "
+        f"{online} пар общаются, {searching} человек ищут собеседника. "
+        f"Призови людей зайти прямо сейчас. 3-4 строки, дерзко и цепляюще."
+    )
+    if styled:
+        return styled
     return (
-        f"🔥 Сейчас в MatchMe активно!\n\n"
-        f"💬 {online} пар общаются прямо сейчас\n"
-        f"🔍 {searching} чел. ищут собеседника\n\n"
-        f"Заходи — найдёшь пару за секунды!\n"
-        f"👉 @{BOT_USERNAME}"
+        f"⚡ СЕЙЧАС В MATCHME ЖАРКО\n\n"
+        f"💬 {online} пар болтают\n"
+        f"🔍 {searching} ждут тебя\n\n"
+        f"Залетай 👉 @{BOT_USERNAME}"
     )
 
 async def generate_dating_tip():
     text = await ask_claude_channel(
-        "Ты копирайтер телеграм-канала о знакомствах MatchMe. Пишешь коротко, живо, на русском. Без хештегов.",
-        "Напиши один полезный совет по общению в анонимных чатах знакомств. 3-4 предложения. "
-        "Дружелюбный тон с лёгким юмором. Начни с подходящего эмодзи. Не добавляй заголовок."
+        CHANNEL_STYLE_PROMPT,
+        "Напиши пост-совет для канала MatchMe. Тема: как лучше общаться в анонимных чатах, "
+        "как произвести впечатление, как начать разговор, или что-то неочевидное про знакомства. "
+        "Оформи красиво с разделителями. 4-6 строк основного текста."
     )
     if not text:
         return None
-    return f"💡 Совет дня\n\n{text}\n\n@{BOT_USERNAME}"
+    return text
 
 async def generate_joke():
     text = await ask_claude_channel(
-        "Ты юморист, пишешь шутки для телеграм-канала про анонимные знакомства MatchMe. Коротко и смешно, на русском. Без хештегов.",
-        "Придумай одну смешную шутку или мини-историю про онлайн-знакомства или анонимные чаты. "
-        "3-5 предложений. Юмор лёгкий, не обидный. Можно с неожиданной концовкой."
+        CHANNEL_STYLE_PROMPT,
+        "Напиши смешной пост для канала MatchMe. Это может быть: шутка про онлайн-знакомства, "
+        "мини-история из анонимного чата, саркастичное наблюдение про dating, или мем в текстовом формате. "
+        "Оформи как стильный пост с эмодзи. Юмор лёгкий но цепляющий."
     )
     if not text:
         return None
-    return f"😂 Юмор дня\n\n{text}\n\n@{BOT_USERNAME}"
+    return text
 
 async def generate_poll():
     return random.choice(POLL_BANK)
@@ -2985,9 +3076,16 @@ async def generate_milestone():
                 current = t
         if current > last_milestone_threshold and last_milestone_threshold > 0:
             last_milestone_threshold = current
+            styled = await ask_claude_channel(
+                CHANNEL_STYLE_PROMPT,
+                f"Напиши праздничный пост: MatchMe достиг {current} пользователей (точное число: {total})! "
+                f"Поблагодари сообщество. Сделай это эмоционально и празднично."
+            )
+            if styled:
+                return styled
             return (
-                f"🎉 Нас уже {current}+!\n\n"
-                f"MatchMe растёт — уже {total} пользователей!\n"
+                f"🎉 ✦ MILESTONE ✦ 🎉\n\n"
+                f"Нас уже {current}+!\n"
                 f"Спасибо что вы с нами ❤️\n\n"
                 f"@{BOT_USERNAME}"
             )
@@ -3010,16 +3108,27 @@ async def generate_weekly_recap():
                 FROM users WHERE age IS NOT NULL GROUP BY bracket ORDER BY bracket
             """)
             top_mode = await conn.fetchrow("SELECT mode, COUNT(*) as cnt FROM users WHERE mode IS NOT NULL GROUP BY mode ORDER BY cnt DESC LIMIT 1")
-        age_text = "\n".join(f"  {r['bracket']}: {r['cnt']}" for r in ages)
-        mode_text = f"{MODE_NAMES.get(top_mode['mode'], '?')}" if top_mode else "—"
+        age_parts = [f"{r['bracket']}: {r['cnt']}" for r in ages]
+        mode_text = MODE_NAMES.get(top_mode['mode'], '?') if top_mode else "—"
+        raw_data = (
+            f"Всего: {total}, новых за неделю: {new_week}, активных за неделю: {active_week}, "
+            f"топ режим: {mode_text}, возрасты: {', '.join(age_parts)}"
+        )
+        styled = await ask_claude_channel(
+            CHANNEL_STYLE_PROMPT,
+            f"Оформи еженедельный итоговый пост для канала MatchMe. "
+            f"Данные: {raw_data}. "
+            f"Сделай красивый итоговый пост с разделителями, можно добавить мотивационную фразу."
+        )
+        if styled:
+            return styled
         return (
-            f"📈 Итоги недели MatchMe\n\n"
-            f"👥 Всего: {total}\n"
-            f"🆕 Новых за неделю: {new_week}\n"
-            f"🟢 Активных за неделю: {active_week}\n"
-            f"🏆 Самый популярный режим: {mode_text}\n\n"
-            f"🎂 Возрасты:\n{age_text}\n\n"
-            f"До встречи на следующей неделе! @{BOT_USERNAME}"
+            f"┌─── ✦ ИТОГИ НЕДЕЛИ ✦ ───┐\n\n"
+            f"👥  Всего: {total}\n"
+            f"🆕  Новых: +{new_week}\n"
+            f"🟢  Активных: {active_week}\n"
+            f"🏆  Топ режим: {mode_text}\n\n"
+            f"└─── @{BOT_USERNAME} ───┘"
         )
     except Exception as e:
         logger.error(f"generate_weekly_recap error: {e}")
