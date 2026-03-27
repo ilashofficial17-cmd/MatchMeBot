@@ -2616,23 +2616,19 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
                         results.append(f"🟡 Claude API — ошибка {resp.status}")
         except Exception as e:
             results.append(f"🔴 Claude API — недоступен ({e})")
-        # Venice API check
+        # Venice API check (GET /models возвращает баланс в заголовках)
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    VENICE_API_URL,
-                    headers={"Authorization": f"Bearer {VENICE_API_KEY or ''}",
-                             "Content-Type": "application/json"},
-                    json={"model": "venice-uncensored", "messages": [{"role": "user", "content": "Hi"}],
-                          "max_tokens": 10},
+                async with session.get(
+                    "https://api.venice.ai/api/v1/models",
+                    headers={"Authorization": f"Bearer {VENICE_API_KEY or ''}"},
                     timeout=aiohttp.ClientTimeout(total=15),
                 ) as resp:
                     if resp.status == 200:
-                        results.append("🟢 Venice API — активен ✅")
+                        balance_usd = resp.headers.get("x-venice-balance-usd", "?")
+                        results.append(f"🟢 Venice API — активен ✅\n   💰 Баланс: ${balance_usd}")
                     elif resp.status == 401:
                         results.append("🔴 Venice API — неверный ключ ❌")
-                    elif resp.status == 402:
-                        results.append("🔴 Venice API — нет средств 💰")
                     else:
                         results.append(f"🟡 Venice API — ошибка {resp.status}")
         except Exception as e:
