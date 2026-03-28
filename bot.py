@@ -16,6 +16,7 @@ from aiogram.types import (
     LabeledPrice, PreCheckoutQuery
 )
 import asyncpg
+import moderation
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("matchme")
@@ -297,6 +298,10 @@ async def init_db():
             ("stop_words_found", "BOOLEAN DEFAULT FALSE"),
             ("reviewed", "BOOLEAN DEFAULT FALSE"),
             ("admin_action", "TEXT DEFAULT NULL"),
+            ("decided_by", "TEXT DEFAULT 'pending'"),
+            ("ai_reasoning", "TEXT DEFAULT NULL"),
+            ("ai_confidence", "REAL DEFAULT NULL"),
+            ("decision_details", "TEXT DEFAULT NULL"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE complaints_log ADD COLUMN IF NOT EXISTS {col} {definition}")
@@ -836,6 +841,7 @@ async def kb_admin_main():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats")],
         [InlineKeyboardButton(text=f"🚩 Жалобы{badge}", callback_data="admin:complaints")],
+        [InlineKeyboardButton(text="📋 Аудит-лог", callback_data="admin:audit")],
         [InlineKeyboardButton(text="👥 Онлайн", callback_data="admin:online")],
         [InlineKeyboardButton(text="🔍 Найти пользователя", callback_data="admin:find")],
         [InlineKeyboardButton(text="🔧 Уведомить об обновлении", callback_data="admin:notify_update")],
@@ -2031,31 +2037,28 @@ async def relay(message: types.Message, state: FSMContext):
     partner = active_chats[uid]
     if message.text:
         log_message(uid, partner, uid, message.text)
-        # Авто-модерация в реальном времени
-        txt_lower = message.text.lower()
-        # Жёсткий бан — ЦП и т.д.
-        hard_match = [w for w in HARD_BAN_WORDS if w in txt_lower]
-        if hard_match:
-            logger.warning(f"HARD BAN trigger uid={uid}: {hard_match}")
-            await update_user(uid, ban_until="permanent")
-            await end_chat(uid, state, go_next=False)
-            await message.answer("🚫 Перманентный бан за нарушение правил.")
-            try:
-                await bot.send_message(ADMIN_ID,
-                    f"🚨 Авто-бан!\nUID: {uid}\nСлова: {hard_match}\nТекст: {message.text[:200]}")
-            except Exception: pass
-            return
-        # Теневой бан — спам, реклама
-        shadow_match = [w for w in SHADOW_BAN_WORDS if w in txt_lower]
-        if shadow_match:
-            u_check = await get_user(uid)
-            if not u_check or not u_check.get("shadow_ban"):
-                logger.info(f"Shadow ban trigger uid={uid}: {shadow_match}")
-                await update_user(uid, shadow_ban=True)
+        # AI-модерация в реальном времени
+        mod_result = await moderation.check_message(message.text, uid)
+        if mod_result:
+            if mod_result["action"] == "hard_ban":
+                logger.warning(f"HARD BAN trigger uid={uid}: {mod_result['reason']}")
+                await update_user(uid, ban_until="permanent")
+                await end_chat(uid, state, go_next=False)
+                await message.answer("🚫 Перманентный бан за нарушение правил.")
                 try:
                     await bot.send_message(ADMIN_ID,
-                        f"👻 Авто shadow ban\nUID: {uid}\nСлова: {shadow_match}\nТекст: {message.text[:200]}")
+                        f"🚨 Авто-бан!\nUID: {uid}\n{mod_result['reason']}\nТекст: {message.text[:200]}")
                 except Exception: pass
+                return
+            elif mod_result["action"] == "shadow_ban":
+                u_check = await get_user(uid)
+                if not u_check or not u_check.get("shadow_ban"):
+                    logger.info(f"AI shadow ban uid={uid}: {mod_result['reason']}")
+                    await update_user(uid, shadow_ban=True)
+                    try:
+                        await bot.send_message(ADMIN_ID,
+                            f"🤖 AI shadow ban\nUID: {uid}\n{mod_result['reason']}\nТекст: {message.text[:200]}")
+                    except Exception: pass
     now = datetime.now()
     # Обновляем last_seen
     await update_user(uid, last_seen=now)
@@ -2117,7 +2120,7 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
     clear_chat_log(uid, partner)
     await state.clear()
     try:
-        await callback.message.edit_text(f"🚩 Жалоба #{complaint_id} отправлена. Администратор рассмотрит её.")
+        await callback.message.edit_text(f"🚩 Жалоба #{complaint_id} отправлена. AI анализирует...")
     except Exception: pass
     await bot.send_message(uid, "Чат завершён.", reply_markup=kb_main())
     try:
@@ -2125,20 +2128,24 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
         pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
         await FSMContext(dp.storage, key=pkey).clear()
     except Exception: pass
-    pu = await get_user(partner)
-    ru = await get_user(uid)
-    try:
-        await bot.send_message(
-            ADMIN_ID,
-            f"🚩 Жалоба #{complaint_id}!\n\n"
-            f"👤 От: {uid} ({ru.get('name','?') if ru else '?'})\n"
-            f"👤 На: {partner} ({pu.get('name','?') if pu else '?'}) | Жалоб: {pu.get('complaints',0) if pu else '?'}\n"
-            f"📋 Причина: {reason}\n"
-            f"{'⚠️ Стоп-слова найдены!' if stop_found else '✅ Стоп-слова не найдены'}\n"
-            f"🕐 {datetime.now().strftime('%d.%m.%Y %H:%M')}",
-            reply_markup=kb_complaint_action(complaint_id, partner, uid, bool(log_text), stop_found)
-        )
-    except Exception: pass
+    # AI-модерация: анализ жалобы
+    ai_result = await moderation.ai_review_complaint(complaint_id)
+    if not ai_result:
+        # Fallback: AI недоступен — отправляем админу по-старому
+        pu = await get_user(partner)
+        ru = await get_user(uid)
+        try:
+            await bot.send_message(
+                ADMIN_ID,
+                f"🚩 Жалоба #{complaint_id} (AI недоступен)!\n\n"
+                f"👤 От: {uid} ({ru.get('name','?') if ru else '?'})\n"
+                f"👤 На: {partner} ({pu.get('name','?') if pu else '?'}) | Жалоб: {pu.get('complaints',0) if pu else '?'}\n"
+                f"📋 Причина: {reason}\n"
+                f"{'⚠️ Стоп-слова найдены!' if stop_found else '✅ Стоп-слова не найдены'}\n"
+                f"🕐 {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+                reply_markup=kb_complaint_action(complaint_id, partner, uid, bool(log_text), stop_found)
+            )
+        except Exception: pass
     await callback.answer()
 
 # ====================== ОТМЕНА ПОИСКА ======================
@@ -2530,6 +2537,23 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
                  InlineKeyboardButton(text="🔴 Сейчас", callback_data="upd:0")],
             ])
         )
+    elif action == "audit":
+        total = await moderation.get_audit_total()
+        entries = await moderation.get_audit_log(limit=10, offset=0)
+        if not entries:
+            await callback.message.answer("📋 Аудит-лог пуст.")
+        else:
+            text = f"📋 Аудит-лог ({total} решений):\n\n"
+            text += "\n\n".join(moderation.format_audit_entry(e) for e in entries)
+            buttons = []
+            for e in entries:
+                buttons.append([InlineKeyboardButton(
+                    text=f"#{e['id']} — подробнее",
+                    callback_data=f"audit:detail:{e['id']}"
+                )])
+            if total > 10:
+                buttons.append([InlineKeyboardButton(text="➡️ Ещё", callback_data="audit:page:10")])
+            await callback.message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("clog:"), StateFilter("*"))
@@ -2635,7 +2659,10 @@ async def admin_complaint_action(callback: types.CallbackQuery):
 
     async def mark_reviewed(action_text):
         async with db_pool.acquire() as conn:
-            await conn.execute("UPDATE complaints_log SET reviewed=TRUE, admin_action=$1 WHERE id=$2", action_text, complaint_id)
+            await conn.execute(
+                "UPDATE complaints_log SET reviewed=TRUE, admin_action=$1, decided_by='admin' WHERE id=$2",
+                action_text, complaint_id
+            )
 
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
@@ -2688,6 +2715,39 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await mark_reviewed("Отклонена")
         await callback.message.answer(f"✅ Жалоба #{complaint_id} отклонена.")
     await callback.answer("✅ Готово")
+
+@dp.callback_query(F.data.startswith("audit:"), StateFilter("*"))
+async def audit_handler(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+    parts = callback.data.split(":")
+    if parts[1] == "detail":
+        complaint_id = int(parts[2])
+        entry = await moderation.get_decision_detail(complaint_id)
+        if entry:
+            await callback.message.answer(moderation.format_decision_detail(entry))
+        else:
+            await callback.message.answer("Запись не найдена.")
+    elif parts[1] == "page":
+        offset = int(parts[2])
+        total = await moderation.get_audit_total()
+        entries = await moderation.get_audit_log(limit=10, offset=offset)
+        if not entries:
+            await callback.message.answer("Больше записей нет.")
+        else:
+            text = f"📋 Аудит-лог ({offset+1}-{offset+len(entries)} из {total}):\n\n"
+            text += "\n\n".join(moderation.format_audit_entry(e) for e in entries)
+            buttons = []
+            for e in entries:
+                buttons.append([InlineKeyboardButton(
+                    text=f"#{e['id']} — подробнее",
+                    callback_data=f"audit:detail:{e['id']}"
+                )])
+            if offset + 10 < total:
+                buttons.append([InlineKeyboardButton(text="➡️ Ещё", callback_data=f"audit:page:{offset+10}")])
+            await callback.message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    await callback.answer()
 
 @dp.callback_query(F.data.startswith("uadm:"), StateFilter("*"))
 async def admin_user_action(callback: types.CallbackQuery):
@@ -2847,6 +2907,8 @@ async def inactivity_checker():
 # ====================== ЗАПУСК ======================
 async def main():
     await init_db()
+    moderation.init(bot, db_pool, ADMIN_ID)
+    await moderation.migrate_db()
     await set_commands()
     asyncio.create_task(inactivity_checker())
     logger.info("MatchMe запущен!")

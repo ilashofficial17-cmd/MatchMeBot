@@ -45,11 +45,20 @@ channel_preview_cache = {}  # msg_id -> (rubric, text, poll_data)
 MODE_NAMES = {"simple": "Просто общение 💬", "flirt": "Флирт 💋", "kink": "Kink 🔥"}
 
 CHANNEL_STYLE_PROMPT = (
-    "Ты креативный копирайтер телеграм-канала MatchMe — анонимного чат-бота для знакомств. "
-    "Пишешь ТОЛЬКО на русском. Стиль: дерзкий, молодёжный, с эмодзи и лёгким юмором. "
-    "Используй разделители (── ·  ✦  · ──), пустые строки для воздуха, эмодзи-акценты. "
-    "Текст должен выглядеть как стильный пост в телеграм-канале, НЕ как сообщение бота. "
-    "НИКАКИХ хештегов. В конце ВСЕГДА добавляй: @MyMatchMeBot"
+    "Ты SMM-менеджер телеграм-канала MatchMe — анонимного чат-бота для знакомств. "
+    "Пишешь как живой человек, НЕ как бот. ТОЛЬКО на русском.\n\n"
+    "СТИЛЬ:\n"
+    "- Короткие предложения. Максимум 3-4 строки основного текста\n"
+    "- Один пост = одна мысль. Не перегружай информацией\n"
+    "- Эмодзи уместно, но не больше 3-4 на весь пост\n"
+    "- Пиши так, будто рассказываешь другу — живо, без канцелярита\n"
+    "- НЕ используй: разделители (──, ✦, ┌, └), хештеги, длинные списки\n"
+    "- В конце одна строка с ботом: @MyMatchMeBot\n\n"
+    "ЗАПРЕЩЕНО:\n"
+    "- Посты длиннее 500 символов\n"
+    "- Шаблонные фразы: 'а ты знал что', 'лайфхак', 'топ-5'\n"
+    "- Перечисления больше 3 пунктов\n"
+    "- Восклицательные знаки подряд (!!!)"
 )
 
 CHANNEL_SCHEDULE = {
@@ -120,8 +129,8 @@ async def ask_claude_channel(system_prompt: str, user_prompt: str) -> str:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "claude-haiku-4-5-20251001",
-                    "max_tokens": 500,
+                    "model": "claude-sonnet-4-6",
+                    "max_tokens": 300,
                     "system": system_prompt,
                     "messages": [{"role": "user", "content": user_prompt}],
                 },
@@ -166,20 +175,17 @@ async def generate_daily_stats():
         )
         styled = await ask_claude_channel(
             CHANNEL_STYLE_PROMPT,
-            f"Оформи ежедневную статистику MatchMe в красивый пост для канала. "
+            f"Напиши короткий пост со статистикой MatchMe за день. "
             f"Данные: {raw_data}. "
-            f"Сделай визуально привлекательно с разделителями и эмодзи. Кратко но стильно."
+            f"Выдели 2-3 самых интересных факта. Максимум 400 символов."
         )
         if styled:
             return styled
         return (
-            f"┌─── ✦ СТАТИСТИКА ✦ ───┐\n\n"
-            f"👥  {total} пользователей\n"
-            f"🆕  +{new_today} за сегодня\n"
-            f"🟢  {active} активных\n"
-            f"💬  {online} пар в чатах\n"
-            f"🔍  {searching} ищут прямо сейчас\n\n"
-            f"└─── @{BOT_USERNAME} ───┘"
+            f"Нас уже {total} 👥\n"
+            f"+{new_today} новых за сегодня, {active} активных\n"
+            f"Прямо сейчас: {online} пар в чатах, {searching} ищут\n\n"
+            f"@{BOT_USERNAME}"
         )
     except Exception as e:
         logger.error(f"generate_daily_stats error: {e}")
@@ -192,34 +198,29 @@ async def generate_peak_hour():
         return None
     styled = await ask_claude_channel(
         CHANNEL_STYLE_PROMPT,
-        f"Напиши короткий энергичный пост-алерт для канала: сейчас в MatchMe активность! "
-        f"{online} пар общаются, {searching} человек ищут собеседника. "
-        f"Призови людей зайти прямо сейчас. 3-4 строки, дерзко и цепляюще."
+        f"Сейчас в MatchMe {online} пар общаются, {searching} ищут собеседника. "
+        f"Напиши 2-3 строки — зацепи, чтобы захотелось зайти. Максимум 200 символов."
     )
     if styled:
         return styled
     return (
-        f"⚡ СЕЙЧАС В MATCHME ЖАРКО\n\n"
-        f"💬 {online} пар болтают\n"
-        f"🔍 {searching} ждут тебя\n\n"
-        f"Залетай 👉 @{BOT_USERNAME}"
+        f"{online} пар сейчас болтают, {searching} ждут собеседника\n"
+        f"Самое время зайти 👉 @{BOT_USERNAME}"
     )
 
 async def generate_dating_tip():
     text = await ask_claude_channel(
         CHANNEL_STYLE_PROMPT,
-        "Напиши пост-совет для канала MatchMe. Тема: как лучше общаться в анонимных чатах, "
-        "как произвести впечатление, как начать разговор, или что-то неочевидное про знакомства. "
-        "Оформи красиво с разделителями. 4-6 строк основного текста."
+        "Один короткий совет про общение в анонимных чатах. "
+        "Конкретный, полезный, без воды. Максимум 3 строки текста + пример. Максимум 350 символов."
     )
     return text
 
 async def generate_joke():
     text = await ask_claude_channel(
         CHANNEL_STYLE_PROMPT,
-        "Напиши смешной пост для канала MatchMe. Это может быть: шутка про онлайн-знакомства, "
-        "мини-история из анонимного чата, саркастичное наблюдение про dating, или мем в текстовом формате. "
-        "Оформи как стильный пост с эмодзи. Юмор лёгкий но цепляющий."
+        "Короткая шутка или ироничное наблюдение про онлайн-знакомства и анонимные чаты. "
+        "Формат: 1-3 строки, как пост друга в соцсети. Без натужного юмора. Максимум 250 символов."
     )
     return text
 
@@ -240,15 +241,14 @@ async def generate_milestone():
             await set_stat("last_milestone_threshold", current)
             styled = await ask_claude_channel(
                 CHANNEL_STYLE_PROMPT,
-                f"Напиши праздничный пост: MatchMe достиг {current} пользователей (точное число: {total})! "
-                f"Поблагодари сообщество. Сделай это эмоционально и празднично."
+                f"MatchMe достиг {current} пользователей (сейчас {total}). "
+                f"Напиши короткий искренний пост-благодарность. 2-3 строки, без пафоса. Максимум 250 символов."
             )
             if styled:
                 return styled
             return (
-                f"🎉 ✦ MILESTONE ✦ 🎉\n\n"
-                f"Нас уже {current}+!\n"
-                f"Спасибо что вы с нами ❤️\n\n"
+                f"Нас уже {current}+ ❤️\n"
+                f"Спасибо, что вы с нами\n\n"
                 f"@{BOT_USERNAME}"
             )
         last_milestone_threshold = current
@@ -278,19 +278,16 @@ async def generate_weekly_recap():
         )
         styled = await ask_claude_channel(
             CHANNEL_STYLE_PROMPT,
-            f"Оформи еженедельный итоговый пост для канала MatchMe. "
-            f"Данные: {raw_data}. "
-            f"Сделай красивый итоговый пост с разделителями, можно добавить мотивационную фразу."
+            f"Итоги недели MatchMe. Данные: {raw_data}. "
+            f"Выдели 2-3 ключевых момента, добавь короткий вывод. Максимум 400 символов."
         )
         if styled:
             return styled
         return (
-            f"┌─── ✦ ИТОГИ НЕДЕЛИ ✦ ───┐\n\n"
-            f"👥  Всего: {total}\n"
-            f"🆕  Новых: +{new_week}\n"
-            f"🟢  Активных: {active_week}\n"
-            f"🏆  Топ режим: {mode_text}\n\n"
-            f"└─── @{BOT_USERNAME} ───┘"
+            f"Итоги недели\n\n"
+            f"Всего: {total}, новых: +{new_week}\n"
+            f"Активных: {active_week}, топ режим: {mode_text}\n\n"
+            f"@{BOT_USERNAME}"
         )
     except Exception as e:
         logger.error(f"generate_weekly_recap error: {e}")
