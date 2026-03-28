@@ -1,0 +1,551 @@
+"""
+MatchMe Channel Manager Bot
+Управление каналом @MATCHMEHUB: авто-постинг, контент через Claude AI, админка.
+Работает как отдельный сервис, подключён к общей PostgreSQL базе.
+"""
+
+import asyncio
+import os
+import aiohttp
+import random
+import logging
+from datetime import datetime
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command, StateFilter
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import asyncpg
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("matchme-channel")
+
+# ====================== КОНФИГ ======================
+CHANNEL_BOT_TOKEN = os.environ.get("CHANNEL_BOT_TOKEN")
+DATABASE_URL = os.environ.get("DATABASE_URL")
+ADMIN_ID = int(os.environ.get("ADMIN_ID", "590443268"))
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+VENICE_API_KEY = os.environ.get("VENICE_API_KEY")
+CHANNEL_ID = "@MATCHMEHUB"
+BOT_USERNAME = "matchme_hub_bot"  # username основного бота для CTA-ссылок
+
+bot = Bot(token=CHANNEL_BOT_TOKEN)
+dp = Dispatcher(storage=MemoryStorage())
+db_pool = None
+
+# Состояние
+channel_poster_enabled = True  # переопределяется из bot_stats при старте
+last_channel_post = {}
+last_milestone_threshold = 0
+channel_preview_cache = {}  # msg_id -> (rubric, text, poll_data)
+
+# ====================== КОНСТАНТЫ ======================
+MODE_NAMES = {"simple": "Просто общение 💬", "flirt": "Флирт 💋", "kink": "Kink 🔥"}
+
+CHANNEL_STYLE_PROMPT = (
+    "Ты креативный копирайтер телеграм-канала MatchMe — анонимного чат-бота для знакомств. "
+    "Пишешь ТОЛЬКО на русском. Стиль: дерзкий, молодёжный, с эмодзи и лёгким юмором. "
+    "Используй разделители (── ·  ✦  · ──), пустые строки для воздуха, эмодзи-акценты. "
+    "Текст должен выглядеть как стильный пост в телеграм-канале, НЕ как сообщение бота. "
+    "НИКАКИХ хештегов. В конце ВСЕГДА добавляй: @matchme_hub_bot"
+)
+
+CHANNEL_SCHEDULE = {
+    12: ["dating_tip"],
+    13: ["peak_hour"],
+    15: ["joke"],
+    18: ["poll"],
+    19: ["weekly_recap"],
+    20: ["peak_hour"],
+    21: ["daily_stats"],
+}
+
+MILESTONE_THRESHOLDS = [50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000]
+
+POLL_BANK = [
+    ("Что главное в первом сообщении?", ["Юмор 😄", "Комплимент 💐", "Вопрос ❓", "Просто 'Привет' 👋"]),
+    ("Идеальное первое свидание?", ["Кофейня ☕", "Кино 🎬", "Прогулка 🚶", "Онлайн 💻"]),
+    ("Сколько сообщений нужно чтобы понять — твой человек или нет?", ["1-5", "5-15", "15-50", "50+"]),
+    ("Что бесит в анонимных чатах?", ["Молчание 🤐", "Грубость 😤", "Спам 📢", "Скука 😴"]),
+    ("В какое время ты заходишь?", ["Утром ☀️", "Днём 🌤", "Вечером 🌙", "Ночью 🌚"]),
+    ("Ты больше слушатель или рассказчик?", ["Слушатель 👂", "Рассказчик 🗣", "50/50 ⚖️"]),
+    ("Что привлекает в собеседнике?", ["Юмор 😂", "Ум 🧠", "Голос 🎙", "Дерзость 😈"]),
+    ("Какой режим тебе ближе?", ["Просто общение 💬", "Флирт 💋", "Kink 🔥", "Все по настроению 🎲"]),
+]
+
+# ====================== БАЗА ДАННЫХ ======================
+async def init_db():
+    global db_pool
+    db_pool = await asyncpg.create_pool(DATABASE_URL)
+    async with db_pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS bot_stats (
+                key TEXT PRIMARY KEY,
+                value INTEGER DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        # Инициализация значений
+        for k, v in [("online_pairs", 0), ("searching_count", 0),
+                      ("channel_poster_enabled", 1), ("last_milestone_threshold", 0)]:
+            await conn.execute(
+                "INSERT INTO bot_stats (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING", k, v
+            )
+
+async def get_stat(key, default=0):
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT value FROM bot_stats WHERE key=$1", key)
+        return row["value"] if row else default
+
+async def set_stat(key, value):
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO bot_stats (key, value, updated_at) VALUES ($1, $2, NOW()) "
+            "ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW()", key, value
+        )
+
+# ====================== CLAUDE API ======================
+async def ask_claude_channel(system_prompt: str, user_prompt: str) -> str:
+    if not ANTHROPIC_API_KEY:
+        return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": ANTHROPIC_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "claude-haiku-4-5-20251001",
+                    "max_tokens": 500,
+                    "system": system_prompt,
+                    "messages": [{"role": "user", "content": user_prompt}],
+                },
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return data["content"][0]["text"]
+                else:
+                    logger.warning(f"Claude API error: status={resp.status}")
+                    if resp.status in (401, 402, 429):
+                        try:
+                            await bot.send_message(ADMIN_ID,
+                                f"⚠️ Claude API ошибка {resp.status}!\n"
+                                f"{'Нет денег на балансе' if resp.status == 402 else 'Проблема с ключом' if resp.status == 401 else 'Превышен лимит запросов'}\n"
+                                f"AI-контент канала временно недоступен.")
+                        except Exception:
+                            pass
+    except Exception as e:
+        logger.error(f"Claude API error: {e}")
+    return None
+
+# ====================== ГЕНЕРАТОРЫ КОНТЕНТА ======================
+async def generate_daily_stats():
+    try:
+        async with db_pool.acquire() as conn:
+            total = await conn.fetchval("SELECT COUNT(*) FROM users")
+            new_today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '24 hours'")
+            active = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '24 hours'")
+            genders = await conn.fetch("SELECT gender, COUNT(*) as cnt FROM users WHERE gender IS NOT NULL GROUP BY gender")
+            modes = await conn.fetch("SELECT mode, COUNT(*) as cnt FROM users WHERE mode IS NOT NULL GROUP BY mode ORDER BY cnt DESC")
+            premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL")
+        g_map = {"male": "парней", "female": "девушек", "other": "other"}
+        g_parts = [f"{r['cnt']} {g_map.get(r['gender'], r['gender'])}" for r in genders]
+        m_parts = [f"{MODE_NAMES.get(r['mode'], r['mode'])}: {r['cnt']}" for r in modes]
+        online = await get_stat("online_pairs", 0)
+        searching = await get_stat("searching_count", 0)
+        raw_data = (
+            f"Всего юзеров: {total}, новых за 24ч: {new_today}, активных: {active}, "
+            f"сейчас в чатах: {online} пар, ищут: {searching}, premium: {premiums}, "
+            f"пол: {', '.join(g_parts)}, режимы: {', '.join(m_parts)}"
+        )
+        styled = await ask_claude_channel(
+            CHANNEL_STYLE_PROMPT,
+            f"Оформи ежедневную статистику MatchMe в красивый пост для канала. "
+            f"Данные: {raw_data}. "
+            f"Сделай визуально привлекательно с разделителями и эмодзи. Кратко но стильно."
+        )
+        if styled:
+            return styled
+        return (
+            f"┌─── ✦ СТАТИСТИКА ✦ ───┐\n\n"
+            f"👥  {total} пользователей\n"
+            f"🆕  +{new_today} за сегодня\n"
+            f"🟢  {active} активных\n"
+            f"💬  {online} пар в чатах\n"
+            f"🔍  {searching} ищут прямо сейчас\n\n"
+            f"└─── @{BOT_USERNAME} ───┘"
+        )
+    except Exception as e:
+        logger.error(f"generate_daily_stats error: {e}")
+        return None
+
+async def generate_peak_hour():
+    online = await get_stat("online_pairs", 0)
+    searching = await get_stat("searching_count", 0)
+    if online + searching < 1:
+        return None
+    styled = await ask_claude_channel(
+        CHANNEL_STYLE_PROMPT,
+        f"Напиши короткий энергичный пост-алерт для канала: сейчас в MatchMe активность! "
+        f"{online} пар общаются, {searching} человек ищут собеседника. "
+        f"Призови людей зайти прямо сейчас. 3-4 строки, дерзко и цепляюще."
+    )
+    if styled:
+        return styled
+    return (
+        f"⚡ СЕЙЧАС В MATCHME ЖАРКО\n\n"
+        f"💬 {online} пар болтают\n"
+        f"🔍 {searching} ждут тебя\n\n"
+        f"Залетай 👉 @{BOT_USERNAME}"
+    )
+
+async def generate_dating_tip():
+    text = await ask_claude_channel(
+        CHANNEL_STYLE_PROMPT,
+        "Напиши пост-совет для канала MatchMe. Тема: как лучше общаться в анонимных чатах, "
+        "как произвести впечатление, как начать разговор, или что-то неочевидное про знакомства. "
+        "Оформи красиво с разделителями. 4-6 строк основного текста."
+    )
+    return text
+
+async def generate_joke():
+    text = await ask_claude_channel(
+        CHANNEL_STYLE_PROMPT,
+        "Напиши смешной пост для канала MatchMe. Это может быть: шутка про онлайн-знакомства, "
+        "мини-история из анонимного чата, саркастичное наблюдение про dating, или мем в текстовом формате. "
+        "Оформи как стильный пост с эмодзи. Юмор лёгкий но цепляющий."
+    )
+    return text
+
+async def generate_poll():
+    return random.choice(POLL_BANK)
+
+async def generate_milestone():
+    global last_milestone_threshold
+    try:
+        async with db_pool.acquire() as conn:
+            total = await conn.fetchval("SELECT COUNT(*) FROM users")
+        current = 0
+        for t in MILESTONE_THRESHOLDS:
+            if total >= t:
+                current = t
+        if current > last_milestone_threshold and last_milestone_threshold > 0:
+            last_milestone_threshold = current
+            await set_stat("last_milestone_threshold", current)
+            styled = await ask_claude_channel(
+                CHANNEL_STYLE_PROMPT,
+                f"Напиши праздничный пост: MatchMe достиг {current} пользователей (точное число: {total})! "
+                f"Поблагодари сообщество. Сделай это эмоционально и празднично."
+            )
+            if styled:
+                return styled
+            return (
+                f"🎉 ✦ MILESTONE ✦ 🎉\n\n"
+                f"Нас уже {current}+!\n"
+                f"Спасибо что вы с нами ❤️\n\n"
+                f"@{BOT_USERNAME}"
+            )
+        last_milestone_threshold = current
+    except Exception as e:
+        logger.error(f"generate_milestone error: {e}")
+    return None
+
+async def generate_weekly_recap():
+    try:
+        async with db_pool.acquire() as conn:
+            total = await conn.fetchval("SELECT COUNT(*) FROM users")
+            new_week = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days'")
+            active_week = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '7 days'")
+            ages = await conn.fetch("""
+                SELECT CASE WHEN age BETWEEN 16 AND 19 THEN '16-19'
+                            WHEN age BETWEEN 20 AND 25 THEN '20-25'
+                            WHEN age BETWEEN 26 AND 35 THEN '26-35'
+                            ELSE '36+' END as bracket, COUNT(*) as cnt
+                FROM users WHERE age IS NOT NULL GROUP BY bracket ORDER BY bracket
+            """)
+            top_mode = await conn.fetchrow("SELECT mode, COUNT(*) as cnt FROM users WHERE mode IS NOT NULL GROUP BY mode ORDER BY cnt DESC LIMIT 1")
+        age_parts = [f"{r['bracket']}: {r['cnt']}" for r in ages]
+        mode_text = MODE_NAMES.get(top_mode['mode'], '?') if top_mode else "—"
+        raw_data = (
+            f"Всего: {total}, новых за неделю: {new_week}, активных за неделю: {active_week}, "
+            f"топ режим: {mode_text}, возрасты: {', '.join(age_parts)}"
+        )
+        styled = await ask_claude_channel(
+            CHANNEL_STYLE_PROMPT,
+            f"Оформи еженедельный итоговый пост для канала MatchMe. "
+            f"Данные: {raw_data}. "
+            f"Сделай красивый итоговый пост с разделителями, можно добавить мотивационную фразу."
+        )
+        if styled:
+            return styled
+        return (
+            f"┌─── ✦ ИТОГИ НЕДЕЛИ ✦ ───┐\n\n"
+            f"👥  Всего: {total}\n"
+            f"🆕  Новых: +{new_week}\n"
+            f"🟢  Активных: {active_week}\n"
+            f"🏆  Топ режим: {mode_text}\n\n"
+            f"└─── @{BOT_USERNAME} ───┘"
+        )
+    except Exception as e:
+        logger.error(f"generate_weekly_recap error: {e}")
+        return None
+
+CHANNEL_GENERATORS = {
+    "daily_stats": generate_daily_stats,
+    "peak_hour": generate_peak_hour,
+    "dating_tip": generate_dating_tip,
+    "joke": generate_joke,
+    "weekly_recap": generate_weekly_recap,
+}
+
+# ====================== АВТО-ПОСТИНГ ======================
+async def channel_poster():
+    global last_milestone_threshold
+    await asyncio.sleep(30)
+    # Восстанавливаем состояние из БД
+    try:
+        last_milestone_threshold = await get_stat("last_milestone_threshold", 0)
+        if last_milestone_threshold == 0:
+            async with db_pool.acquire() as conn:
+                total = await conn.fetchval("SELECT COUNT(*) FROM users")
+            for t in MILESTONE_THRESHOLDS:
+                if total >= t:
+                    last_milestone_threshold = t
+            await set_stat("last_milestone_threshold", last_milestone_threshold)
+    except Exception:
+        pass
+    logger.info("Channel poster запущен")
+
+    while True:
+        await asyncio.sleep(600)
+
+        # Проверяем включён ли постинг (из БД — персистентно)
+        enabled = await get_stat("channel_poster_enabled", 1)
+        if not enabled:
+            continue
+
+        now = datetime.now()
+        hour = now.hour
+
+        rubrics = CHANNEL_SCHEDULE.get(hour, [])
+        for rubric in rubrics:
+            last = last_channel_post.get(rubric)
+            if last and (now - last).total_seconds() < 3600:
+                continue
+            if rubric == "poll" and now.day % 2 != 0:
+                continue
+            if rubric == "weekly_recap" and now.weekday() != 6:
+                continue
+            try:
+                if rubric == "poll":
+                    question, options = await generate_poll()
+                    await bot.send_poll(CHANNEL_ID, question=question, options=options, is_anonymous=True)
+                    last_channel_post[rubric] = now
+                    logger.info(f"Channel poll posted: {question}")
+                elif rubric in CHANNEL_GENERATORS:
+                    text = await CHANNEL_GENERATORS[rubric]()
+                    if text:
+                        await bot.send_message(CHANNEL_ID, text)
+                        last_channel_post[rubric] = now
+                        logger.info(f"Channel post [{rubric}] sent")
+            except Exception as e:
+                logger.error(f"Channel poster error [{rubric}]: {e}")
+
+        # Milestone
+        try:
+            milestone_text = await generate_milestone()
+            if milestone_text:
+                await bot.send_message(CHANNEL_ID, milestone_text)
+                logger.info("Channel milestone posted")
+        except Exception as e:
+            logger.error(f"Channel milestone error: {e}")
+
+# ====================== АДМИН-ПАНЕЛЬ ======================
+def kb_admin():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📢 Канал: ВКЛ/ВЫКЛ", callback_data="admin:channel_toggle")],
+        [InlineKeyboardButton(text="📝 Пост в канал", callback_data="admin:channel_post")],
+        [InlineKeyboardButton(text="🔌 Статус API", callback_data="admin:api_status")],
+    ])
+
+@dp.message(Command("start"))
+async def cmd_start(message: types.Message):
+    if message.from_user.id == ADMIN_ID:
+        enabled = await get_stat("channel_poster_enabled", 1)
+        status = "✅ ВКЛ" if enabled else "❌ ВЫКЛ"
+        await message.answer(
+            f"📢 MatchMe Channel Manager\n\n"
+            f"Авто-постинг: {status}\n"
+            f"Канал: {CHANNEL_ID}",
+            reply_markup=kb_admin()
+        )
+    else:
+        await message.answer(
+            f"Этот бот управляет каналом {CHANNEL_ID}.\n"
+            f"Для знакомств: @{BOT_USERNAME}"
+        )
+
+@dp.callback_query(F.data.startswith("admin:"))
+async def admin_actions(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    action = callback.data.split(":", 1)[1]
+
+    if action == "channel_toggle":
+        current = await get_stat("channel_poster_enabled", 1)
+        new_val = 0 if current else 1
+        await set_stat("channel_poster_enabled", new_val)
+        status = "✅ ВКЛ" if new_val else "❌ ВЫКЛ"
+        await callback.message.answer(f"📢 Авто-постинг в канал: {status}")
+
+    elif action == "channel_post":
+        await callback.message.answer(
+            "📢 Выбери тип поста:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📊 Статистика", callback_data="chpost:daily_stats")],
+                [InlineKeyboardButton(text="🔥 Пик активности", callback_data="chpost:peak_hour")],
+                [InlineKeyboardButton(text="💡 Совет дня", callback_data="chpost:dating_tip")],
+                [InlineKeyboardButton(text="😂 Шутка", callback_data="chpost:joke")],
+                [InlineKeyboardButton(text="📋 Опрос", callback_data="chpost:poll")],
+                [InlineKeyboardButton(text="📈 Итоги недели", callback_data="chpost:weekly_recap")],
+            ])
+        )
+
+    elif action == "api_status":
+        await callback.message.answer("⏳ Проверяю API...")
+        results = []
+        # Claude API
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": ANTHROPIC_API_KEY or "",
+                        "anthropic-version": "2023-06-01",
+                        "Content-Type": "application/json",
+                    },
+                    json={"model": "claude-haiku-4-5-20251001", "max_tokens": 10,
+                          "messages": [{"role": "user", "content": "Hi"}]},
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp:
+                    if resp.status == 200:
+                        results.append("🟢 Claude API — активен ✅")
+                    elif resp.status == 401:
+                        results.append("🔴 Claude API — неверный ключ ❌")
+                    elif resp.status == 402:
+                        results.append("🔴 Claude API — нет средств на балансе 💰")
+                    elif resp.status == 429:
+                        results.append("🟡 Claude API — лимит запросов (но работает)")
+                    else:
+                        results.append(f"🟡 Claude API — ошибка {resp.status}")
+        except Exception as e:
+            results.append(f"🔴 Claude API — недоступен ({e})")
+        # Venice API
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://api.venice.ai/api/v1/models",
+                    headers={"Authorization": f"Bearer {VENICE_API_KEY or ''}"},
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp:
+                    if resp.status == 200:
+                        balance_usd = resp.headers.get("x-venice-balance-usd", "?")
+                        results.append(f"🟢 Venice API — активен ✅\n   💰 Баланс: ${balance_usd}")
+                    elif resp.status == 401:
+                        results.append("🔴 Venice API — неверный ключ ❌")
+                    else:
+                        results.append(f"🟡 Venice API — ошибка {resp.status}")
+        except Exception as e:
+            results.append(f"🔴 Venice API — недоступен ({e})")
+        # PostgreSQL
+        try:
+            async with db_pool.acquire() as conn:
+                await conn.fetchval("SELECT 1")
+            results.append("🟢 PostgreSQL — активна ✅")
+        except Exception:
+            results.append("🔴 PostgreSQL — недоступна ❌")
+
+        await callback.message.answer("🔌 Статус сервисов\n\n" + "\n".join(results))
+
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("chpost:"))
+async def admin_channel_post(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+    rubric = callback.data.split(":", 1)[1]
+    await callback.message.answer("⏳ Генерирую...")
+    try:
+        text = None
+        poll_data = None
+        if rubric == "poll":
+            poll_data = await generate_poll()
+            question, options = poll_data
+            text = f"📋 Опрос: {question}\n" + "\n".join(f"  • {o}" for o in options)
+        elif rubric in CHANNEL_GENERATORS:
+            text = await CHANNEL_GENERATORS[rubric]()
+        if not text:
+            await callback.message.answer("❌ Не удалось сгенерировать контент.")
+            await callback.answer()
+            return
+        preview_msg = await callback.message.answer(
+            f"👁 Предпросмотр:\n\n{text}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Отправить в канал", callback_data=f"chsend:{rubric}")],
+                [InlineKeyboardButton(text="🔄 Другой вариант", callback_data=f"chpost:{rubric}")],
+                [InlineKeyboardButton(text="❌ Отмена", callback_data="chdismiss")],
+            ])
+        )
+        channel_preview_cache[preview_msg.message_id] = (rubric, text, poll_data)
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка: {e}")
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("chsend:"))
+async def admin_channel_send(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        return
+    cached = channel_preview_cache.pop(callback.message.message_id, None)
+    if not cached:
+        await callback.answer("Контент устарел, сгенерируй заново.", show_alert=True)
+        return
+    rubric, text, poll_data = cached
+    try:
+        if poll_data:
+            question, options = poll_data
+            await bot.send_poll(CHANNEL_ID, question=question, options=options, is_anonymous=True)
+        else:
+            await bot.send_message(CHANNEL_ID, text)
+        last_channel_post[rubric] = datetime.now()
+        try:
+            await callback.message.edit_text(f"✅ Опубликовано в {CHANNEL_ID}!")
+        except Exception:
+            pass
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка отправки: {e}")
+    await callback.answer()
+
+@dp.callback_query(F.data == "chdismiss")
+async def admin_channel_dismiss(callback: types.CallbackQuery):
+    channel_preview_cache.pop(callback.message.message_id, None)
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.answer()
+
+# ====================== ЗАПУСК ======================
+async def main():
+    await init_db()
+    asyncio.create_task(channel_poster())
+    logger.info("MatchMe Channel Manager запущен!")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
