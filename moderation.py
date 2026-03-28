@@ -26,6 +26,17 @@ HARD_BAN_WORDS = [
     "детское порно", "цп продаю", "малолетка",
 ]
 
+# Подозрительные слова — триггер для AI-проверки (НЕ авто-бан)
+SUSPECT_WORDS = [
+    "предлагаю услуги", "оказываю услуги", "интим услуги",
+    "escort", "эскорт", "проститутка",
+    "вирт за деньги", "вирт платно", "за донат",
+    "подпишись на канал", "перейди по ссылке", "мой канал",
+    "казино", "ставки на спорт", "заработок в телеграм",
+    "крипта х10", "пассивный доход", "продаю фото", "продаю видео",
+    "продаю интим", "купи подписку", "пиши в лс за", "скидка на услуги",
+]
+
 MODERATION_SYSTEM_PROMPT = (
     "Ты модератор анонимного чат-бота для знакомств MatchMe. "
     "Анализируй переписку и принимай решение по жалобе.\n\n"
@@ -117,9 +128,14 @@ async def _ask_claude(system_prompt: str, user_prompt: str, model: str = "claude
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    return data["content"][0]["text"]
+                    content = data.get("content", [])
+                    if content and isinstance(content, list) and len(content) > 0:
+                        return content[0].get("text")
+                    logger.warning("Claude API: empty content in response")
+                    return None
                 else:
-                    logger.error(f"Claude API error: {resp.status}")
+                    body = await resp.text()
+                    logger.error(f"Claude API error: {resp.status} — {body[:200]}")
                     return None
     except Exception as e:
         logger.error(f"Claude API exception: {e}")
@@ -131,12 +147,25 @@ def _parse_json_response(text: str) -> dict | None:
     if not text:
         return None
     text = text.strip()
+    # Убираем ```json ... ``` обёртку
     if text.startswith("```"):
-        lines = text.split("\n")
-        text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+        first_nl = text.find("\n")
+        if first_nl != -1:
+            text = text[first_nl + 1:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
     try:
-        return json.loads(text.strip())
+        return json.loads(text)
     except json.JSONDecodeError:
+        # Попробуем найти JSON внутри текста
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start != -1 and end > start:
+            try:
+                return json.loads(text[start:end])
+            except json.JSONDecodeError:
+                pass
         logger.error(f"Failed to parse AI response: {text[:200]}")
         return None
 
@@ -173,8 +202,8 @@ async def ai_review_complaint(complaint_id: int) -> dict | None:
             accused_uid,
         )
 
-    warn_count = user["warn_count"] if user else 0
-    total_complaints = user["complaints"] if user else 0
+    warn_count = user.get("warn_count", 0) if user else 0
+    total_complaints = user.get("complaints", 0) if user else 0
     is_shadow = user.get("shadow_ban", False) if user else False
 
     history_text = f"Предупреждений: {warn_count}, Жалоб всего: {total_complaints}"
@@ -207,7 +236,9 @@ async def ai_review_complaint(complaint_id: int) -> dict | None:
     notify_user = result.get("notify_user", True)
 
     # Если уверенность низкая — эскалируем админу
-    if confidence < 0.7 or decision == "escalate":
+    # Для перманентного бана требуем повышенную уверенность (85%)
+    min_confidence = 0.85 if decision == "ban_perm" else 0.7
+    if confidence < min_confidence or decision == "escalate":
         await _escalate_to_admin(complaint_id, complaint, result)
         return result
 
@@ -346,23 +377,30 @@ async def check_message(text: str, uid: int) -> dict | None:
     """
     Проверяет сообщение на нарушения.
     HARD_BAN_WORDS — всегда keyword-based (нулевая толерантность).
-    Остальное — AI-анализ с fallback на keyword.
+    SUSPECT_WORDS — keyword триггер → AI-анализ для подтверждения.
+    Обычные сообщения НЕ отправляются в AI (экономия API и латенси).
     Возвращает: {"action": "hard_ban|shadow_ban", "reason": "..."} или None
     """
     txt_lower = text.lower()
 
-    # 1. HARD BAN — keyword matching (CP/minors, без AI)
+    # 1. HARD BAN — keyword matching (CP/minors, без AI, мгновенно)
     hard_match = [w for w in HARD_BAN_WORDS if w in txt_lower]
     if hard_match:
         return {"action": "hard_ban", "reason": f"Запрещённый контент: {', '.join(hard_match)}"}
 
-    # 2. AI-проверка на спам/рекламу (только если API доступен)
+    # 2. Проверяем наличие подозрительных слов (keyword pre-filter)
+    suspect_match = [w for w in SUSPECT_WORDS if w in txt_lower]
+    if not suspect_match:
+        return None  # Обычное сообщение — пропускаем без AI
+
+    # 3. Подозрительные слова найдены — AI подтверждает (только для подозрительных)
     if not ANTHROPIC_API_KEY:
-        return None
+        # Fallback без AI: shadow ban по keyword (как раньше)
+        return {"action": "shadow_ban", "reason": f"Подозрительный контент: {', '.join(suspect_match[:3])}"}
 
     raw = await _ask_claude(
         MESSAGE_CHECK_PROMPT,
-        f"Сообщение: {text[:500]}",
+        f"Сообщение: {text[:500]}\nНайденные подозрительные слова: {', '.join(suspect_match)}",
         model="claude-haiku-4-5-20251001",
         max_tokens=150,
     )
@@ -385,7 +423,7 @@ async def get_audit_log(limit: int = 10, offset: int = 0) -> list:
     async with _db_pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id, to_uid, from_uid, reason, admin_action, decided_by, "
-            "ai_reasoning, ai_confidence, created_at "
+            "ai_reasoning, ai_confidence, decision_details, created_at "
             "FROM complaints_log WHERE reviewed=TRUE "
             "ORDER BY created_at DESC LIMIT $1 OFFSET $2",
             limit, offset,
@@ -419,11 +457,11 @@ def format_audit_entry(entry: dict) -> str:
     action = entry.get("admin_action", "?")
     date = entry["created_at"].strftime("%d.%m %H:%M") if entry.get("created_at") else "?"
     confidence = entry.get("ai_confidence")
-    conf_text = f" ({confidence:.0%})" if confidence else ""
+    conf_text = f" ({confidence:.0%})" if confidence is not None else ""
 
     return (
-        f"{icon} #{entry['id']} | {action}{conf_text}\n"
-        f"   На: {entry['to_uid']} | Причина: {entry.get('reason', '?')}\n"
+        f"{icon} #{entry.get('id', '?')} | {action}{conf_text}\n"
+        f"   На: {entry.get('to_uid', '?')} | Причина: {entry.get('reason', '?')}\n"
         f"   {date}"
     )
 
@@ -444,15 +482,15 @@ def format_decision_detail(entry: dict) -> str:
         f"Решение: {entry.get('admin_action', '?')}",
         f"Принял: {'AI' if decided == 'ai' else 'Админ' if decided == 'admin' else 'Авто'}",
     ]
-    if confidence:
+    if confidence is not None:
         lines.append(f"Уверенность AI: {confidence:.0%}")
     if entry.get("ai_reasoning"):
         lines.append(f"\n💬 AI: {entry['ai_reasoning']}")
     if entry.get("decision_details"):
         lines.append(f"📝 Детали: {entry['decision_details']}")
-    if entry.get("chat_log"):
-        log_preview = entry["chat_log"][:300]
-        lines.append(f"\n📄 Переписка:\n{log_preview}")
+    chat_log = entry.get("chat_log") or ""
+    if chat_log:
+        lines.append(f"\n📄 Переписка:\n{chat_log[:300]}")
 
     date = entry["created_at"].strftime("%d.%m.%Y %H:%M") if entry.get("created_at") else "?"
     lines.append(f"\n🕐 {date}")

@@ -138,7 +138,10 @@ async def ask_claude_channel(system_prompt: str, user_prompt: str) -> str:
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    return data["content"][0]["text"]
+                    content = data.get("content", [])
+                    if content and len(content) > 0:
+                        return content[0].get("text")
+                    return None
                 else:
                     logger.warning(f"Claude API error: status={resp.status}")
                     if resp.status in (401, 402, 429):
@@ -214,7 +217,14 @@ async def generate_dating_tip():
         "Один короткий совет про общение в анонимных чатах. "
         "Конкретный, полезный, без воды. Максимум 3 строки текста + пример. Максимум 350 символов."
     )
-    return text
+    if text:
+        return text
+    tips = [
+        f"Не начинай с «привет, как дела». Задай вопрос, на который интересно ответить.\n\n@{BOT_USERNAME}",
+        f"Первое впечатление — это первые 3 сообщения. Не трать их на «м/ж?»\n\n@{BOT_USERNAME}",
+        f"Юмор работает лучше комплиментов. Рассмеши — и разговор пойдёт сам.\n\n@{BOT_USERNAME}",
+    ]
+    return random.choice(tips)
 
 async def generate_joke():
     text = await ask_claude_channel(
@@ -222,7 +232,14 @@ async def generate_joke():
         "Короткая шутка или ироничное наблюдение про онлайн-знакомства и анонимные чаты. "
         "Формат: 1-3 строки, как пост друга в соцсети. Без натужного юмора. Максимум 250 символов."
     )
-    return text
+    if text:
+        return text
+    jokes = [
+        f"Анонимный чат — единственное место, где «расскажи о себе» звучит как квест 🎮\n\n@{BOT_USERNAME}",
+        f"Когда написал «привет» и ждёшь ответ как результат экзамена 😅\n\n@{BOT_USERNAME}",
+        f"В анонимном чате каждый разговор — как первое свидание. Только без кофе ☕\n\n@{BOT_USERNAME}",
+    ]
+    return random.choice(jokes)
 
 async def generate_poll():
     return random.choice(POLL_BANK)
