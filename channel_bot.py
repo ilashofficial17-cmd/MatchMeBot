@@ -26,7 +26,7 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "590443268"))
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 VENICE_API_KEY = os.environ.get("VENICE_API_KEY")
 CHANNEL_ID = "@MATCHMEHUB"
-BOT_USERNAME = "matchme_hub_bot"  # username основного бота для CTA-ссылок
+BOT_USERNAME = "MyMatchMeBot"  # username основного бота для CTA-ссылок
 
 bot = Bot(token=CHANNEL_BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -46,7 +46,7 @@ CHANNEL_STYLE_PROMPT = (
     "Пишешь ТОЛЬКО на русском. Стиль: дерзкий, молодёжный, с эмодзи и лёгким юмором. "
     "Используй разделители (── ·  ✦  · ──), пустые строки для воздуха, эмодзи-акценты. "
     "Текст должен выглядеть как стильный пост в телеграм-канале, НЕ как сообщение бота. "
-    "НИКАКИХ хештегов. В конце ВСЕГДА добавляй: @matchme_hub_bot"
+    "НИКАКИХ хештегов. В конце ВСЕГДА добавляй: @MyMatchMeBot"
 )
 
 CHANNEL_SCHEDULE = {
