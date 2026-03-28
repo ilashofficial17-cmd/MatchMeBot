@@ -13,7 +13,10 @@ from datetime import datetime
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    InlineKeyboardMarkup, InlineKeyboardButton,
+    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, BotCommand
+)
 import asyncpg
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -363,14 +366,36 @@ async def channel_poster():
         except Exception as e:
             logger.error(f"Channel milestone error: {e}")
 
-# ====================== АДМИН-ПАНЕЛЬ ======================
-def kb_admin():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📢 Канал: ВКЛ/ВЫКЛ", callback_data="admin:channel_toggle")],
-        [InlineKeyboardButton(text="📝 Пост в канал", callback_data="admin:channel_post")],
-        [InlineKeyboardButton(text="🔌 Статус API", callback_data="admin:api_status")],
+# ====================== КОМАНДЫ БОТА ======================
+async def set_commands():
+    await bot.set_my_commands([
+        BotCommand(command="start", description="Главное меню"),
+        BotCommand(command="post", description="Создать пост"),
+        BotCommand(command="toggle", description="ВКЛ/ВЫКЛ авто-постинг"),
+        BotCommand(command="status", description="Статус API"),
+        BotCommand(command="stats", description="Статистика канала"),
+        BotCommand(command="schedule", description="Расписание постов"),
     ])
 
+# ====================== КЛАВИАТУРА АДМИНА ======================
+def kb_admin():
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="📝 Создать пост"), KeyboardButton(text="📢 Авто-постинг")],
+        [KeyboardButton(text="🔌 Статус API"), KeyboardButton(text="📊 Статистика")],
+        [KeyboardButton(text="📅 Расписание")],
+    ], resize_keyboard=True)
+
+def kb_post_types():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Статистика дня", callback_data="chpost:daily_stats")],
+        [InlineKeyboardButton(text="🔥 Пик активности", callback_data="chpost:peak_hour")],
+        [InlineKeyboardButton(text="💡 Совет по общению", callback_data="chpost:dating_tip")],
+        [InlineKeyboardButton(text="😂 Шутка / мем", callback_data="chpost:joke")],
+        [InlineKeyboardButton(text="📋 Опрос", callback_data="chpost:poll")],
+        [InlineKeyboardButton(text="📈 Итоги недели", callback_data="chpost:weekly_recap")],
+    ])
+
+# ====================== ОБРАБОТЧИКИ КОМАНД ======================
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     if message.from_user.id == ADMIN_ID:
@@ -378,102 +403,181 @@ async def cmd_start(message: types.Message):
         status = "✅ ВКЛ" if enabled else "❌ ВЫКЛ"
         await message.answer(
             f"📢 MatchMe Channel Manager\n\n"
-            f"Авто-постинг: {status}\n"
-            f"Канал: {CHANNEL_ID}",
+            f"Канал: {CHANNEL_ID}\n"
+            f"Авто-постинг: {status}\n\n"
+            f"Используй кнопки ниже или команды из меню.",
             reply_markup=kb_admin()
         )
     else:
         await message.answer(
             f"Этот бот управляет каналом {CHANNEL_ID}.\n"
-            f"Для знакомств: @{BOT_USERNAME}"
+            f"Для знакомств: @{BOT_USERNAME}",
+            reply_markup=ReplyKeyboardRemove()
         )
 
-@dp.callback_query(F.data.startswith("admin:"))
-async def admin_actions(callback: types.CallbackQuery):
-    if callback.from_user.id != ADMIN_ID:
-        await callback.answer("Нет доступа", show_alert=True)
+@dp.message(Command("post"))
+async def cmd_post(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
         return
+    await message.answer("📢 Выбери тип поста:", reply_markup=kb_post_types())
 
-    action = callback.data.split(":", 1)[1]
+@dp.message(Command("toggle"))
+async def cmd_toggle(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    current = await get_stat("channel_poster_enabled", 1)
+    new_val = 0 if current else 1
+    await set_stat("channel_poster_enabled", new_val)
+    status = "✅ ВКЛ" if new_val else "❌ ВЫКЛ"
+    await message.answer(f"📢 Авто-постинг: {status}")
 
-    if action == "channel_toggle":
-        current = await get_stat("channel_poster_enabled", 1)
-        new_val = 0 if current else 1
-        await set_stat("channel_poster_enabled", new_val)
-        status = "✅ ВКЛ" if new_val else "❌ ВЫКЛ"
-        await callback.message.answer(f"📢 Авто-постинг в канал: {status}")
+@dp.message(Command("status"))
+async def cmd_status(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await check_api_status(message)
 
-    elif action == "channel_post":
-        await callback.message.answer(
-            "📢 Выбери тип поста:",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="📊 Статистика", callback_data="chpost:daily_stats")],
-                [InlineKeyboardButton(text="🔥 Пик активности", callback_data="chpost:peak_hour")],
-                [InlineKeyboardButton(text="💡 Совет дня", callback_data="chpost:dating_tip")],
-                [InlineKeyboardButton(text="😂 Шутка", callback_data="chpost:joke")],
-                [InlineKeyboardButton(text="📋 Опрос", callback_data="chpost:poll")],
-                [InlineKeyboardButton(text="📈 Итоги недели", callback_data="chpost:weekly_recap")],
-            ])
+@dp.message(Command("stats"))
+async def cmd_stats(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await show_channel_stats(message)
+
+@dp.message(Command("schedule"))
+async def cmd_schedule(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    enabled = await get_stat("channel_poster_enabled", 1)
+    status = "✅ ВКЛ" if enabled else "❌ ВЫКЛ"
+    schedule_text = (
+        f"📅 Расписание авто-постинга ({status})\n\n"
+        f"12:00 — 💡 Совет по общению\n"
+        f"13:00 — 🔥 Пик активности\n"
+        f"15:00 — 😂 Шутка / мем\n"
+        f"18:00 — 📋 Опрос (через день)\n"
+        f"19:00 — 📈 Итоги недели (воскресенье)\n"
+        f"20:00 — 🔥 Пик активности\n"
+        f"21:00 — 📊 Статистика дня\n\n"
+        f"Milestone — при достижении порогов юзеров"
+    )
+    await message.answer(schedule_text)
+
+# ====================== КНОПКИ REPLY ======================
+@dp.message(F.text == "📝 Создать пост")
+async def btn_post(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer("📢 Выбери тип поста:", reply_markup=kb_post_types())
+
+@dp.message(F.text == "📢 Авто-постинг")
+async def btn_toggle(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    current = await get_stat("channel_poster_enabled", 1)
+    new_val = 0 if current else 1
+    await set_stat("channel_poster_enabled", new_val)
+    status = "✅ ВКЛ" if new_val else "❌ ВЫКЛ"
+    await message.answer(f"📢 Авто-постинг: {status}")
+
+@dp.message(F.text == "🔌 Статус API")
+async def btn_status(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await check_api_status(message)
+
+@dp.message(F.text == "📊 Статистика")
+async def btn_stats(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await show_channel_stats(message)
+
+@dp.message(F.text == "📅 Расписание")
+async def btn_schedule(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await cmd_schedule(message)
+
+# ====================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======================
+async def check_api_status(message: types.Message):
+    await message.answer("⏳ Проверяю API...")
+    results = []
+    # Claude API
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": ANTHROPIC_API_KEY or "",
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json",
+                },
+                json={"model": "claude-haiku-4-5-20251001", "max_tokens": 10,
+                      "messages": [{"role": "user", "content": "Hi"}]},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                if resp.status == 200:
+                    results.append("🟢 Claude API — активен ✅")
+                elif resp.status == 401:
+                    results.append("🔴 Claude API — неверный ключ ❌")
+                elif resp.status == 402:
+                    results.append("🔴 Claude API — нет средств 💰")
+                elif resp.status == 429:
+                    results.append("🟡 Claude API — лимит (но работает)")
+                else:
+                    results.append(f"🟡 Claude API — ошибка {resp.status}")
+    except Exception as e:
+        results.append(f"🔴 Claude API — недоступен ({e})")
+    # Venice API
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://api.venice.ai/api/v1/models",
+                headers={"Authorization": f"Bearer {VENICE_API_KEY or ''}"},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                if resp.status == 200:
+                    balance_usd = resp.headers.get("x-venice-balance-usd", "?")
+                    results.append(f"🟢 Venice API — активен ✅\n   💰 Баланс: ${balance_usd}")
+                elif resp.status == 401:
+                    results.append("🔴 Venice API — неверный ключ ❌")
+                else:
+                    results.append(f"🟡 Venice API — ошибка {resp.status}")
+    except Exception as e:
+        results.append(f"🔴 Venice API — недоступен ({e})")
+    # PostgreSQL
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+        results.append("🟢 PostgreSQL — активна ✅")
+    except Exception:
+        results.append("🔴 PostgreSQL — недоступна ❌")
+    await message.answer("🔌 Статус сервисов\n\n" + "\n".join(results))
+
+async def show_channel_stats(message: types.Message):
+    try:
+        async with db_pool.acquire() as conn:
+            total = await conn.fetchval("SELECT COUNT(*) FROM users")
+            new_today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '24 hours'")
+            active = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '24 hours'")
+            premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL")
+        online = await get_stat("online_pairs", 0)
+        searching = await get_stat("searching_count", 0)
+        enabled = await get_stat("channel_poster_enabled", 1)
+        poster_status = "✅ ВКЛ" if enabled else "❌ ВЫКЛ"
+        await message.answer(
+            f"📊 Статистика MatchMe\n\n"
+            f"👥 Всего: {total}\n"
+            f"🆕 Новых за 24ч: +{new_today}\n"
+            f"🟢 Активных: {active}\n"
+            f"💬 В чатах: {online} пар\n"
+            f"🔍 Ищут: {searching}\n"
+            f"⭐ Premium: {premiums}\n\n"
+            f"📢 Авто-постинг: {poster_status}"
         )
+    except Exception as e:
+        await message.answer(f"❌ Ошибка: {e}")
 
-    elif action == "api_status":
-        await callback.message.answer("⏳ Проверяю API...")
-        results = []
-        # Claude API
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    "https://api.anthropic.com/v1/messages",
-                    headers={
-                        "x-api-key": ANTHROPIC_API_KEY or "",
-                        "anthropic-version": "2023-06-01",
-                        "Content-Type": "application/json",
-                    },
-                    json={"model": "claude-haiku-4-5-20251001", "max_tokens": 10,
-                          "messages": [{"role": "user", "content": "Hi"}]},
-                    timeout=aiohttp.ClientTimeout(total=15),
-                ) as resp:
-                    if resp.status == 200:
-                        results.append("🟢 Claude API — активен ✅")
-                    elif resp.status == 401:
-                        results.append("🔴 Claude API — неверный ключ ❌")
-                    elif resp.status == 402:
-                        results.append("🔴 Claude API — нет средств на балансе 💰")
-                    elif resp.status == 429:
-                        results.append("🟡 Claude API — лимит запросов (но работает)")
-                    else:
-                        results.append(f"🟡 Claude API — ошибка {resp.status}")
-        except Exception as e:
-            results.append(f"🔴 Claude API — недоступен ({e})")
-        # Venice API
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    "https://api.venice.ai/api/v1/models",
-                    headers={"Authorization": f"Bearer {VENICE_API_KEY or ''}"},
-                    timeout=aiohttp.ClientTimeout(total=15),
-                ) as resp:
-                    if resp.status == 200:
-                        balance_usd = resp.headers.get("x-venice-balance-usd", "?")
-                        results.append(f"🟢 Venice API — активен ✅\n   💰 Баланс: ${balance_usd}")
-                    elif resp.status == 401:
-                        results.append("🔴 Venice API — неверный ключ ❌")
-                    else:
-                        results.append(f"🟡 Venice API — ошибка {resp.status}")
-        except Exception as e:
-            results.append(f"🔴 Venice API — недоступен ({e})")
-        # PostgreSQL
-        try:
-            async with db_pool.acquire() as conn:
-                await conn.fetchval("SELECT 1")
-            results.append("🟢 PostgreSQL — активна ✅")
-        except Exception:
-            results.append("🔴 PostgreSQL — недоступна ❌")
-
-        await callback.message.answer("🔌 Статус сервисов\n\n" + "\n".join(results))
-
-    await callback.answer()
-
+# ====================== INLINE CALLBACK ======================
 @dp.callback_query(F.data.startswith("chpost:"))
 async def admin_channel_post(callback: types.CallbackQuery):
     if callback.from_user.id != ADMIN_ID:
@@ -543,6 +647,7 @@ async def admin_channel_dismiss(callback: types.CallbackQuery):
 # ====================== ЗАПУСК ======================
 async def main():
     await init_db()
+    await set_commands()
     asyncio.create_task(channel_poster())
     logger.info("MatchMe Channel Manager запущен!")
     await dp.start_polling(bot)
