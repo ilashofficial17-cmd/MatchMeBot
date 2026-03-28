@@ -2014,11 +2014,11 @@ async def relay(message: types.Message, state: FSMContext):
     if txt.startswith("/start"):
         await end_chat(uid, state, go_next=False)
         return
-    if uid not in active_chats:
+    partner = active_chats.get(uid)
+    if not partner:
         await state.clear()
         await message.answer("Ты не в чате.", reply_markup=kb_main())
         return
-    partner = active_chats[uid]
     if message.text:
         log_message(uid, partner, uid, message.text)
         # AI-модерация в реальном времени
@@ -2043,6 +2043,8 @@ async def relay(message: types.Message, state: FSMContext):
                         await bot.send_message(ADMIN_ID,
                             f"🤖 AI shadow ban\nUID: {uid}\n{mod_result['reason']}\nТекст: {message.text[:200]}")
                     except Exception: pass
+                # Не пересылаем нарушающее сообщение собеседнику (тихо глотаем)
+                return
     now = datetime.now()
     # Обновляем last_seen
     await update_user(uid, last_seen=now)
