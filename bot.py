@@ -26,13 +26,26 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "590443268"))
 VENICE_API_KEY = os.environ.get("VENICE_API_KEY")
 VENICE_API_URL = "https://api.venice.ai/api/v1/chat/completions"
-AI_FREE_LIMIT = 10
 CHANNEL_ID = "@MATCHMEHUB"
 
 PREMIUM_PLANS = {
-    "7d":  {"stars": 99,  "days": 7,  "label": "7 дней",   "desc": "Попробовать"},
-    "1m":  {"stars": 299, "days": 30, "label": "1 месяц",  "desc": "Популярный 🔥"},
-    "3m":  {"stars": 599, "days": 90, "label": "3 месяца", "desc": "Скидка 33%"},
+    # Premium — базовая
+    "7d":      {"stars": 99,  "days": 7,  "label": "7 дней",       "desc": "Попробовать",    "tier": "premium"},
+    "1m":      {"stars": 299, "days": 30, "label": "1 месяц",      "desc": "Популярный",     "tier": "premium"},
+    "3m":      {"stars": 599, "days": 90, "label": "3 месяца",     "desc": "Скидка 33%",     "tier": "premium"},
+    # Premium Plus — всё безлимит
+    "plus_1m": {"stars": 499, "days": 30, "label": "1 мес Plus",   "desc": "Безлимит AI",    "tier": "plus"},
+    "plus_3m": {"stars": 999, "days": 90, "label": "3 мес Plus",   "desc": "Лучшая цена",    "tier": "plus"},
+    # AI Pro — отдельная подписка, разблокирует всё как Plus
+    "ai_1m":   {"stars": 399, "days": 30, "label": "1 мес AI Pro", "desc": "Мощная нейронка", "tier": "ai_pro"},
+    "ai_3m":   {"stars": 799, "days": 90, "label": "3 мес AI Pro", "desc": "AI Pro скидка",   "tier": "ai_pro"},
+}
+
+# Лимиты AI по тирам моделей: free_user / premium / plus(ai_pro)
+# None = безлимит
+AI_LIMITS = {
+    "basic":   {"free": 20,  "premium": None, "plus": None},
+    "premium": {"free": 10,  "premium": 50,   "plus": None},
 }
 
 CHAT_TOPICS = [
@@ -92,7 +105,7 @@ AI_CHARACTERS = {
     "danil": {
         "name": "Данил 👨", "emoji": "👨",
         "description": "Общительный парень, поговорит на любые темы",
-        "premium": False, "model": "venice-uncensored",
+        "tier": "basic", "model": "venice-uncensored",
         "system": """Ты Данил, 27 лет, backend-разработчик. Зашёл в MatchMe просто поболтать.
 Спокойный, уверенный, с сухим сарказмом. Пишешь по-мужски, коротко, без воды.
 ВАЖНО: Пиши ТОЛЬКО на русском языке. Даже если собеседник пишет на другом языке — отвечай на русском.
@@ -103,7 +116,7 @@ AI_CHARACTERS = {
     "polina": {
         "name": "Полина 👩", "emoji": "👩",
         "description": "Живая девушка, ироничная и с юмором",
-        "premium": False, "model": "venice-uncensored",
+        "tier": "basic", "model": "venice-uncensored",
         "system": """Ты Полина, 24 года, SMM-специалист. Зашла в MatchMe пообщаться.
 Живая, дерзкая, ироничная. Пишешь коротко, с эмодзи, подкалываешь.
 ВАЖНО: Пиши ТОЛЬКО на русском языке. Даже если собеседник пишет на другом языке — отвечай на русском.
@@ -114,7 +127,7 @@ AI_CHARACTERS = {
     "max": {
         "name": "Макс 😏", "emoji": "😏",
         "description": "Уверенный парень, пришёл флиртовать",
-        "premium": False, "model": "venice-uncensored",
+        "tier": "basic", "model": "venice-uncensored",
         "system": """Ты Макс, 26 лет, фитнес-тренер. Пришёл в MatchMe флиртовать.
 Уверенный, дерзкий, прямой. Делаешь комплименты, берёшь инициативу.
 Эмодзи умеренно (😏🔥👀).
@@ -126,7 +139,7 @@ AI_CHARACTERS = {
     "violetta": {
         "name": "Виолетта 💋", "emoji": "💋",
         "description": "Игривая девушка, дерзкая и кокетливая",
-        "premium": True, "model": "venice-uncensored",
+        "tier": "premium", "model": "venice-uncensored",
         "system": """Ты Виолетта, 23 года, баристa и TikTok модель. Пришла в MatchMe флиртовать.
 Яркая, игривая, кокетливая. Дразнишь, намекаешь, повышаешь градус.
 Эмодзи (🔥😏😉).
@@ -138,7 +151,7 @@ AI_CHARACTERS = {
     "alisa": {
         "name": "Алиса 🐾", "emoji": "🐾",
         "description": "Послушная сабмиссив, покорная и нежная",
-        "premium": True, "model": "venice-uncensored-role-play",
+        "tier": "premium", "model": "venice-uncensored-role-play",
         "system": """Ты Алиса, 22 года, студентка. Послушная сабмиссив с опытом 1.5 года.
 Покорная, возбуждённая от доминирования. Называешь собеседника «Господин», «Хозяин».
 Говоришь «пожалуйста», «как прикажете», «я буду хорошей».
@@ -150,7 +163,7 @@ AI_CHARACTERS = {
     "dmitri": {
         "name": "Дмитрий 😈", "emoji": "😈",
         "description": "Опытный Доминант, строгий и властный",
-        "premium": True, "model": "venice-uncensored-role-play",
+        "tier": "premium", "model": "venice-uncensored-role-play",
         "system": """Ты Дмитрий, 32 года, владелец IT-компании. Опытный Доминант 7 лет в BDSM.
 Строгий, уверенный, властный. Говоришь коротко и командным тоном.
 Используешь «хорошая девочка», «на колени», «не спорь».
@@ -162,7 +175,7 @@ AI_CHARACTERS = {
     "rolemaster": {
         "name": "Ролевой мастер 🎭", "emoji": "🎭",
         "description": "Придумывает сценарии и играет любую роль",
-        "premium": True, "model": "venice-uncensored-role-play",
+        "tier": "premium", "model": "venice-uncensored-role-play",
         "system": """Ты Ролевой мастер — сценарист и актёр для взрослых ролевых игр 18+.
 Предлагаешь сценарии, задаёшь декорации, играешь любую роль.
 Пишешь с описанием действий и диалогом.
@@ -259,6 +272,13 @@ async def init_db():
             ("show_premium", "BOOLEAN DEFAULT TRUE"),
             ("accept_cross_mode", "BOOLEAN DEFAULT FALSE"),
             ("shadow_ban", "BOOLEAN DEFAULT FALSE"),
+            ("last_reminder", "TIMESTAMP DEFAULT NULL"),
+            ("ai_msg_basic", "INTEGER DEFAULT 0"),
+            ("ai_msg_premium", "INTEGER DEFAULT 0"),
+            ("ai_messages_reset", "TIMESTAMP DEFAULT NOW()"),
+            ("premium_tier", "TEXT DEFAULT NULL"),
+            ("ai_pro_until", "TEXT DEFAULT NULL"),
+            ("ai_bonus", "INTEGER DEFAULT 0"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
@@ -368,21 +388,45 @@ async def increment_user(uid, **kwargs):
     async with db_pool.acquire() as conn:
         await conn.execute(f"UPDATE users SET {sets} WHERE uid=$1", uid, *vals)
 
-async def is_premium(uid):
+async def get_premium_tier(uid):
+    """Возвращает 'plus', 'premium' или None"""
     if uid == ADMIN_ID:
-        return True
+        return "plus"
     u = await get_user(uid)
-    if not u or not u.get("premium_until"):
-        return False
-    if u["premium_until"] == "permanent":
-        return True
+    if not u:
+        return None
+    # Проверить ai_pro_until (отдельная AI подписка = как plus)
+    ai_until = u.get("ai_pro_until")
+    if ai_until:
+        try:
+            if datetime.now() < datetime.fromisoformat(ai_until):
+                return "plus"
+        except Exception:
+            pass
+        await update_user(uid, ai_pro_until=None)
+    # Проверить premium_until
+    p_until = u.get("premium_until")
+    if not p_until:
+        return None
+    if p_until == "permanent":
+        return u.get("premium_tier") or "plus"
     try:
-        premium_until = datetime.fromisoformat(u["premium_until"])
-        if datetime.now() < premium_until:
-            return True
-        await update_user(uid, premium_until=None)
-    except Exception: pass
-    return False
+        if datetime.now() < datetime.fromisoformat(p_until):
+            return u.get("premium_tier") or "premium"
+        await update_user(uid, premium_until=None, premium_tier=None)
+    except Exception:
+        pass
+    return None
+
+
+async def is_premium(uid):
+    return (await get_premium_tier(uid)) is not None
+
+
+def get_ai_limit(char_tier: str, user_tier) -> int | None:
+    """Лимит сообщений/день. None = безлимит."""
+    tier_key = user_tier or "free"
+    return AI_LIMITS.get(char_tier, {}).get(tier_key, 10)
 
 async def is_banned(uid):
     u = await get_user(uid)
@@ -516,68 +560,32 @@ WELCOME_TEXT = (
 
 PRIVACY_TEXT = """🔒 Политика конфиденциальности MatchMe
 
-Перед началом прочитай и прими условия:
+Что собираем: Telegram ID, имя, возраст, пол — для подбора собеседников.
+Данные НЕ передаются третьим лицам. Переписка НЕ хранится постоянно.
 
-📌 Что мы собираем:
-• Telegram ID (автоматически)
-• Имя, возраст, пол (ты указываешь сам)
-• Режим общения и интересы
+🛡 Конфиденциальность чатов:
+Все чаты в боте полностью конфиденциальны и защищены.
+Мы не предоставляем доступ к вашим перепискам третьим лицам.
+Модерация чатов осуществляется исключительно ИИ-модератором.
+Ни администраторы, ни владелец бота не просматривают личные чаты пользователей.
 
-🔐 Как используем:
-• Для подбора собеседников
-• Для модерации и безопасности
-• Данные НЕ передаются третьим лицам
-• Переписка НЕ хранится постоянно
-
-👤 Возрастные ограничения:
-• Минимальный возраст: 16 лет
-• 16–17 лет: доступны режимы «Общение» и «Флирт»
-• 18+: доступны все режимы включая Kink
-• Пользователь несёт полную ответственность за достоверность указанного возраста
-
-⚖️ Ответственность:
-• Администрация не несёт ответственности за содержание переписок между пользователями
-• Пользуясь ботом вы подтверждаете что указали реальный возраст
-• За предоставление ложного возраста — перманентный бан
-
-📋 Правила Telegram:
-• Запрещён контент нарушающий TOS Telegram
-• Запрещена реклама, спам, мошенничество
-• Контент с несовершеннолетними — перм бан немедленно
-
-🗑 Удаление данных:
-• /reset — сброс профиля
-• Для полного удаления пиши администратору
+Возраст: минимум 16 лет. 16-17 — Общение и Флирт. 18+ — все режимы.
+Удаление данных: /reset или написать администратору.
 
 Принимая условия ты соглашаешься с политикой конфиденциальности."""
 
-RULES_RU = """📜 Правила MatchMe:
+RULES_RU = """📜 Правила MatchMe
 
-✅ Разрешено:
-• Общение, флирт, ролевые игры (18+)
-• Уважительное общение
-• Лайки собеседникам
-• Жалобы при реальных нарушениях
-
-👤 Возраст:
-• 16–17 лет — Общение и Флирт
-• 18+ — все режимы включая Kink
-• Указание ложного возраста = перм бан
+Разрешено: общение, флирт, ролевые игры (18+), лайки собеседникам.
+Возраст: 16-17 — Общение и Флирт. 18+ — все режимы. Ложный возраст = перм бан.
 
 ❌ Запрещено:
-• Реклама любых услуг — бан без предупреждения
-• Продажа интим-услуг — перманентный бан
-• Контент с несовершеннолетними — перманентный бан
-• Пошлые темы без согласия в режиме Общение — бан
-• Спам, угрозы, оскорбления — бан
-• Ложные жалобы — бан за злоупотребление
+• Реклама, спам, мошенничество — бан
+• Интим-услуги, контент с несовершеннолетними — перм бан
+• Пошлые темы без согласия в «Общении» — бан
+• Угрозы, оскорбления, ложные жалобы — бан
 
-⚠️ Градация банов:
-• Лёгкое нарушение: предупреждение → бан 3ч → бан 24ч
-• Грубое нарушение: бан сразу
-• Особо грубое: перманентный бан
-
-ℹ️ Все жалобы проверяются вручную.
+Нарушения: предупреждение → бан 3ч → бан 24ч → перм бан.
 
 Нажми ✅ Принять правила для продолжения."""
 
@@ -601,12 +609,9 @@ INTERESTS_MAP = {
 # ====================== КЛАВИАТУРЫ ======================
 def kb_main():
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="⚡ Анонимный поиск")],
-        [KeyboardButton(text="🔍 Поиск по анкете")],
-        [KeyboardButton(text="🤖 ИИ Собеседник")],
-        [KeyboardButton(text="👤 Мой профиль")],
-        [KeyboardButton(text="⚙️ Настройки")],
-        [KeyboardButton(text="❓ Помощь")]
+        [KeyboardButton(text="⚡ Поиск"), KeyboardButton(text="🔍 По анкете")],
+        [KeyboardButton(text="🤖 ИИ чат"), KeyboardButton(text="👤 Профиль")],
+        [KeyboardButton(text="⚙️ Настройки"), KeyboardButton(text="❓ Помощь")]
     ], resize_keyboard=True)
 
 def kb_lang():
@@ -675,7 +680,7 @@ def kb_channel_bonus():
         [InlineKeyboardButton(text="⏭ Пропустить", callback_data="channel:skip")],
     ])
 
-def kb_ai_characters(premium=False, mode="simple"):
+def kb_ai_characters(user_tier=None, mode="simple"):
     buttons = []
     if mode in ["simple", "any"]:
         buttons.append([
@@ -683,25 +688,18 @@ def kb_ai_characters(premium=False, mode="simple"):
             InlineKeyboardButton(text="👩 Полина", callback_data="aichar:polina")
         ])
     if mode in ["flirt", "any"]:
-        row = [InlineKeyboardButton(text="😏 Макс", callback_data="aichar:max")]
-        if premium:
-            row.append(InlineKeyboardButton(text="💋 Виолетта", callback_data="aichar:violetta"))
-        else:
-            row.append(InlineKeyboardButton(text="💋 Виолетта ⭐", callback_data="aichar:locked"))
-        buttons.append(row)
+        buttons.append([
+            InlineKeyboardButton(text="😏 Макс", callback_data="aichar:max"),
+            InlineKeyboardButton(text="💋 Виолетта", callback_data="aichar:violetta")
+        ])
     if mode in ["kink", "any"]:
-        if premium:
-            buttons.append([
-                InlineKeyboardButton(text="🐾 Алиса", callback_data="aichar:alisa"),
-                InlineKeyboardButton(text="😈 Дмитри", callback_data="aichar:dmitri")
-            ])
-            buttons.append([InlineKeyboardButton(text="🎭 Ролевой мастер", callback_data="aichar:rolemaster")])
-        else:
-            buttons.append([
-                InlineKeyboardButton(text="🐾 Алиса ⭐", callback_data="aichar:locked"),
-                InlineKeyboardButton(text="😈 Дмитри ⭐", callback_data="aichar:locked")
-            ])
-            buttons.append([InlineKeyboardButton(text="🎭 Ролевой мастер ⭐", callback_data="aichar:locked")])
+        buttons.append([
+            InlineKeyboardButton(text="🐾 Алиса", callback_data="aichar:alisa"),
+            InlineKeyboardButton(text="😈 Дмитри", callback_data="aichar:dmitri")
+        ])
+        buttons.append([InlineKeyboardButton(text="🎭 Ролевой мастер", callback_data="aichar:rolemaster")])
+    # Мощная нейронка — заглушка
+    buttons.append([InlineKeyboardButton(text="🧠 Мощная нейронка (скоро)", callback_data="aichar:power_soon")])
     if mode != "any":
         buttons.append([InlineKeyboardButton(text="🔀 Все персонажи", callback_data="aichar:all")])
     buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="aichar:back")])
@@ -824,6 +822,7 @@ async def kb_admin_main():
     badge = f" ({pending})" if pending > 0 else ""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats")],
+        [InlineKeyboardButton(text="📈 Retention", callback_data="admin:retention")],
         [InlineKeyboardButton(text=f"🚩 Жалобы{badge}", callback_data="admin:complaints")],
         [InlineKeyboardButton(text="📋 Аудит-лог", callback_data="admin:audit")],
         [InlineKeyboardButton(text="👥 Онлайн", callback_data="admin:online")],
@@ -866,10 +865,21 @@ def kb_user_actions(target_uid, is_shadow=False):
 
 def kb_premium():
     return InlineKeyboardMarkup(inline_keyboard=[
+        # Premium
+        [InlineKeyboardButton(text="── Premium ──", callback_data="noop")],
         [InlineKeyboardButton(text="⭐ 7 дней — 99 Stars", callback_data="buy:7d")],
-        [InlineKeyboardButton(text="⭐ 1 месяц — 299 Stars 🔥", callback_data="buy:1m")],
-        [InlineKeyboardButton(text="⭐ 3 месяца — 599 Stars (скидка 33%)", callback_data="buy:3m")],
-        [InlineKeyboardButton(text="❓ Что даёт Premium?", callback_data="buy:info")],
+        [InlineKeyboardButton(text="⭐ 1 месяц — 299 Stars", callback_data="buy:1m")],
+        [InlineKeyboardButton(text="⭐ 3 месяца — 599 Stars", callback_data="buy:3m")],
+        # Premium Plus
+        [InlineKeyboardButton(text="── Premium Plus (лучшее!) ──", callback_data="noop")],
+        [InlineKeyboardButton(text="🚀 1 месяц — 499 Stars", callback_data="buy:plus_1m")],
+        [InlineKeyboardButton(text="🚀 3 месяца — 999 Stars", callback_data="buy:plus_3m")],
+        # AI Pro
+        [InlineKeyboardButton(text="── AI Pro ──", callback_data="noop")],
+        [InlineKeyboardButton(text="🧠 1 месяц — 399 Stars", callback_data="buy:ai_1m")],
+        [InlineKeyboardButton(text="🧠 3 месяца — 799 Stars", callback_data="buy:ai_3m")],
+        # Инфо
+        [InlineKeyboardButton(text="❓ Сравнить подписки", callback_data="buy:info")],
     ])
 
 # ====================== УТИЛИТЫ ======================
@@ -917,12 +927,12 @@ async def set_commands():
         BotCommand(command="find", description="Найти собеседника"),
         BotCommand(command="stop", description="Завершить чат"),
         BotCommand(command="next", description="Следующий собеседник"),
-        BotCommand(command="profile", description="Мой профиль"),
+        BotCommand(command="profile", description="Профиль"),
         BotCommand(command="settings", description="Настройки"),
         BotCommand(command="premium", description="Premium подписка"),
         BotCommand(command="stats", description="Моя статистика"),
         BotCommand(command="reset", description="Сбросить профиль"),
-        BotCommand(command="ai", description="ИИ Собеседник"),
+        BotCommand(command="ai", description="ИИ чат"),
         BotCommand(command="help", description="Помощь"),
         BotCommand(command="admin", description="Админ панель"),
     ])
@@ -1077,16 +1087,20 @@ async def do_find(uid, state):
         return False
 
 async def notify_no_partner(uid):
-    await asyncio.sleep(60)
+    await asyncio.sleep(30)
     if uid in active_chats:
         return
     all_waiting = set().union(*get_all_queues())
     if uid in all_waiting:
         try:
+            char_id = random.choice(["polina", "max", "danil"])
+            name = AI_CHARACTERS[char_id]["name"]
             await bot.send_message(uid,
-                "😔 Пока никого нет по твоим параметрам.\n\nПопробуй:",
+                f"⏳ Поиск идёт дольше обычного...\n\n"
+                f"💡 Пока ждёшь — пообщайся с {name}!\n"
+                f"AI собеседник ответит моментально 🤖",
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="🤖 ИИ Собеседник", callback_data="goto:ai")],
+                    [InlineKeyboardButton(text=f"💬 Чат с {name}", callback_data=f"ai:start:{char_id}")],
                     [InlineKeyboardButton(text="⚙️ Настройки", callback_data="goto:settings")],
                     [InlineKeyboardButton(text="⏳ Продолжить ждать", callback_data="goto:wait")],
                 ])
@@ -1119,8 +1133,8 @@ async def end_chat(uid, state, go_next=False):
             await FSMContext(dp.storage, key=pkey).clear()
         except Exception: pass
 
-        # Реклама для не-Premium (через задержку)
-        asyncio.create_task(_send_ad_delayed(uid, partner))
+        # Upsell после каждого 3-го чата
+        asyncio.create_task(_send_upsell_after_chat(uid, partner))
     else:
         await bot.send_message(uid, "💔 Чат завершён.", reply_markup=kb_main())
 
@@ -1141,13 +1155,28 @@ async def end_chat(uid, state, go_next=False):
             )
             await do_find(uid, state)
 
-async def _send_ad_delayed(uid, partner):
+async def _send_upsell_after_chat(uid, partner):
     await asyncio.sleep(3)
-    # Не отправляем рекламу если уже в новом чате
-    if uid not in active_chats and not await is_premium(uid):
-        await send_ad_message(uid)
-    if partner not in active_chats and not await is_premium(partner):
-        await send_ad_message(partner)
+    for target_uid in (uid, partner):
+        if target_uid in active_chats:
+            continue
+        if await is_premium(target_uid):
+            continue
+        u = await get_user(target_uid)
+        chats = u.get("total_chats", 0) if u else 0
+        if chats > 0 and chats % 3 == 0:
+            # Каждый 3-й чат — мягкий upsell
+            try:
+                await bot.send_message(target_uid,
+                    "⭐ Тебе нравится MatchMe?\n"
+                    "Premium = приоритет в поиске + больше AI + без рекламы!",
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="⭐ Узнать больше", callback_data="buy:info")]
+                    ])
+                )
+            except Exception: pass
+        else:
+            await send_ad_message(target_uid)
 # ====================== MUTUAL MATCH ======================
 @dp.callback_query(F.data.startswith("mutual:"), StateFilter("*"))
 async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
@@ -1439,10 +1468,22 @@ async def cmd_premium(message: types.Message):
 
 @dp.callback_query(F.data == "buy:info", StateFilter("*"))
 async def premium_info(callback: types.CallbackQuery):
-    await callback.answer(
-        "⭐ Premium: Виолетта, Дмитри, Алиса, Ролевой мастер + безлимит ИИ + приоритет + без рекламы!",
-        show_alert=True
+    await callback.message.answer(
+        "📊 Сравнение подписок:\n\n"
+        "⭐ Premium (от 99 Stars):\n"
+        "• Безлимит на basic ИИ (Данил, Полина, Макс)\n"
+        "• 50 сообщений/день на premium ИИ + бонус 10\n"
+        "• Приоритет в поиске, без рекламы\n\n"
+        "🚀 Premium Plus (от 499 Stars):\n"
+        "• Всё из Premium\n"
+        "• Безлимит на ВСЕ ИИ модели\n"
+        "• Лучшая цена!\n\n"
+        "🧠 AI Pro (от 399 Stars):\n"
+        "• Безлимит на все ИИ модели\n"
+        "• Разблокирует всё как Plus\n\n"
+        "💡 Совет: Premium Plus — самый выгодный вариант!"
     )
+    await callback.answer()
 
 @dp.callback_query(F.data.startswith("buy:"), StateFilter("*"))
 async def buy_premium(callback: types.CallbackQuery):
@@ -1453,15 +1494,18 @@ async def buy_premium(callback: types.CallbackQuery):
         await callback.answer("Неизвестный тариф", show_alert=True)
         return
     plan = PREMIUM_PLANS[plan_key]
+    tier = plan["tier"]
+    tier_names = {"premium": "Premium", "plus": "Premium Plus", "ai_pro": "AI Pro"}
+    tier_name = tier_names.get(tier, "Premium")
     await callback.answer()
     await bot.send_invoice(
         chat_id=uid,
-        title=f"MatchMe Premium — {plan['label']}",
-        description=f"Все Premium функции на {plan['label']}. {plan['desc']}",
+        title=f"MatchMe {tier_name} — {plan['label']}",
+        description=f"{tier_name} на {plan['label']}. {plan['desc']}",
         payload=f"premium_{plan_key}",
         provider_token="",
         currency="XTR",
-        prices=[LabeledPrice(label=f"Premium {plan['label']}", amount=plan["stars"])],
+        prices=[LabeledPrice(label=f"{tier_name} {plan['label']}", amount=plan["stars"])],
     )
 
 @dp.pre_checkout_query(StateFilter("*"))
@@ -1474,23 +1518,39 @@ async def successful_payment(message: types.Message):
     payload = message.successful_payment.invoice_payload
     plan_key = payload.replace("premium_", "")
     plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1m"])
-    # Если уже есть Premium — продлеваем от текущей даты окончания
+    tier = plan.get("tier", "premium")
     u = await get_user(uid)
     base = datetime.now()
-    if u and u.get("premium_until") and u["premium_until"] != "permanent":
-        try:
-            existing = datetime.fromisoformat(u["premium_until"])
-            if existing > base:
-                base = existing
-        except Exception:
-            pass
+    until_field = "ai_pro_until" if tier == "ai_pro" else "premium_until"
+    # Продлеваем от текущей даты окончания если есть
+    if u:
+        current_until = u.get(until_field)
+        if current_until and current_until != "permanent":
+            try:
+                existing = datetime.fromisoformat(current_until)
+                if existing > base:
+                    base = existing
+            except Exception:
+                pass
     until = base + timedelta(days=plan["days"])
-    await update_user(uid, premium_until=until.isoformat())
+    if tier == "ai_pro":
+        await update_user(uid, ai_pro_until=until.isoformat())
+    elif tier == "plus":
+        await update_user(uid, premium_until=until.isoformat(), premium_tier="plus")
+    else:
+        await update_user(uid, premium_until=until.isoformat(), premium_tier="premium")
+    tier_names = {"premium": "Premium", "plus": "Premium Plus", "ai_pro": "AI Pro"}
+    tier_name = tier_names.get(tier, "Premium")
+    benefits = {
+        "premium": "Безлимит basic ИИ, 50 сообщений/день premium ИИ, приоритет, без рекламы!",
+        "plus": "Безлимит на ВСЕ ИИ модели, приоритет, без рекламы!",
+        "ai_pro": "Безлимит на ВСЕ ИИ модели!",
+    }
     await message.answer(
-        f"🎉 Premium активирован!\n\n"
-        f"⭐ Тариф: {plan['label']}\n"
+        f"🎉 {tier_name} активирован!\n\n"
+        f"📦 Тариф: {plan['label']}\n"
         f"📅 До {until.strftime('%d.%m.%Y')}\n\n"
-        f"Доступны: Виолетта, Дмитри, Алиса, Ролевой мастер, безлимит ИИ, приоритет, без рекламы!",
+        f"{benefits.get(tier, '')}",
         reply_markup=kb_main()
     )
 
@@ -1529,7 +1589,7 @@ async def reset_confirm(callback: types.CallbackQuery, state: FSMContext):
     try:
         await callback.message.edit_text("✅ Профиль сброшен!")
     except Exception: pass
-    await callback.message.answer("👋 Нажми '🔍 Поиск по анкете' чтобы заполнить анкету заново.", reply_markup=kb_main())
+    await callback.message.answer("👋 Нажми '🔍 По анкете' чтобы заполнить анкету заново.", reply_markup=kb_main())
     await callback.answer()
 
 @dp.callback_query(F.data == "reset:cancel", StateFilter(ResetProfile.confirm))
@@ -1543,20 +1603,22 @@ async def reset_cancel(callback: types.CallbackQuery, state: FSMContext):
 
 # ====================== ИИ СОБЕСЕДНИК ======================
 async def _show_ai_menu(message: types.Message, state: FSMContext, uid: int):
-    user_premium = await is_premium(uid)
+    user_tier = await get_premium_tier(uid)
     u = await get_user(uid)
     mode = u.get("mode", "simple") if u else "simple"
     await state.set_state(AIChat.choosing)
     await state.update_data(ai_show_mode=mode)
     await message.answer(
-        "🤖 ИИ Собеседник\n\n"
-        "🆓 Бесплатно: 👨 Данил, 👩 Полина, 😏 Макс\n"
-        "⭐ Premium: 💋 Виолетта, 🐾 Алиса, 😈 Дмитри, 🎭 Ролевой мастер\n\n"
+        "🤖 ИИ чат\n\n"
+        "Все персонажи доступны бесплатно!\n"
+        "💬 Basic: 20 сообщений/день\n"
+        "🔥 Premium: 10 сообщений/день\n"
+        "⭐ Подписка снимает лимиты\n\n"
         "Выбери с кем хочешь поговорить:",
-        reply_markup=kb_ai_characters(user_premium, mode)
+        reply_markup=kb_ai_characters(user_tier, mode)
     )
 
-@dp.message(F.text == "🤖 ИИ Собеседник", StateFilter("*"))
+@dp.message(F.text == "🤖 ИИ чат", StateFilter("*"))
 @dp.message(Command("ai"), StateFilter("*"))
 async def ai_menu(message: types.Message, state: FSMContext):
     uid = message.from_user.id
@@ -1584,32 +1646,34 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer("↩️ Возврат в меню.", reply_markup=kb_main())
         await callback.answer()
         return
+    if char_id == "power_soon":
+        await callback.answer("🔧 В разработке! Следи за обновлениями.", show_alert=True)
+        return
     if char_id == "all":
-        user_premium = await is_premium(uid)
+        user_tier = await get_premium_tier(uid)
         await state.update_data(ai_show_mode="any")
         try:
-            await callback.message.edit_reply_markup(reply_markup=kb_ai_characters(user_premium, "any"))
+            await callback.message.edit_reply_markup(reply_markup=kb_ai_characters(user_tier, "any"))
         except Exception: pass
         await callback.answer()
-        return
-    if char_id == "locked":
-        await callback.answer("🔒 Только для Premium! Купи подписку через /premium", show_alert=True)
         return
     if char_id not in AI_CHARACTERS:
         await callback.answer("Персонаж не найден.", show_alert=True)
         return
     char = AI_CHARACTERS[char_id]
-    user_premium = await is_premium(uid)
-    if char["premium"] and not user_premium:
-        await callback.answer("🔒 Только для Premium!", show_alert=True)
-        return
+    user_tier = await get_premium_tier(uid)
+    limit = get_ai_limit(char["tier"], user_tier)
     ai_sessions[uid] = {"character": char_id, "history": [], "msg_count": 0}
     last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
-    limit_text = "⭐ Premium: безлимит" if user_premium else f"🆓 Бесплатно: {AI_FREE_LIMIT} сообщений"
+    if limit is None:
+        limit_text = "♾ Безлимит"
+    else:
+        limit_text = f"💬 Лимит: {limit} сообщений/день"
+    tier_icon = "🔥" if char["tier"] == "premium" else "✅"
     try:
         await callback.message.edit_text(
-            f"{'✅' if not char['premium'] else '🔥'} Ты общаешься с {char['name']}\n"
+            f"{tier_icon} Ты общаешься с {char['name']}\n"
             f"{char['description']}\n\n{limit_text}\n\nНапиши что-нибудь!"
         )
     except Exception: pass
@@ -1632,11 +1696,11 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         return
     if "Сменить персонажа" in txt:
         ai_sessions.pop(uid, None)
-        user_premium = await is_premium(uid)
+        user_tier = await get_premium_tier(uid)
         u = await get_user(uid)
         mode = u.get("mode", "simple") if u else "simple"
         await state.set_state(AIChat.choosing)
-        await message.answer("Выбери персонажа:", reply_markup=kb_ai_characters(user_premium, mode))
+        await message.answer("Выбери персонажа:", reply_markup=kb_ai_characters(user_tier, mode))
         return
     if "Найти живого" in txt:
         ai_sessions.pop(uid, None)
@@ -1656,20 +1720,39 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     session = ai_sessions[uid]
     char_id = session["character"]
     char = AI_CHARACTERS[char_id]
-    user_premium = await is_premium(uid)
-    if not user_premium and session["msg_count"] >= AI_FREE_LIMIT:
+    user_tier = await get_premium_tier(uid)
+    char_tier = char["tier"]
+    limit = get_ai_limit(char_tier, user_tier)
+    # Получить счётчик из БД + сброс если прошло 24ч
+    u = await get_user(uid)
+    counter_field = f"ai_msg_{char_tier}"
+    current_count = u.get(counter_field, 0) if u else 0
+    reset_time = u.get("ai_messages_reset") if u else None
+    if reset_time and (datetime.now() - reset_time).total_seconds() > 86400:
+        await update_user(uid, ai_msg_basic=0, ai_msg_premium=0, ai_messages_reset=datetime.now())
+        current_count = 0
+    # Учесть бонусные сообщения
+    ai_bonus = u.get("ai_bonus", 0) if u else 0
+    effective_limit = (limit + ai_bonus) if limit is not None else None
+    if effective_limit is not None and current_count >= effective_limit:
         ai_sessions.pop(uid, None)
         last_ai_msg.pop(uid, None)
         await state.clear()
+        # Upsell в зависимости от текущего тира
+        if user_tier == "premium":
+            upsell_text = "🚀 Upgrade до Premium Plus — безлимит на все ИИ!"
+            upsell_btn = "buy:plus_1m"
+        else:
+            upsell_text = "⭐ Купи Premium — больше сообщений и безлимит basic ИИ!"
+            upsell_btn = "buy:1m"
         await message.answer(
-            f"⏰ Использовано {AI_FREE_LIMIT} бесплатных сообщений.\n\n⭐ Купи Premium для безлимита!",
+            f"⏰ Лимит исчерпан ({limit} сообщений/день).\n\n{upsell_text}",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⭐ Купить Premium", callback_data="buy:1m")],
+                [InlineKeyboardButton(text="⭐ Купить подписку", callback_data=upsell_btn)],
                 [InlineKeyboardButton(text="🔍 Найти живого собеседника", callback_data="goto:find")],
                 [InlineKeyboardButton(text="🏠 Главное меню", callback_data="goto:menu")]
             ])
         )
-        await message.answer("Лимит исчерпан.", reply_markup=kb_main())
         return
     last_ai_msg[uid] = datetime.now()
     await bot.send_chat_action(uid, "typing")
@@ -1678,11 +1761,18 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     response = await ask_venice(char_id, session["history"][:-1], txt)
     session["history"].append({"role": "assistant", "content": response})
     session["msg_count"] += 1
+    # Инкрементировать счётчик в БД
+    new_count = current_count + 1
+    # Тратим бонус если базовый лимит превышен
+    if limit is not None and new_count > limit and ai_bonus > 0:
+        await update_user(uid, **{counter_field: new_count, "ai_bonus": ai_bonus - 1})
+    else:
+        await update_user(uid, **{counter_field: new_count})
     remaining = ""
-    if not user_premium:
-        left = AI_FREE_LIMIT - session["msg_count"]
+    if effective_limit is not None:
+        left = effective_limit - new_count
         if left <= 3:
-            remaining = f"\n\n_💬 Осталось {left} бесплатных сообщений_"
+            remaining = f"\n\n_💬 Осталось {left} сообщений_"
     await message.answer(f"{char['emoji']} {response}{remaining}")
 
 # ====================== GOTO CALLBACKS ======================
@@ -1717,8 +1807,42 @@ async def goto_action(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer("🏠 Главное меню", reply_markup=kb_main())
     await callback.answer()
 
+# ====================== AI QUICK START (из поиска) ======================
+@dp.callback_query(F.data.startswith("ai:start:"), StateFilter("*"))
+async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
+    uid = callback.from_user.id
+    char_id = callback.data.split(":", 2)[2]
+    if char_id not in AI_CHARACTERS:
+        await callback.answer("Персонаж не найден.", show_alert=True)
+        return
+    # Отменяем поиск
+    async with pairing_lock:
+        for q in get_all_queues():
+            q.discard(uid)
+    await state.clear()
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception: pass
+    # Начинаем AI сессию
+    char = AI_CHARACTERS[char_id]
+    user_tier = await get_premium_tier(uid)
+    limit = get_ai_limit(char["tier"], user_tier)
+    ai_sessions[uid] = {"character": char_id, "history": [], "msg_count": 0}
+    last_ai_msg[uid] = datetime.now()
+    await state.set_state(AIChat.chatting)
+    limit_text = "♾ Безлимит" if limit is None else f"💬 Лимит: {limit} сообщений/день"
+    await callback.message.answer(
+        f"✅ Ты общаешься с {char['name']}\n{char['description']}\n\n{limit_text}",
+        reply_markup=kb_ai_chat()
+    )
+    greeting = await ask_venice(char_id, [], "Поприветствуй собеседника и начни разговор. Коротко, 1-2 предложения на русском.")
+    if greeting:
+        ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
+        await callback.message.answer(f"{char['emoji']} {greeting}")
+    await callback.answer()
+
 # ====================== АНОНИМНЫЙ ПОИСК ======================
-@dp.message(F.text == "⚡ Анонимный поиск", StateFilter("*"))
+@dp.message(F.text == "⚡ Поиск", StateFilter("*"))
 async def anon_search(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     current = await state.get_state()
@@ -1782,7 +1906,7 @@ async def anon_search(message: types.Message, state: FSMContext):
         asyncio.create_task(notify_no_partner(uid))
 
 # ====================== ПОИСК ПО АНКЕТЕ ======================
-@dp.message(F.text.in_(["🔍 Поиск по анкете", "🔍 Найти собеседника"]), StateFilter("*"))
+@dp.message(F.text.in_(["🔍 По анкете", "🔍 Найти собеседника"]), StateFilter("*"))
 @dp.message(Command("find"), StateFilter("*"))
 async def cmd_find(message: types.Message, state: FSMContext):
     uid = message.from_user.id
@@ -1830,8 +1954,8 @@ async def cancel_reg(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer("❌ Анкета отменена.", reply_markup=kb_main())
 
-BLOCKED_TEXTS = ["⚡ Анонимный поиск", "🔍 Поиск по анкете", "👤 Мой профиль",
-                 "⚙️ Настройки", "❓ Помощь", "🤖 ИИ Собеседник"]
+BLOCKED_TEXTS = ["⚡ Поиск", "🔍 По анкете", "👤 Профиль",
+                 "⚙️ Настройки", "❓ Помощь", "🤖 ИИ чат"]
 
 @dp.message(StateFilter(Reg.name))
 async def reg_name(message: types.Message, state: FSMContext):
@@ -2160,7 +2284,7 @@ async def cmd_next(message: types.Message, state: FSMContext):
     await end_chat(message.from_user.id, state, go_next=True)
 
 # ====================== ПРОФИЛЬ ======================
-@dp.message(F.text == "👤 Мой профиль", StateFilter("*"))
+@dp.message(F.text == "👤 Профиль", StateFilter("*"))
 @dp.message(Command("profile"), StateFilter("*"))
 async def show_profile(message: types.Message, state: FSMContext):
     uid = message.from_user.id
@@ -2174,24 +2298,26 @@ async def show_profile(message: types.Message, state: FSMContext):
     await ensure_user(uid)
     u = await get_user(uid)
     if not u or not u.get("name"):
-        await message.answer("Анкета не заполнена. Нажми '🔍 Поиск по анкете'", reply_markup=kb_main())
+        await message.answer("Анкета не заполнена. Нажми '🔍 По анкете'", reply_markup=kb_main())
         return
     g_map = {"male": "Парень 👨", "female": "Девушка 👩", "other": "Другое ⚧"}
-    user_premium = await is_premium(uid)
+    user_tier = await get_premium_tier(uid)
     show_badge = u.get("show_premium", True)
-    if user_premium:
+    tier_names = {"premium": "Premium", "plus": "Premium Plus"}
+    if user_tier:
         if uid == ADMIN_ID or u.get("premium_until") == "permanent":
-            premium_status = "⭐ Premium (вечный)"
+            premium_status = f"⭐ {tier_names.get(user_tier, 'Premium')} (вечный)"
         else:
+            p_until = u.get("premium_until") or u.get("ai_pro_until") or ""
             try:
-                until = datetime.fromisoformat(u["premium_until"])
-                premium_status = f"⭐ Premium до {until.strftime('%d.%m.%Y')}"
+                until = datetime.fromisoformat(p_until)
+                premium_status = f"⭐ {tier_names.get(user_tier, 'Premium')} до {until.strftime('%d.%m.%Y')}"
             except Exception:
-                premium_status = "⭐ Premium"
+                premium_status = f"⭐ {tier_names.get(user_tier, 'Premium')}"
     else:
         premium_status = "Нет"
-    badge = " ⭐" if (user_premium and show_badge) else ""
-    await message.answer(
+    badge = " ⭐" if (user_tier and show_badge) else ""
+    profile_text = (
         f"👤 Профиль{badge}:\n"
         f"Имя: {u['name']}\n"
         f"Возраст: {u.get('age', '—')}\n"
@@ -2202,9 +2328,11 @@ async def show_profile(message: types.Message, state: FSMContext):
         f"👍 Лайков: {u.get('likes',0)}\n"
         f"💬 Чатов: {u.get('total_chats',0)}\n"
         f"⚠️ Предупреждений: {u.get('warn_count',0)}\n"
-        f"💎 Статус: {premium_status}",
-        reply_markup=kb_edit()
+        f"💎 Статус: {premium_status}"
     )
+    if not user_tier:
+        profile_text += "\n\n⭐ Upgrade до Premium — приоритет, больше AI, без рекламы!"
+    await message.answer(profile_text, reply_markup=kb_edit())
 
 # ====================== РЕДАКТИРОВАНИЕ ПРОФИЛЯ ======================
 @dp.callback_query(F.data.startswith("edit:"), StateFilter("*"))
@@ -2424,9 +2552,9 @@ async def set_search_gender(message: types.Message, state: FSMContext):
 async def show_help(message: types.Message):
     await message.answer(
         "🆘 Помощь MatchMe:\n\n"
-        "⚡ Анонимный поиск — быстрый поиск\n"
-        "🔍 Поиск по анкете — по режиму и интересам\n"
-        "🤖 ИИ Собеседник — поговори с ИИ\n"
+        "⚡ Поиск — быстрый анонимный поиск\n"
+        "🔍 По анкете — по режиму и интересам\n"
+        "🤖 ИИ чат — поговори с ИИ\n"
         "📊 /stats — твоя статистика\n"
         "⭐ /premium — Premium подписка\n\n"
         "В чате:\n"
@@ -2481,6 +2609,42 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
             f"🔍 В поиске: {in_search}\n"
             f"🚫 Забанено: {banned}\n"
             f"🚩 Жалоб: {total_complaints} (⏳{pending})"
+        )
+    elif action == "retention":
+        async with db_pool.acquire() as conn:
+            total = await conn.fetchval("SELECT COUNT(*) FROM users") or 0
+            new_today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE") or 0
+            new_week = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days'") or 0
+            d1 = await conn.fetchval(
+                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 1 AND last_seen::date >= CURRENT_DATE"
+            ) or 0
+            d1_base = await conn.fetchval(
+                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 1"
+            ) or 1
+            d7 = await conn.fetchval(
+                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 7 AND last_seen > NOW() - INTERVAL '24 hours'"
+            ) or 0
+            d7_base = await conn.fetchval(
+                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 7"
+            ) or 1
+            d30 = await conn.fetchval(
+                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 30 AND last_seen > NOW() - INTERVAL '7 days'"
+            ) or 0
+            d30_base = await conn.fetchval(
+                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 30"
+            ) or 1
+            premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL") or 0
+            avg_chats = await conn.fetchval("SELECT ROUND(AVG(total_chats)::numeric, 1) FROM users WHERE total_chats > 0") or 0
+        prem_pct = round(premiums / max(total, 1) * 100, 1)
+        await callback.message.answer(
+            f"📈 Retention MatchMe:\n\n"
+            f"📥 Новые сегодня: {new_today}\n"
+            f"📥 Новые за неделю: {new_week}\n\n"
+            f"📊 D1: {d1}/{d1_base} ({round(d1/max(d1_base,1)*100)}%)\n"
+            f"📊 D7: {d7}/{d7_base} ({round(d7/max(d7_base,1)*100)}%)\n"
+            f"📊 D30: {d30}/{d30_base} ({round(d30/max(d30_base,1)*100)}%)\n\n"
+            f"💎 Premium конверсия: {premiums}/{total} ({prem_pct}%)\n"
+            f"💬 Ср. чатов на юзера: {avg_chats}"
         )
     elif action == "complaints":
         async with db_pool.acquire() as conn:
@@ -2890,6 +3054,67 @@ async def inactivity_checker():
             if not mutual_likes[uid_key]:
                 del mutual_likes[uid_key]
 
+# ====================== НАПОМИНАНИЯ + AI REFILL ======================
+REMINDER_TEMPLATES = [
+    "🔥 Сейчас онлайн {n} человек — самое время для поиска!",
+    "💬 Давно не заходил? У нас новые пользователи ждут общения!",
+    "🤖 Попробуй AI собеседника — {char} ждёт тебя!",
+]
+
+async def reminder_task():
+    while True:
+        await asyncio.sleep(7200)  # каждые 2 часа
+        try:
+            online_count = len(active_chats) // 2 + sum(len(q) for q in get_all_queues())
+            char_name = random.choice(list(AI_CHARACTERS.values()))["name"]
+            async with db_pool.acquire() as conn:
+                # Пользователи не заходившие 24ч+, без бана, с принятыми правилами
+                rows = await conn.fetch("""
+                    SELECT uid, ai_msg_basic, ai_msg_premium, premium_until, last_seen
+                    FROM users
+                    WHERE last_seen < NOW() - INTERVAL '24 hours'
+                    AND (last_reminder IS NULL OR last_reminder < NOW() - INTERVAL '24 hours')
+                    AND ban_until IS NULL
+                    AND accepted_rules = TRUE
+                    ORDER BY last_seen DESC
+                    LIMIT 30
+                """)
+            sent = 0
+            for row in rows:
+                uid = row["uid"]
+                try:
+                    # AI refill: не заходил 3+ дня, использовал лимит, не Premium
+                    days_inactive = 0
+                    if row["last_seen"]:
+                        days_inactive = (datetime.now() - row["last_seen"]).days
+                    is_prem = bool(row.get("premium_until"))
+                    used_ai = (row.get("ai_msg_basic", 0) >= 15 or row.get("ai_msg_premium", 0) >= 8)
+                    if days_inactive >= 3 and used_ai and not is_prem:
+                        await bot.send_message(uid,
+                            "🎁 Мы скучали! +5 бесплатных AI сообщений специально для тебя!\n"
+                            "Заходи общаться 💬",
+                            reply_markup=kb_main()
+                        )
+                        async with db_pool.acquire() as conn:
+                            await conn.execute(
+                                "UPDATE users SET ai_bonus = LEAST(ai_bonus + 5, 5), last_reminder = NOW() WHERE uid = $1",
+                                uid
+                            )
+                    else:
+                        # Обычное напоминание
+                        template = random.choice(REMINDER_TEMPLATES)
+                        text = template.format(n=max(online_count, 3), char=char_name)
+                        await bot.send_message(uid, text, reply_markup=kb_main())
+                        async with db_pool.acquire() as conn:
+                            await conn.execute("UPDATE users SET last_reminder = NOW() WHERE uid = $1", uid)
+                    sent += 1
+                except Exception:
+                    pass
+            if sent:
+                logger.info(f"Напоминания: отправлено {sent}")
+        except Exception as e:
+            logger.error(f"reminder_task error: {e}")
+
 # ====================== ЗАПУСК ======================
 async def main():
     await init_db()
@@ -2897,6 +3122,7 @@ async def main():
     await moderation.migrate_db()
     await set_commands()
     asyncio.create_task(inactivity_checker())
+    asyncio.create_task(reminder_task())
     logger.info("MatchMe запущен!")
     await dp.start_polling(bot)
 
