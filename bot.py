@@ -861,6 +861,7 @@ def kb_user_actions(target_uid, is_shadow=False):
          InlineKeyboardButton(text="❌ Кик", callback_data=f"uadm:kick:{target_uid}")],
         [InlineKeyboardButton(text="⭐ Дать Premium 30д", callback_data=f"uadm:premium:{target_uid}"),
          InlineKeyboardButton(text="⭐ Забрать Premium", callback_data=f"uadm:unpremium:{target_uid}")],
+        [InlineKeyboardButton(text="🗑 Полное удаление", callback_data=f"uadm:fulldelete:{target_uid}")],
     ])
 
 def kb_premium():
@@ -1437,31 +1438,27 @@ async def cmd_stats(message: types.Message):
 @dp.message(Command("premium"), StateFilter("*"))
 async def cmd_premium(message: types.Message):
     uid = message.from_user.id
-    user_premium = await is_premium(uid)
-    if user_premium:
+    user_tier = await get_premium_tier(uid)
+    tier_names = {"premium": "Premium", "plus": "Premium Plus"}
+    status_text = ""
+    if user_tier:
         u = await get_user(uid)
-        if uid == ADMIN_ID or u.get("premium_until") == "permanent":
-            await message.answer("⭐ У тебя вечный Premium!\n\nВсе функции доступны навсегда 🔥")
+        if uid == ADMIN_ID or (u and u.get("premium_until") == "permanent"):
+            status_text = f"✅ Сейчас: {tier_names.get(user_tier, 'Premium')} (вечный)\n\n"
         else:
+            p_until = (u.get("premium_until") or u.get("ai_pro_until") or "") if u else ""
             try:
-                until = datetime.fromisoformat(u["premium_until"])
-                await message.answer(f"⭐ Premium активен до {until.strftime('%d.%m.%Y %H:%M')}")
+                until = datetime.fromisoformat(p_until)
+                status_text = f"✅ Сейчас: {tier_names.get(user_tier, 'Premium')} до {until.strftime('%d.%m.%Y')}\n\n"
             except Exception:
-                await message.answer("⭐ Premium активен!")
-        return
+                status_text = f"✅ Сейчас: {tier_names.get(user_tier, 'Premium')}\n\n"
     await message.answer(
-        f"⭐ MatchMe Premium\n\n"
-        f"Что входит:\n"
-        f"• 💋 Виолетта — флиртующая девушка\n"
-        f"• 😈 Дмитри — опытный Доминант\n"
-        f"• 🐾 Алиса — покорная сабмиссив\n"
-        f"• 🎭 Ролевой мастер\n"
-        f"• 🤖 Безлимитный ИИ чат\n"
-        f"• 🚀 Приоритет в поиске\n"
-        f"• 👤 Фильтр пола в Флирте и Kink\n"
-        f"• ⭐ Значок в профиле\n"
-        f"• 📢 Без рекламы\n\n"
-        f"Или подпишись на {CHANNEL_ID} → 3 дня бесплатно!\n\n"
+        f"⭐ MatchMe Подписки\n\n"
+        f"{status_text}"
+        f"📊 Что входит:\n"
+        f"⭐ Premium: безлимит basic ИИ, 50 сообщений premium ИИ, приоритет, без рекламы\n"
+        f"🚀 Premium Plus: безлимит на ВСЕ ИИ, приоритет, без рекламы\n"
+        f"🧠 AI Pro: безлимит на все ИИ модели\n\n"
         f"Выбери тариф:",
         reply_markup=kb_premium()
     )
@@ -1642,8 +1639,13 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
     char_id = callback.data.split(":", 1)[1]
     if char_id == "back":
+        ai_sessions.pop(uid, None)
+        last_ai_msg.pop(uid, None)
         await state.clear()
-        await callback.message.answer("↩️ Возврат в меню.", reply_markup=kb_main())
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception: pass
+        await callback.message.answer("🏠 Главное меню", reply_markup=kb_main())
         await callback.answer()
         return
     if char_id == "power_soon":
@@ -1683,6 +1685,26 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
         await callback.message.answer(f"{char['emoji']} {greeting}")
     await callback.answer()
+
+@dp.message(StateFilter(AIChat.choosing))
+async def ai_choosing_text(message: types.Message, state: FSMContext):
+    uid = message.from_user.id
+    txt = message.text or ""
+    if "Завершить чат" in txt or "🏠" in txt or "Главное меню" in txt:
+        ai_sessions.pop(uid, None)
+        last_ai_msg.pop(uid, None)
+        await state.clear()
+        await message.answer("🏠 Главное меню", reply_markup=kb_main())
+        return
+    if "Сменить персонажа" in txt:
+        return  # inline buttons handle this
+    if "Найти живого" in txt:
+        ai_sessions.pop(uid, None)
+        await state.clear()
+        await message.answer("🔍 Ищем...", reply_markup=kb_cancel_search())
+        await cmd_find(message, state)
+        return
+    await message.answer("👆 Выбери персонажа из кнопок выше.")
 
 @dp.message(StateFilter(AIChat.chatting))
 async def ai_chat_message(message: types.Message, state: FSMContext):
@@ -2968,7 +2990,42 @@ async def admin_user_action(callback: types.CallbackQuery):
         else:
             await callback.answer("✅ Shadow ban установлен")
             await callback.message.answer(f"👻 Shadow ban установлен для {target_uid}")
-
+    elif action == "fulldelete":
+        await callback.message.answer(
+            f"⚠️ Удалить пользователя {target_uid} полностью?\n"
+            f"Это удалит ВСЕ данные из БД. Пользователь сможет зарегистрироваться заново.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Да, удалить полностью", callback_data=f"uadm:confirmdelete:{target_uid}")],
+                [InlineKeyboardButton(text="❌ Отмена", callback_data="noop")],
+            ])
+        )
+        await callback.answer()
+    elif action == "confirmdelete":
+        # Кик из активных чатов/очередей
+        if target_uid in active_chats:
+            partner = active_chats.pop(target_uid, None)
+            if partner:
+                active_chats.pop(partner, None)
+                await remove_chat_from_db(target_uid, partner)
+                try: await bot.send_message(partner, "😔 Собеседник покинул чат.", reply_markup=kb_main())
+                except Exception: pass
+        ai_sessions.pop(target_uid, None)
+        last_ai_msg.pop(target_uid, None)
+        async with pairing_lock:
+            for q in get_all_queues():
+                q.discard(target_uid)
+        # Удалить FSM state
+        try:
+            key = StorageKey(bot_id=bot.id, chat_id=target_uid, user_id=target_uid)
+            await FSMContext(dp.storage, key=key).clear()
+        except Exception: pass
+        # Удалить из БД
+        async with db_pool.acquire() as conn:
+            await conn.execute("DELETE FROM active_chats_db WHERE uid1=$1 OR uid2=$1", target_uid)
+            await conn.execute("DELETE FROM complaints_log WHERE from_uid=$1 OR to_uid=$1", target_uid)
+            await conn.execute("DELETE FROM users WHERE uid=$1", target_uid)
+        await callback.message.answer(f"🗑 Пользователь {target_uid} полностью удалён из БД.")
+        await callback.answer("✅ Удалён")
 
 
 # ====================== ТАЙМЕР НЕАКТИВНОСТИ ======================
