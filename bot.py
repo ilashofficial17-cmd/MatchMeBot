@@ -329,11 +329,11 @@ async def save_chat_to_db(uid1, uid2, chat_type="profile"):
     try:
         async with db_pool.acquire() as conn:
             await conn.execute(
-                "INSERT INTO active_chats_db (uid1, uid2, chat_type) VALUES ($1,$2,$3) ON CONFLICT (uid1) DO UPDATE SET uid2=$2",
+                "INSERT INTO active_chats_db (uid1, uid2, chat_type) VALUES ($1,$2,$3) ON CONFLICT (uid1) DO UPDATE SET uid2=$2, chat_type=$3",
                 uid1, uid2, chat_type
             )
             await conn.execute(
-                "INSERT INTO active_chats_db (uid1, uid2, chat_type) VALUES ($1,$2,$3) ON CONFLICT (uid1) DO UPDATE SET uid2=$2",
+                "INSERT INTO active_chats_db (uid1, uid2, chat_type) VALUES ($1,$2,$3) ON CONFLICT (uid1) DO UPDATE SET uid2=$2, chat_type=$3",
                 uid2, uid1, chat_type
             )
     except Exception as e:
@@ -501,9 +501,10 @@ async def cleanup(uid, state=None):
     async with pairing_lock:
         for q in get_all_queues():
             q.discard(uid)
-    partner = active_chats.pop(uid, None)
+        partner = active_chats.pop(uid, None)
+        if partner:
+            active_chats.pop(partner, None)
     if partner:
-        active_chats.pop(partner, None)
         await remove_chat_from_db(uid, partner)
         clear_chat_log(uid, partner)
     ai_sessions.pop(uid, None)
@@ -690,7 +691,7 @@ async def notify_no_partner(uid):
     if uid in all_waiting:
         try:
             char_id = random.choice(["polina", "max", "danil"])
-            name = AI_CHARACTERS[char_id]["name"]
+            name = ai_chat.AI_CHARACTERS[char_id]["name"]
             await bot.send_message(uid,
                 f"⏳ Поиск идёт дольше обычного...\n\n"
                 f"💡 Пока ждёшь — пообщайся с {name}!\n"
@@ -704,9 +705,13 @@ async def notify_no_partner(uid):
         except Exception: pass
 
 async def end_chat(uid, state, go_next=False):
-    partner = active_chats.pop(uid, None)
+    async with pairing_lock:
+        partner = active_chats.pop(uid, None)
+        if partner:
+            active_chats.pop(partner, None)
+        for q in get_all_queues():
+            q.discard(uid)
     if partner:
-        active_chats.pop(partner, None)
         await remove_chat_from_db(uid, partner)
         clear_chat_log(uid, partner)
 
@@ -733,10 +738,6 @@ async def end_chat(uid, state, go_next=False):
         asyncio.create_task(_send_upsell_after_chat(uid, partner))
     else:
         await bot.send_message(uid, "💔 Чат завершён.", reply_markup=kb_main())
-
-    async with pairing_lock:
-        for q in get_all_queues():
-            q.discard(uid)
     await state.clear()
 
     if go_next and partner:
@@ -774,7 +775,7 @@ async def _send_upsell_after_chat(uid, partner):
         else:
             await send_ad_message(target_uid)
 # ====================== MUTUAL MATCH ======================
-@dp.callback_query(F.data.startswith("mutual:"), StateFilter("*"))
+@dp.callback_query(F.data.startswith("mutual:"), ~F.data.func(lambda d: d == "mutual:decline"), StateFilter("*"))
 async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
     partner_uid = int(callback.data.split(":", 1)[1])
@@ -847,7 +848,10 @@ async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
         except Exception: pass
         asyncio.create_task(_mutual_timeout(uid, partner_uid))
 
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception:
+        pass
 
 @dp.callback_query(F.data == "mutual:decline", StateFilter("*"))
 async def mutual_decline(callback: types.CallbackQuery):
@@ -1614,8 +1618,8 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
 @dp.message(F.text == "❌ Отменить поиск", StateFilter("*"))
 async def cancel_search(message: types.Message, state: FSMContext):
     uid = message.from_user.id
-    removed = any(uid in q for q in get_all_queues())
     async with pairing_lock:
+        removed = any(uid in q for q in get_all_queues())
         for q in get_all_queues():
             q.discard(uid)
     await state.clear()
