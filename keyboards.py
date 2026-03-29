@@ -3,6 +3,7 @@ from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
 )
 from datetime import datetime
+from locales import t
 
 CHANNEL_ID = "@MATCHMEHUB"
 
@@ -73,19 +74,19 @@ def kb_main():
 
 def kb_lang():
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇬🇧 English")]
+        [KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇬🇧 English"), KeyboardButton(text="🇪🇸 Español")]
     ], resize_keyboard=True)
 
 
-def kb_privacy():
+def kb_privacy(lang="ru"):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Принять и продолжить", callback_data="privacy:accept")],
-        [InlineKeyboardButton(text="❌ Отказаться", callback_data="privacy:decline")],
+        [InlineKeyboardButton(text=t(lang, "btn_accept_privacy"), callback_data="privacy:accept")],
+        [InlineKeyboardButton(text=t(lang, "btn_decline_privacy"), callback_data="privacy:decline")],
     ])
 
 
-def kb_rules():
-    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="✅ Принять правила")]], resize_keyboard=True)
+def kb_rules(lang="ru"):
+    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=t(lang, "btn_accept_rules"))]], resize_keyboard=True)
 
 
 def kb_rules_profile():
@@ -141,11 +142,11 @@ def kb_after_chat(partner_uid):
     ])
 
 
-def kb_channel_bonus():
+def kb_channel_bonus(lang="ru"):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"📢 Подписаться на {CHANNEL_ID}", url=f"https://t.me/{CHANNEL_ID.replace('@', '')}")],
-        [InlineKeyboardButton(text="✅ Я подписался! Дай 3 дня Premium", callback_data="channel:check")],
-        [InlineKeyboardButton(text="⏭ Пропустить", callback_data="channel:skip")],
+        [InlineKeyboardButton(text=f"📢 {CHANNEL_ID}", url=f"https://t.me/{CHANNEL_ID.replace('@', '')}")],
+        [InlineKeyboardButton(text=t(lang, "btn_check_channel"), callback_data="channel:check")],
+        [InlineKeyboardButton(text=t(lang, "btn_skip_channel"), callback_data="channel:skip")],
     ])
 
 

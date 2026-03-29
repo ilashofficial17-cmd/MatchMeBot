@@ -14,6 +14,9 @@ class Chat(StatesGroup):
     chatting = State()
 
 
+class LangSelect(StatesGroup):
+    choosing = State()
+
 class Rules(StatesGroup):
     waiting = State()
 

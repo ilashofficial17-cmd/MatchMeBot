@@ -284,11 +284,11 @@ async def handle_update_notify(callback: types.CallbackQuery):
 async def admin_find_user(message: types.Message, state: FSMContext):
     if message.from_user.id != _admin_id:
         return
-    await state.clear()
     txt = (message.text or "").strip()
     if not txt.isdigit():
         await message.answer("❗ ID должен быть числом.")
         return
+    await state.clear()
     target_uid = int(txt)
     u = await _get_user(target_uid)
     if not u:
@@ -538,7 +538,7 @@ async def inactivity_checker():
         to_end = []
         for uid, partner in list(_active_chats.items()):
             if uid < partner:
-                last = max(_last_msg_time.get(uid, now), _last_msg_time.get(partner, now))
+                last = max(_last_msg_time.get(uid, now - timedelta(minutes=10)), _last_msg_time.get(partner, now - timedelta(minutes=10)))
                 if (now - last).total_seconds() > 420:
                     to_end.append((uid, partner))
         for uid, partner in to_end:
@@ -646,7 +646,7 @@ async def reminder_task():
                         )
                         async with _db_pool.acquire() as conn:
                             await conn.execute(
-                                "UPDATE users SET ai_bonus = LEAST(ai_bonus + 5, 5), last_reminder = NOW() WHERE uid = $1",
+                                "UPDATE users SET ai_bonus = LEAST(ai_bonus + 5, 15), last_reminder = NOW() WHERE uid = $1",
                                 uid
                             )
                     else:

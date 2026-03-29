@@ -282,6 +282,7 @@ async def ai_choosing_text(message: types.Message, state: FSMContext):
         return
     if "Найти живого" in txt:
         _ai_sessions.pop(uid, None)
+        _last_ai_msg.pop(uid, None)
         await state.clear()
         await message.answer("🔍 Ищем...", reply_markup=kb_cancel_search())
         await _cmd_find(message, state)
@@ -309,6 +310,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         return
     if "Найти живого" in txt:
         _ai_sessions.pop(uid, None)
+        _last_ai_msg.pop(uid, None)
         await state.clear()
         await message.answer("🔍 Ищем...", reply_markup=kb_cancel_search())
         await _cmd_find(message, state)
@@ -370,8 +372,8 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         await _update_user(uid, **{counter_field: new_count})
     remaining = ""
     if effective_limit is not None:
-        left = effective_limit - new_count
-        if left <= 3:
+        left = max(effective_limit - new_count, 0)
+        if 0 < left <= 3:
             remaining = f"\n\n_💬 Осталось {left} сообщений_"
     await message.answer(f"{char['emoji']} {response}{remaining}")
 
