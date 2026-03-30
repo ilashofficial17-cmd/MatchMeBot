@@ -144,8 +144,32 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
             InlineKeyboardButton(text=t(lang, "char_diana_locked"), callback_data="aichar:vip_locked"),
             InlineKeyboardButton(text=t(lang, "char_leon_locked"), callback_data="aichar:vip_locked"),
         ])
-    # Kink — скоро
-    buttons.append([InlineKeyboardButton(text=t(lang, "char_coming_soon"), callback_data="aichar:power_soon")])
+    # Блок 3 — Kink (все Premium)
+    buttons.append([InlineKeyboardButton(text="🔥 Kink", callback_data="aichar:power_soon")])
+    if is_premium:
+        buttons.append([
+            InlineKeyboardButton(text=t(lang, "char_lilit"), callback_data="aichar:lilit"),
+            InlineKeyboardButton(text=t(lang, "char_eva"), callback_data="aichar:eva"),
+        ])
+        buttons.append([
+            InlineKeyboardButton(text=t(lang, "char_damir"), callback_data="aichar:damir"),
+            InlineKeyboardButton(text=t(lang, "char_ars"), callback_data="aichar:ars"),
+        ])
+        buttons.append([
+            InlineKeyboardButton(text=t(lang, "char_master"), callback_data="aichar:master"),
+        ])
+    else:
+        buttons.append([
+            InlineKeyboardButton(text="🔒 Лилит — Premium", callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text="🔒 Ева — Premium", callback_data="aichar:vip_locked"),
+        ])
+        buttons.append([
+            InlineKeyboardButton(text="🔒 Дамир — Premium", callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text="🔒 Арс — Premium", callback_data="aichar:vip_locked"),
+        ])
+        buttons.append([
+            InlineKeyboardButton(text="🔒 Мастер историй — Premium", callback_data="aichar:vip_locked"),
+        ])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

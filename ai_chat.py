@@ -330,6 +330,56 @@ AI_CHARACTERS.update({
         },
     },
 })
+# ====================== БЛОК 3 — KINK ======================
+AI_CHARACTERS.update({
+    "lilit": {
+        "name_key": "char_lilit", "desc_key": "char_lilit_desc", "emoji": "🖤",
+        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "system": {
+            "ru": "# TODO: промт будет добавлен",
+            "en": "# TODO: prompt coming soon",
+            "es": "# TODO: prompt próximamente",
+        },
+    },
+    "eva": {
+        "name_key": "char_eva", "desc_key": "char_eva_desc", "emoji": "🌸",
+        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "system": {
+            "ru": "# TODO: промт будет добавлен",
+            "en": "# TODO: prompt coming soon",
+            "es": "# TODO: prompt próximamente",
+        },
+    },
+    "damir": {
+        "name_key": "char_damir", "desc_key": "char_damir_desc", "emoji": "🎯",
+        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "system": {
+            "ru": "# TODO: промт будет добавлен",
+            "en": "# TODO: prompt coming soon",
+            "es": "# TODO: prompt próximamente",
+        },
+    },
+    "ars": {
+        "name_key": "char_ars", "desc_key": "char_ars_desc", "emoji": "🐾",
+        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "system": {
+            "ru": "# TODO: промт будет добавлен",
+            "en": "# TODO: prompt coming soon",
+            "es": "# TODO: prompt próximamente",
+        },
+    },
+    "master": {
+        "name_key": "char_master", "desc_key": "char_master_desc", "emoji": "🎭",
+        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 250,
+        "system": {
+            "ru": "# TODO: промт будет добавлен",
+            "en": "# TODO: prompt coming soon",
+            "es": "# TODO: prompt próximamente",
+        },
+    },
+})
+
+
 def _all(key):
     return {TEXTS[lang][key] for lang in TEXTS if key in TEXTS[lang]}
 
