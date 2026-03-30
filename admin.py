@@ -10,9 +10,11 @@ from aiogram.fsm.storage.base import StorageKey
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from states import AdminState
-from keyboards import kb_main, kb_complaint_action, kb_user_actions, MODE_NAMES
+from keyboards import kb_main, kb_complaint_action, kb_user_actions
 from locales import t
 import moderation
+
+MODE_NAMES = {"simple": "Общение 💬", "flirt": "Флирт 💋", "kink": "Kink 🔥"}
 
 router = Router()
 logger = logging.getLogger("matchme")
