@@ -432,26 +432,76 @@ def _user_context(user: dict, lang: str) -> str:
     return ""
 
 
-def _is_garbage(text: str) -> bool:
-    """Возвращает True если ответ модели выглядит как мусор/утечка промта."""
-    if not text or len(text.strip()) < 2:
-        return True
-    garbage_markers = ["_internal_", "_what_is_happening", "currentPlayer", "CONFIGURE??",
-                       "istanice", "istayesin", "mandatopermission", "besplatnaol"]
+import re as _re
+
+# Фразы которые означают что модель раскрыла себя как ИИ
+_AI_LEAK_PHRASES = [
+    "как языковая модель", "как ии", "как искусственный интеллект",
+    "я языковая модель", "я нейросеть", "я не могу испытывать",
+    "as an ai", "as a language model", "i'm an ai", "i am an ai",
+    "como modelo de lenguaje", "como ia", "soy una ia",
+]
+
+# Маркеры мусорного вывода (утечка промта, внутренние артефакты)
+_GARBAGE_MARKERS = [
+    "_internal_", "_what_is_happening", "currentPlayer", "CONFIGURE??",
+    "istanice", "istayesin", "mandatopermission", "besplatnaol",
+    "karaoke karaoke karaoke",
+]
+
+# Подсказка на ретрае — напоминает модели кто она (по языку)
+_RETRY_HINT = {
+    "ru": "Оставайся в образе. Отвечай коротко, по-человечески, только на русском.",
+    "en": "Stay in character. Reply short, human-like, in English only.",
+    "es": "Mantén el personaje. Responde breve, como humano, solo en español.",
+}
+
+
+def _validate_response(text: str, lang: str) -> tuple[bool, str]:
+    """
+    Проверяет ответ модели.
+    Возвращает (ok: bool, reason: str).
+    """
+    if not text or len(text.strip()) < 5:
+        return False, "too_short"
+
     lower = text.lower()
-    for marker in garbage_markers:
+
+    # Утечка промта / мусор
+    for marker in _GARBAGE_MARKERS:
         if marker.lower() in lower:
-            return True
-    # Слишком много нечитаемых символов подряд
-    import re
-    if re.search(r'[A-Za-z]{15,}[^a-zA-Z\s]{0,3}[A-Za-z]{10,}', text):
-        return True
-    return False
+            return False, f"garbage:{marker}"
+
+    # Модель раскрылась как ИИ
+    for phrase in _AI_LEAK_PHRASES:
+        if phrase in lower:
+            return False, f"ai_leak:{phrase}"
+
+    # Длинные бессмысленные цепочки символов
+    if _re.search(r'[A-Za-z]{20,}', text):
+        return False, "long_gibberish"
+
+    # Проверка языка: если ru — должно быть хоть немного кириллицы
+    alpha_chars = [c for c in text if c.isalpha()]
+    if alpha_chars:
+        if lang == "ru":
+            cyrillic = sum(1 for c in alpha_chars if '\u0400' <= c <= '\u04ff')
+            if len(alpha_chars) > 20 and cyrillic / len(alpha_chars) < 0.3:
+                return False, "wrong_language:expected_ru"
+        elif lang == "en":
+            latin = sum(1 for c in alpha_chars if c.isascii())
+            if len(alpha_chars) > 20 and latin / len(alpha_chars) < 0.5:
+                return False, "wrong_language:expected_en"
+
+    return True, "ok"
 
 
 async def ask_ai(character_id: str, history: list, user_message: str,
                  lang: str = "ru", user: dict = None) -> str:
-    """Отправляет сообщение персонажу через OpenRouter."""
+    """
+    Отправляет сообщение персонажу через OpenRouter.
+    При плохом ответе делает до 2 ретраев, потом возвращает ai_error.
+    """
     from ai_utils import OPEN_ROUTER_KEY
     if not OPEN_ROUTER_KEY:
         logger.error("ask_ai: OPEN_ROUTER key is not set!")
@@ -459,19 +509,37 @@ async def ask_ai(character_id: str, history: list, user_message: str,
     char = AI_CHARACTERS.get(character_id)
     if not char:
         return t(lang, "ai_error")
-    system_prompt = char["system"].get(lang) or char["system"].get("ru", "")
-    system_prompt += _user_context(user, lang)
+
+    base_system = char["system"].get(lang) or char["system"].get("ru", "")
+    base_system += _user_context(user, lang)
     max_tokens = char.get("max_tokens", 150)
+    model = char["model"]
     full_history = list(history[-20:]) + [{"role": "user", "content": user_message}]
-    logger.info(f"ask_ai: char={character_id} model={char['model']} max_tokens={max_tokens}")
-    response = await get_ai_chat_response(system_prompt, full_history, char["model"], max_tokens=max_tokens)
-    if not response:
-        logger.error(f"ask_ai: empty response for char={character_id} model={char['model']}")
-        return t(lang, "ai_error")
-    if _is_garbage(response):
-        logger.error(f"ask_ai: garbage response detected for char={character_id} model={char['model']}")
-        return t(lang, "ai_error")
-    return response
+
+    for attempt in range(3):
+        # На ретраях добавляем подсказку в системный промт
+        system_prompt = base_system
+        if attempt > 0:
+            hint = _RETRY_HINT.get(lang, _RETRY_HINT["ru"])
+            system_prompt = f"{base_system}\n\n[ВАЖНО: {hint}]"
+            logger.warning(f"ask_ai: retry #{attempt} char={character_id} model={model}")
+
+        response = await get_ai_chat_response(system_prompt, full_history, model, max_tokens=max_tokens)
+
+        if not response:
+            logger.error(f"ask_ai: empty response attempt={attempt} char={character_id}")
+            continue
+
+        ok, reason = _validate_response(response, lang)
+        if ok:
+            if attempt > 0:
+                logger.info(f"ask_ai: recovered on attempt={attempt} char={character_id}")
+            return response
+
+        logger.warning(f"ask_ai: bad response attempt={attempt} reason={reason} char={character_id}")
+
+    logger.error(f"ask_ai: all 3 attempts failed char={character_id} model={model}")
+    return t(lang, "ai_error")
 
 
 # ====================== AI MENU ======================
