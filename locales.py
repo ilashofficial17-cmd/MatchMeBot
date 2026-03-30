@@ -281,6 +281,37 @@ TEXTS = {
         "upsell": "⭐ Тебе нравится MatchMe?\nPremium = приоритет в поиске + больше AI + без рекламы!",
         "ad_message": "📢 Здесь могла быть ваша реклама\n\n⭐ Купи Premium и убери рекламу навсегда!",
         "hardban": "🚫 Перманентный бан за нарушение правил.",
+        # AI чат
+        "ai_menu": (
+            "🤖 ИИ чат\n\n"
+            "Все персонажи доступны бесплатно!\n"
+            "💬 Basic: 20 сообщений/день\n"
+            "🔥 Premium: 10 сообщений/день\n"
+            "⭐ Подписка снимает лимиты\n\n"
+            "Выбери с кем хочешь поговорить:"
+        ),
+        "ai_select_char": "Выбери персонажа:",
+        "ai_char_not_found": "Персонаж не найден.",
+        "ai_power_soon": "🔧 В разработке! Следи за обновлениями.",
+        "ai_chat_active": "💬 Чат с ИИ активен",
+        "ai_unlimited": "♾ Безлимит",
+        "ai_limit_info": "💬 Лимит: {limit} сообщений/день",
+        "ai_ended": "✅ Чат с ИИ завершён.",
+        "ai_select_from_buttons": "👆 Выбери персонажа из кнопок выше.",
+        "ai_limit_plus": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\n🚀 Upgrade до Premium Plus — безлимит на все ИИ!",
+        "ai_limit_basic": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\n⭐ Купи Premium — больше сообщений и безлимит basic ИИ!",
+        "ai_remaining": "_💬 Осталось {left} сообщений_",
+        "ai_unavailable": "😔 ИИ временно недоступен.",
+        "ai_no_funds": "💳 ИИ временно недоступен — нет средств на балансе.",
+        "ai_error": "😔 ИИ временно недоступен. Попробуй позже.",
+        "ai_connection_error": "😔 Ошибка соединения с ИИ.",
+        "ai_profile_required": "Сначала заполни анкету!",
+        "ai_session_lost": "Сессия потеряна. Начни заново.",
+        "ai_in_live_chat": "⚠️ Сейчас недоступно — ты в чате с живым собеседником.",
+        "ai_complete_profile": "⚠️ Сейчас недоступно — сначала заверши анкету.",
+        "ai_waiting_continue": "⏳ Продолжаем ждать...",
+        "ai_quick_start": "✅ Ты общаешься с {name}\n{description}\n\n{limit_text}",
+        "ai_greeting": "Поприветствуй собеседника и начни разговор. Коротко, 1-2 предложения на русском.",
     },
 
     "en": {
@@ -560,6 +591,37 @@ TEXTS = {
         "upsell": "⭐ Enjoying MatchMe?\nPremium = priority search + more AI + no ads!",
         "ad_message": "📢 Your ad could be here\n\n⭐ Buy Premium and remove ads forever!",
         "hardban": "🚫 Permanent ban for violating the rules.",
+        # AI chat
+        "ai_menu": (
+            "🤖 AI Chat\n\n"
+            "All characters are free!\n"
+            "💬 Basic: 20 messages/day\n"
+            "🔥 Premium: 10 messages/day\n"
+            "⭐ Subscription removes limits\n\n"
+            "Choose who you want to talk to:"
+        ),
+        "ai_select_char": "Choose a character:",
+        "ai_char_not_found": "Character not found.",
+        "ai_power_soon": "🔧 Coming soon! Stay tuned.",
+        "ai_chat_active": "💬 AI chat active",
+        "ai_unlimited": "♾ Unlimited",
+        "ai_limit_info": "💬 Limit: {limit} messages/day",
+        "ai_ended": "✅ AI chat ended.",
+        "ai_select_from_buttons": "👆 Choose a character from the buttons above.",
+        "ai_limit_plus": "⏰ Limit reached ({limit} messages/day).\n\n🚀 Upgrade to Premium Plus — unlimited all AI!",
+        "ai_limit_basic": "⏰ Limit reached ({limit} messages/day).\n\n⭐ Buy Premium — more messages and unlimited basic AI!",
+        "ai_remaining": "_💬 {left} messages left_",
+        "ai_unavailable": "😔 AI is temporarily unavailable.",
+        "ai_no_funds": "💳 AI temporarily unavailable — no balance.",
+        "ai_error": "😔 AI temporarily unavailable. Try again later.",
+        "ai_connection_error": "😔 AI connection error.",
+        "ai_profile_required": "Fill out your profile first!",
+        "ai_session_lost": "Session lost. Start again.",
+        "ai_in_live_chat": "⚠️ Not available — you are in a live chat.",
+        "ai_complete_profile": "⚠️ Not available — complete your profile first.",
+        "ai_waiting_continue": "⏳ Continuing to wait...",
+        "ai_quick_start": "✅ You are chatting with {name}\n{description}\n\n{limit_text}",
+        "ai_greeting": "Greet the user and start a conversation. Short, 1-2 sentences in English.",
     },
 
     "es": {
@@ -839,6 +901,37 @@ TEXTS = {
         "upsell": "⭐ ¿Disfrutas MatchMe?\n¡Premium = búsqueda prioritaria + más IA + sin anuncios!",
         "ad_message": "📢 Tu anuncio podría estar aquí\n\n⭐ ¡Compra Premium y elimina los anuncios para siempre!",
         "hardban": "🚫 Ban permanente por violar las reglas.",
+        # Chat IA
+        "ai_menu": (
+            "🤖 Chat IA\n\n"
+            "¡Todos los personajes son gratis!\n"
+            "💬 Básico: 20 mensajes/día\n"
+            "🔥 Premium: 10 mensajes/día\n"
+            "⭐ La suscripción elimina los límites\n\n"
+            "Elige con quién quieres hablar:"
+        ),
+        "ai_select_char": "Elige un personaje:",
+        "ai_char_not_found": "Personaje no encontrado.",
+        "ai_power_soon": "🔧 ¡Próximamente! Mantente al tanto.",
+        "ai_chat_active": "💬 Chat IA activo",
+        "ai_unlimited": "♾ Ilimitado",
+        "ai_limit_info": "💬 Límite: {limit} mensajes/día",
+        "ai_ended": "✅ Chat IA terminado.",
+        "ai_select_from_buttons": "👆 Elige un personaje con los botones de arriba.",
+        "ai_limit_plus": "⏰ Límite alcanzado ({limit} mensajes/día).\n\n🚀 ¡Hazte Premium Plus — IA ilimitada!",
+        "ai_limit_basic": "⏰ Límite alcanzado ({limit} mensajes/día).\n\n⭐ ¡Compra Premium — más mensajes e IA básica ilimitada!",
+        "ai_remaining": "_💬 Te quedan {left} mensajes_",
+        "ai_unavailable": "😔 La IA no está disponible temporalmente.",
+        "ai_no_funds": "💳 IA no disponible temporalmente — sin saldo.",
+        "ai_error": "😔 IA no disponible. Inténtalo más tarde.",
+        "ai_connection_error": "😔 Error de conexión con la IA.",
+        "ai_profile_required": "¡Completa tu perfil primero!",
+        "ai_session_lost": "Sesión perdida. Comienza de nuevo.",
+        "ai_in_live_chat": "⚠️ No disponible — estás en un chat en vivo.",
+        "ai_complete_profile": "⚠️ No disponible — completa tu perfil primero.",
+        "ai_waiting_continue": "⏳ Siguiendo a la espera...",
+        "ai_quick_start": "✅ Estás chateando con {name}\n{description}\n\n{limit_text}",
+        "ai_greeting": "Saluda al usuario e inicia una conversación. Breve, 1-2 frases en español.",
     },
 }
 
