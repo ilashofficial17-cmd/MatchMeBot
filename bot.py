@@ -554,6 +554,7 @@ async def get_pending_complaints():
         return await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE") or 0
 
 async def set_commands():
+    # Default commands (Russian)
     await bot.set_my_commands([
         BotCommand(command="start", description="Начать / перезапустить"),
         BotCommand(command="find", description="Найти собеседника"),
@@ -568,6 +569,36 @@ async def set_commands():
         BotCommand(command="help", description="Помощь"),
         BotCommand(command="admin", description="Админ панель"),
     ])
+    # English commands
+    await bot.set_my_commands([
+        BotCommand(command="start", description="Start / restart"),
+        BotCommand(command="find", description="Find a partner"),
+        BotCommand(command="stop", description="End chat"),
+        BotCommand(command="next", description="Next partner"),
+        BotCommand(command="profile", description="Profile"),
+        BotCommand(command="settings", description="Settings"),
+        BotCommand(command="premium", description="Premium subscription"),
+        BotCommand(command="stats", description="My stats"),
+        BotCommand(command="reset", description="Reset profile"),
+        BotCommand(command="ai", description="AI chat"),
+        BotCommand(command="help", description="Help"),
+        BotCommand(command="admin", description="Admin panel"),
+    ], language_code="en")
+    # Spanish commands
+    await bot.set_my_commands([
+        BotCommand(command="start", description="Iniciar / reiniciar"),
+        BotCommand(command="find", description="Buscar compañero"),
+        BotCommand(command="stop", description="Terminar chat"),
+        BotCommand(command="next", description="Siguiente compañero"),
+        BotCommand(command="profile", description="Perfil"),
+        BotCommand(command="settings", description="Configuración"),
+        BotCommand(command="premium", description="Suscripción Premium"),
+        BotCommand(command="stats", description="Mis estadísticas"),
+        BotCommand(command="reset", description="Restablecer perfil"),
+        BotCommand(command="ai", description="Chat IA"),
+        BotCommand(command="help", description="Ayuda"),
+        BotCommand(command="admin", description="Panel de admin"),
+    ], language_code="es")
 
 async def get_premium_badge(uid):
     u = await get_user(uid)

@@ -357,39 +357,51 @@ async def admin_complaint_action(callback: types.CallbackQuery):
         await _update_user(target_uid, ban_until=until.isoformat())
         await mark_reviewed("Бан 3ч")
         await callback.message.answer(f"✅ Бан 3ч → {target_uid}")
-        try: await _bot.send_message(target_uid, "🚫 Бан на 3 часа по жалобе.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_ban3h_complaint"))
         except Exception: pass
     elif action == "ban24" and target_uid:
         until = datetime.now() + timedelta(hours=24)
         await _update_user(target_uid, ban_until=until.isoformat())
         await mark_reviewed("Бан 24ч")
         await callback.message.answer(f"✅ Бан 24ч → {target_uid}")
-        try: await _bot.send_message(target_uid, "🚫 Бан на 24 часа по жалобе.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_ban24h_complaint"))
         except Exception: pass
     elif action == "banperm" and target_uid:
         await _update_user(target_uid, ban_until="permanent")
         await mark_reviewed("Перм бан")
         await callback.message.answer(f"✅ Перм бан → {target_uid}")
-        try: await _bot.send_message(target_uid, "🚫 Перманентный бан.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_banperm_user"))
         except Exception: pass
     elif action == "warn" and target_uid:
         await _increment_user(target_uid, warn_count=1)
         await mark_reviewed("Предупреждение")
         await callback.message.answer(f"✅ Предупреждение → {target_uid}")
-        try: await _bot.send_message(target_uid, "⚠️ Предупреждение. Следующее — бан.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_warn_next_ban"))
         except Exception: pass
     elif action == "warnrep" and target_uid:
         await _increment_user(target_uid, warn_count=1)
         await mark_reviewed("Предупреждение жалобщику")
         await callback.message.answer(f"✅ Ложная жалоба. Предупреждение → {target_uid}")
-        try: await _bot.send_message(target_uid, "⚠️ Жалоба признана необоснованной.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_false_complaint"))
         except Exception: pass
     elif action == "banrep" and target_uid:
         until = datetime.now() + timedelta(hours=24)
         await _update_user(target_uid, ban_until=until.isoformat())
         await mark_reviewed("Бан жалобщику")
         await callback.message.answer(f"✅ Ложная жалоба. Бан 24ч → {target_uid}")
-        try: await _bot.send_message(target_uid, "🚫 Бан за злоупотребление жалобами.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_ban_abuse"))
         except Exception: pass
     elif action == "shadow" and target_uid:
         await _update_user(target_uid, shadow_ban=True)
@@ -447,23 +459,31 @@ async def admin_user_action(callback: types.CallbackQuery):
         until = datetime.now() + timedelta(hours=3)
         await _update_user(target_uid, ban_until=until.isoformat())
         await callback.answer("✅ Бан 3ч")
-        try: await _bot.send_message(target_uid, "🚫 Бан на 3 часа.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_ban3h"))
         except Exception: pass
     elif action == "ban24":
         until = datetime.now() + timedelta(hours=24)
         await _update_user(target_uid, ban_until=until.isoformat())
         await callback.answer("✅ Бан 24ч")
-        try: await _bot.send_message(target_uid, "🚫 Бан на 24 часа.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_ban24h"))
         except Exception: pass
     elif action == "banperm":
         await _update_user(target_uid, ban_until="permanent")
         await callback.answer("✅ Перм бан")
-        try: await _bot.send_message(target_uid, "🚫 Перманентный бан.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_banperm_user"))
         except Exception: pass
     elif action == "unban":
         await _update_user(target_uid, ban_until=None)
         await callback.answer("✅ Разбан")
-        try: await _bot.send_message(target_uid, "✅ Ты разблокирован! Добро пожаловать обратно.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_unban"))
         except Exception: pass
     elif action == "warn":
         await _increment_user(target_uid, warn_count=1)
