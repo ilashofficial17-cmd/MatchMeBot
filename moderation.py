@@ -10,10 +10,7 @@ import logging
 import aiohttp
 from datetime import datetime, timedelta
 from locales import t
-
-logger = logging.getLogger("matchme.moderation")
-
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+from ai_utils import get_ai_answer, OPEN_ROUTER_KEY
 
 # Зависимости — инициализируются из bot.py
 _bot = None
@@ -103,44 +100,7 @@ async def migrate_db():
                 pass
 
 
-# ====================== CLAUDE API ======================
-
-async def _ask_claude(system_prompt: str, user_prompt: str, model: str = "claude-sonnet-4-6", max_tokens: int = 400) -> str | None:
-    """Универсальный вызов Claude API"""
-    if not ANTHROPIC_API_KEY:
-        logger.warning("ANTHROPIC_API_KEY не задан")
-        return None
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": ANTHROPIC_API_KEY,
-                    "anthropic-version": "2023-06-01",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "max_tokens": max_tokens,
-                    "system": system_prompt,
-                    "messages": [{"role": "user", "content": user_prompt}],
-                },
-                timeout=aiohttp.ClientTimeout(total=30),
-            ) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    content = data.get("content", [])
-                    if content and isinstance(content, list) and len(content) > 0:
-                        return content[0].get("text")
-                    logger.warning("Claude API: empty content in response")
-                    return None
-                else:
-                    body = await resp.text()
-                    logger.error(f"Claude API error: {resp.status} — {body[:200]}")
-                    return None
-    except Exception as e:
-        logger.error(f"Claude API exception: {e}")
-        return None
+_MODERATION_MODEL = "google/gemini-flash-1.5"
 
 
 def _parse_json_response(text: str) -> dict | None:
@@ -223,7 +183,7 @@ async def ai_review_complaint(complaint_id: int) -> dict | None:
     )
 
     # Вызов AI
-    raw = await _ask_claude(MODERATION_SYSTEM_PROMPT, user_prompt)
+    raw = await get_ai_answer(user_prompt, MODERATION_SYSTEM_PROMPT, _MODERATION_MODEL)
     result = _parse_json_response(raw)
 
     if not result or "decision" not in result:
@@ -402,14 +362,14 @@ async def check_message(text: str, uid: int) -> dict | None:
         return None  # Обычное сообщение — пропускаем без AI
 
     # 3. Подозрительные слова найдены — AI подтверждает (только для подозрительных)
-    if not ANTHROPIC_API_KEY:
+    if not OPEN_ROUTER_KEY:
         # Fallback без AI: shadow ban по keyword (как раньше)
         return {"action": "shadow_ban", "reason": f"Подозрительный контент: {', '.join(suspect_match[:3])}"}
 
-    raw = await _ask_claude(
-        MESSAGE_CHECK_PROMPT,
+    raw = await get_ai_answer(
         f"Сообщение: {text[:500]}\nНайденные подозрительные слова: {', '.join(suspect_match)}",
-        model="claude-haiku-4-5-20251001",
+        MESSAGE_CHECK_PROMPT,
+        _MODERATION_MODEL,
         max_tokens=150,
     )
     result = _parse_json_response(raw)

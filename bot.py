@@ -16,6 +16,7 @@ from aiogram.types import (
 )
 import asyncpg
 import moderation
+from ai_utils import get_ai_answer  # подготовка для AI-персонажей на OpenRouter
 from states import (Reg, Chat, LangSelect, Rules, Complaint, EditProfile,
                     AdminState, ResetProfile, AIChat)
 from locales import t, LANG_BUTTONS, TEXTS
