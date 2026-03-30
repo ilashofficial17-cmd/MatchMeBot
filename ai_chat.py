@@ -323,12 +323,19 @@ def get_ai_limit(char_tier: str, user_tier) -> int | None:
 
 async def ask_ai(character_id: str, history: list, user_message: str, lang: str = "ru") -> str:
     """Отправляет сообщение персонажу через OpenRouter."""
+    from ai_utils import OPEN_ROUTER_KEY
+    if not OPEN_ROUTER_KEY:
+        logger.error("ask_ai: OPEN_ROUTER key is not set!")
+        return "⚠️ Ключ OPEN_ROUTER не задан в Railway."
     char = AI_CHARACTERS.get(character_id)
     if not char:
         return t(lang, "ai_error")
     system_prompt = char["system"].get(lang) or char["system"].get("ru", "")
     full_history = list(history[-10:]) + [{"role": "user", "content": user_message}]
+    logger.info(f"ask_ai: char={character_id} model={char['model']} key_prefix={OPEN_ROUTER_KEY[:8]}...")
     response = await get_ai_chat_response(system_prompt, full_history, char["model"])
+    if not response:
+        logger.error(f"ask_ai: empty response for char={character_id} model={char['model']}")
     return response or t(lang, "ai_error")
 
 
