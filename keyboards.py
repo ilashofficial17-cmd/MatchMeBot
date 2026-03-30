@@ -112,12 +112,12 @@ def kb_channel_bonus(lang="ru"):
 def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
     is_premium = user_tier in ("premium", "plus")
     buttons = []
-    # Блок 1 — Общение (всегда показываем)
+    # Блок 1 — Общение
+    buttons.append([InlineKeyboardButton(text="💬 Общение", callback_data="aichar:power_soon")])
     buttons.append([
         InlineKeyboardButton(text=t(lang, "char_luna"), callback_data="aichar:luna"),
         InlineKeyboardButton(text=t(lang, "char_max_simple"), callback_data="aichar:max_simple"),
     ])
-    # VIP персонажи блока 1
     if is_premium:
         buttons.append([
             InlineKeyboardButton(text=t(lang, "char_aurora"), callback_data="aichar:aurora"),
@@ -128,7 +128,23 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
             InlineKeyboardButton(text=t(lang, "char_aurora_locked"), callback_data="aichar:vip_locked"),
             InlineKeyboardButton(text=t(lang, "char_alex_locked"), callback_data="aichar:vip_locked"),
         ])
-    # Флирт и Kink — скоро
+    # Блок 2 — Флирт
+    buttons.append([InlineKeyboardButton(text="💋 Флирт", callback_data="aichar:power_soon")])
+    buttons.append([
+        InlineKeyboardButton(text=t(lang, "char_mia"), callback_data="aichar:mia"),
+        InlineKeyboardButton(text=t(lang, "char_kai"), callback_data="aichar:kai"),
+    ])
+    if is_premium:
+        buttons.append([
+            InlineKeyboardButton(text=t(lang, "char_diana"), callback_data="aichar:diana"),
+            InlineKeyboardButton(text=t(lang, "char_leon"), callback_data="aichar:leon"),
+        ])
+    else:
+        buttons.append([
+            InlineKeyboardButton(text=t(lang, "char_diana_locked"), callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text=t(lang, "char_leon_locked"), callback_data="aichar:vip_locked"),
+        ])
+    # Kink — скоро
     buttons.append([InlineKeyboardButton(text=t(lang, "char_coming_soon"), callback_data="aichar:power_soon")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
