@@ -130,6 +130,11 @@ TEXTS = {
         "after_chat_propose": "Понравился собеседник?\nПредложи продолжить общение анонимно — если он тоже захочет, вас соединят 😊",
         "inactivity_end": "⏰ Чат завершён — 7 мин неактивности.",
         "inactivity_ai_end": "⏰ AI чат завершён — 10 мин неактивности.",
+        # Модерация — уведомления пользователю
+        "mod_warn": "⚠️ Предупреждение: {reason}\nСледующее нарушение приведёт к бану.",
+        "mod_ban3h": "🚫 Бан на 3 часа: {reason}",
+        "mod_ban24h": "🚫 Бан на 24 часа: {reason}",
+        "mod_banperm": "🚫 Перманентный бан: {reason}",
         # Тексты — жалоба
         "complaint_prompt": "🚩 Укажи причину жалобы:",
         "complaint_cancelled": "↩️ Жалоба отменена.",
@@ -530,6 +535,11 @@ TEXTS = {
         "after_chat_propose": "Did you like your partner?\nSuggest continuing anonymously — if they agree, you'll be connected 😊",
         "inactivity_end": "⏰ Chat ended — 7 min of inactivity.",
         "inactivity_ai_end": "⏰ AI chat ended — 10 min of inactivity.",
+        # Moderation — user notifications
+        "mod_warn": "⚠️ Warning: {reason}\nNext violation will result in a ban.",
+        "mod_ban3h": "🚫 Banned for 3 hours: {reason}",
+        "mod_ban24h": "🚫 Banned for 24 hours: {reason}",
+        "mod_banperm": "🚫 Permanent ban: {reason}",
         # Complaint
         "complaint_prompt": "🚩 Choose the reason for your report:",
         "complaint_cancelled": "↩️ Report cancelled.",
@@ -930,6 +940,11 @@ TEXTS = {
         "after_chat_propose": "¿Te gustó tu compañero?\nSugiere continuar de forma anónima — si acepta, los conectarán 😊",
         "inactivity_end": "⏰ Chat terminado — 7 min de inactividad.",
         "inactivity_ai_end": "⏰ Chat IA terminado — 10 min de inactividad.",
+        # Moderación — notificaciones al usuario
+        "mod_warn": "⚠️ Advertencia: {reason}\nLa próxima infracción resultará en un ban.",
+        "mod_ban3h": "🚫 Baneado por 3 horas: {reason}",
+        "mod_ban24h": "🚫 Baneado por 24 horas: {reason}",
+        "mod_banperm": "🚫 Ban permanente: {reason}",
         # Reporte
         "complaint_prompt": "🚩 Elige el motivo del reporte:",
         "complaint_cancelled": "↩️ Reporte cancelado.",

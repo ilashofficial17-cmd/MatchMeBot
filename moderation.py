@@ -9,6 +9,7 @@ import json
 import logging
 import aiohttp
 from datetime import datetime, timedelta
+from locales import t
 
 logger = logging.getLogger("matchme.moderation")
 
@@ -306,6 +307,17 @@ async def _apply_decision(
             action_text, reason_short, confidence, reason_detailed, complaint_id,
         )
 
+    # Получаем язык пользователя
+    lang = "ru"
+    if _db_pool:
+        try:
+            async with _db_pool.acquire() as conn:
+                row = await conn.fetchrow("SELECT lang FROM users WHERE uid=$1", accused_uid)
+                if row and row["lang"]:
+                    lang = row["lang"]
+        except Exception:
+            pass
+
     # Применяем наказание
     if decision == "warn":
         async with _db_pool.acquire() as conn:
@@ -314,11 +326,7 @@ async def _apply_decision(
             )
         if notify_user:
             try:
-                await _bot.send_message(
-                    accused_uid,
-                    f"⚠️ Предупреждение: {reason_short}\n"
-                    f"Следующее нарушение приведёт к бану."
-                )
+                await _bot.send_message(accused_uid, t(lang, "mod_warn", reason=reason_short))
             except Exception:
                 pass
 
@@ -328,7 +336,7 @@ async def _apply_decision(
             await conn.execute("UPDATE users SET ban_until=$1 WHERE uid=$2", until, accused_uid)
         if notify_user:
             try:
-                await _bot.send_message(accused_uid, f"🚫 Бан на 3 часа: {reason_short}")
+                await _bot.send_message(accused_uid, t(lang, "mod_ban3h", reason=reason_short))
             except Exception:
                 pass
 
@@ -338,7 +346,7 @@ async def _apply_decision(
             await conn.execute("UPDATE users SET ban_until=$1 WHERE uid=$2", until, accused_uid)
         if notify_user:
             try:
-                await _bot.send_message(accused_uid, f"🚫 Бан на 24 часа: {reason_short}")
+                await _bot.send_message(accused_uid, t(lang, "mod_ban24h", reason=reason_short))
             except Exception:
                 pass
 
@@ -347,7 +355,7 @@ async def _apply_decision(
             await conn.execute("UPDATE users SET ban_until='permanent' WHERE uid=$1", accused_uid)
         if notify_user:
             try:
-                await _bot.send_message(accused_uid, f"🚫 Перманентный бан: {reason_short}")
+                await _bot.send_message(accused_uid, t(lang, "mod_banperm", reason=reason_short))
             except Exception:
                 pass
 
