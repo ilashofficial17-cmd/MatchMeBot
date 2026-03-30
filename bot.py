@@ -39,35 +39,20 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "590443268"))
 
 PREMIUM_PLANS = {
     # Premium — базовая
-    "7d":      {"stars": 99,  "days": 7,  "label": "7 дней",       "desc": "Попробовать",    "tier": "premium"},
-    "1m":      {"stars": 299, "days": 30, "label": "1 месяц",      "desc": "Популярный",     "tier": "premium"},
-    "3m":      {"stars": 599, "days": 90, "label": "3 месяца",     "desc": "Скидка 33%",     "tier": "premium"},
+    "7d":      {"stars": 99,  "days": 7,  "label_key": "plan_label_7d",    "desc_key": "plan_desc_try",          "tier": "premium"},
+    "1m":      {"stars": 299, "days": 30, "label_key": "plan_label_1m",    "desc_key": "plan_desc_popular",      "tier": "premium"},
+    "3m":      {"stars": 599, "days": 90, "label_key": "plan_label_3m",    "desc_key": "plan_desc_discount",     "tier": "premium"},
     # Premium Plus — всё безлимит
-    "plus_1m": {"stars": 499, "days": 30, "label": "1 мес Plus",   "desc": "Безлимит AI",    "tier": "plus"},
-    "plus_3m": {"stars": 999, "days": 90, "label": "3 мес Plus",   "desc": "Лучшая цена",    "tier": "plus"},
+    "plus_1m": {"stars": 499, "days": 30, "label_key": "plan_label_plus_1m", "desc_key": "plan_desc_ai_unlimited", "tier": "plus"},
+    "plus_3m": {"stars": 999, "days": 90, "label_key": "plan_label_plus_3m", "desc_key": "plan_desc_best_price",   "tier": "plus"},
     # AI Pro — отдельная подписка, разблокирует всё как Plus
-    "ai_1m":   {"stars": 399, "days": 30, "label": "1 мес AI Pro", "desc": "Мощная нейронка", "tier": "ai_pro"},
-    "ai_3m":   {"stars": 799, "days": 90, "label": "3 мес AI Pro", "desc": "AI Pro скидка",   "tier": "ai_pro"},
+    "ai_1m":   {"stars": 399, "days": 30, "label_key": "plan_label_ai_1m", "desc_key": "plan_desc_powerful_ai",  "tier": "ai_pro"},
+    "ai_3m":   {"stars": 799, "days": 90, "label_key": "plan_label_ai_3m", "desc_key": "plan_desc_ai_discount",  "tier": "ai_pro"},
 }
 
 
-CHAT_TOPICS = [
-    "Если бы ты мог жить в любом городе мира — где бы это было? 🌍",
-    "Какой последний фильм тебя реально зацепил? 🎬",
-    "Что тебя сейчас больше всего бесит в жизни? 😤",
-    "Если бы тебе дали миллион прямо сейчас — что бы сделал первым делом? 💰",
-    "Есть что-то чего ты боишься но не признаёшь? 👀",
-    "Какая музыка у тебя сейчас в плейлисте? 🎵",
-    "Ты сова или жаворонок? И почему так получилось? 🦉",
-    "Что для тебя идеальный вечер? 🌙",
-    "Если бы мог поговорить с любым человеком в истории — с кем? 🤔",
-    "Последний раз когда ты был по-настоящему счастлив — что это было? ✨",
-    "Есть скрытый талант о котором мало кто знает? 🎭",
-    "Что тебя привлекает в людях больше всего? 💫",
-    "Веришь в судьбу или в то что сам всё решаешь? 🎲",
-    "Какое твоё самое смелое решение в жизни? 🚀",
-    "Если бы мог изменить одно правило в обществе — что бы это было? 🌐",
-]
+def get_chat_topics(lang: str) -> list:
+    return TEXTS.get(lang, TEXTS["ru"]).get("chat_topics", TEXTS["ru"]["chat_topics"])
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -396,17 +381,18 @@ def clear_chat_log(uid1, uid2):
         del chat_logs[key]
 
 # ====================== ПРИКОЛЫ ПО ВОЗРАСТУ ======================
-def get_age_joke(age):
-    if age <= 6: return "🐥 Цыплёнок, тебе ещё в садик рано!"
-    elif age <= 12: return "🎮 Эй малой, тут не мультики! Подрасти сначала."
-    elif age <= 15: return "🙅 Стоп! Тебе нет 16. Возвращайся когда подрастёшь!"
-    elif age <= 17: return "😄 О, молодёжь! Добро пожаловать, только не балуйся."
-    elif age <= 25: return "🔥 Самый сок! Добро пожаловать в MatchMe!"
-    elif age <= 35: return "😎 Взрослый человек, солидно!"
-    elif age <= 50: return "🧐 Опытный пользователь! Уважаем."
-    elif age <= 70: return "💪 Ого, ещё в деле! Молодость в душе — главное."
-    elif age <= 90: return "👴 Дедуля/бабуля освоили интернет! Снимаем шляпу."
-    else: return "😂 Серьёзно?! Тебе домой надо, не в анонимный чат!"
+def get_age_joke(age, lang="ru"):
+    if age <= 6: key = "age_joke_baby"
+    elif age <= 12: key = "age_joke_child"
+    elif age <= 15: key = "age_joke_teen_young"
+    elif age <= 17: key = "age_joke_teen"
+    elif age <= 25: key = "age_joke_young"
+    elif age <= 35: key = "age_joke_adult"
+    elif age <= 50: key = "age_joke_middle"
+    elif age <= 70: key = "age_joke_senior"
+    elif age <= 90: key = "age_joke_elder"
+    else: key = "age_joke_ancient"
+    return t(lang, key)
 
 # ====================== КЛАВИАТУРЫ ======================
 async def kb_settings(uid, lang="ru"):
@@ -1096,17 +1082,20 @@ async def buy_premium(callback: types.CallbackQuery):
         return
     plan = PREMIUM_PLANS[plan_key]
     tier = plan["tier"]
+    lang = await get_lang(uid)
     tier_names = {"premium": "Premium", "plus": "Premium Plus", "ai_pro": "AI Pro"}
     tier_name = tier_names.get(tier, "Premium")
+    label = t(lang, plan["label_key"])
+    desc = t(lang, plan["desc_key"])
     await callback.answer()
     await bot.send_invoice(
         chat_id=uid,
-        title=f"MatchMe {tier_name} — {plan['label']}",
-        description=f"{tier_name} на {plan['label']}. {plan['desc']}",
+        title=f"MatchMe {tier_name} — {label}",
+        description=t(lang, "invoice_desc", tier=tier_name, label=label, desc=desc),
         payload=f"premium_{plan_key}",
         provider_token="",
         currency="XTR",
-        prices=[LabeledPrice(label=f"{tier_name} {plan['label']}", amount=plan["stars"])],
+        prices=[LabeledPrice(label=f"{tier_name} {label}", amount=plan["stars"])],
     )
 
 @dp.pre_checkout_query(StateFilter("*"))
@@ -1143,11 +1132,12 @@ async def successful_payment(message: types.Message):
     lang = await get_lang(uid)
     tier_names = {"premium": "Premium", "plus": "Premium Plus", "ai_pro": "AI Pro"}
     tier_name = tier_names.get(tier, "Premium")
+    label = t(lang, plan["label_key"])
     benefit_keys = {"premium": "benefit_premium", "plus": "benefit_plus", "ai_pro": "benefit_ai_pro"}
     await message.answer(
         t(lang, "premium_activated",
           tier=tier_name,
-          label=plan["label"],
+          label=label,
           until=until.strftime('%d.%m.%Y'),
           benefits=t(lang, benefit_keys.get(tier, "benefit_premium"))),
         reply_markup=kb_main(lang)
@@ -1351,7 +1341,7 @@ async def reg_age(message: types.Message, state: FSMContext):
         await message.answer(t(lang, "reg_age_invalid"))
         return
     age = int(txt)
-    joke = get_age_joke(age)
+    joke = get_age_joke(age, lang)
     if age <= 15:
         await message.answer(t(lang, "reg_age_too_young", joke=joke))
         return
@@ -1497,11 +1487,15 @@ async def relay(message: types.Message, state: FSMContext):
     if txt == t(lang, "btn_topic") or "🎲" in txt:
         if uid in active_chats:
             partner = active_chats[uid]
-            topic = random.choice(CHAT_TOPICS)
+            topics = get_chat_topics(lang)
+            idx = random.randrange(len(topics))
+            topic = topics[idx]
             await message.answer(t(lang, "topic_sent", topic=topic))
             try:
                 p_lang = await get_lang(partner)
-                await bot.send_message(partner, t(p_lang, "topic_received", topic=topic))
+                p_topics = get_chat_topics(p_lang)
+                p_topic = p_topics[idx] if idx < len(p_topics) else topic
+                await bot.send_message(partner, t(p_lang, "topic_received", topic=p_topic))
             except Exception: pass
         return
     if txt == t(lang, "btn_home") or "🏠" in txt:
@@ -1761,7 +1755,7 @@ async def edit_age(message: types.Message, state: FSMContext):
         await message.answer(t(lang, "edit_age_invalid"))
         return
     age = int(message.text)
-    joke = get_age_joke(age)
+    joke = get_age_joke(age, lang)
     await update_user(message.from_user.id, age=age)
     await state.clear()
     await message.answer(t(lang, "edit_age_done", joke=joke), reply_markup=kb_main(lang))
