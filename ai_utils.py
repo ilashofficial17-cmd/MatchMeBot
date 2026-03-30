@@ -64,3 +64,54 @@ async def get_ai_answer(
     except Exception as e:
         logger.error(f"OpenRouter exception: {e}")
         return None
+
+
+async def get_ai_chat_response(
+    system_prompt: str,
+    history: list,
+    model_name: str,
+    max_tokens: int = 300,
+) -> str | None:
+    """
+    Отправляет запрос в OpenRouter с полной историей чата.
+
+    Args:
+        system_prompt: Системный промпт персонажа
+        history:       Список сообщений [{"role": "user/assistant", "content": "..."}]
+        model_name:    Модель OpenRouter
+        max_tokens:    Максимум токенов в ответе
+
+    Returns:
+        Строка с ответом или None при ошибке.
+    """
+    if not OPEN_ROUTER_KEY:
+        logger.warning("Переменная окружения OPEN_ROUTER не задана")
+        return None
+    headers = {
+        "Authorization": f"Bearer {OPEN_ROUTER_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://t.me/MatchMeBot",
+    }
+    messages = [{"role": "system", "content": system_prompt}] + list(history)
+    payload = {
+        "model": model_name,
+        "max_tokens": max_tokens,
+        "messages": messages,
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                OPEN_ROUTER_URL,
+                json=payload,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return data["choices"][0]["message"]["content"]
+                body = await resp.text()
+                logger.error(f"OpenRouter chat {resp.status}: {body[:300]}")
+                return None
+    except Exception as e:
+        logger.error(f"OpenRouter chat exception: {e}")
+        return None

@@ -1,6 +1,4 @@
-import os
 import asyncio
-import aiohttp
 import logging
 from datetime import datetime
 
@@ -12,6 +10,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from states import AIChat, Chat, Reg
 from keyboards import kb_main, kb_ai_characters, kb_ai_chat, kb_cancel_search
 from locales import t, TEXTS
+from ai_utils import get_ai_chat_response
 
 router = Router()
 logger = logging.getLogger("matchme")
@@ -74,33 +73,15 @@ def get_ai_limit(char_tier: str, user_tier) -> int | None:
     return AI_LIMITS.get(char_tier, {}).get(tier_key, 10)
 
 
-async def ask_venice(character_id: str, history: list, user_message: str, lang: str = "ru") -> str:
-    if not VENICE_API_KEY:
-        return t(lang, "ai_unavailable")
-    char = AI_CHARACTERS[character_id]
-    messages = [{"role": "system", "content": char["system"]}]
-    for msg in history[-10:]:
-        messages.append(msg)
-    messages.append({"role": "user", "content": user_message})
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                VENICE_API_URL,
-                headers={"Authorization": f"Bearer {VENICE_API_KEY}", "Content-Type": "application/json"},
-                json={"model": char["model"], "messages": messages, "max_tokens": 300, "temperature": 0.9},
-                timeout=aiohttp.ClientTimeout(total=30)
-            ) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    return data["choices"][0]["message"]["content"]
-                elif resp.status == 402:
-                    return t(lang, "ai_no_funds")
-                else:
-                    logger.warning(f"Venice API error: status={resp.status}")
-                    return t(lang, "ai_error")
-    except Exception as e:
-        logger.error(f"Venice API connection error: {e}")
-        return t(lang, "ai_connection_error")
+async def ask_ai(character_id: str, history: list, user_message: str, lang: str = "ru") -> str:
+    """Отправляет сообщение персонажу через OpenRouter."""
+    char = AI_CHARACTERS.get(character_id)
+    if not char:
+        return t(lang, "ai_error")
+    system_prompt = char["system"].get(lang) or char["system"].get("ru", "")
+    full_history = list(history[-10:]) + [{"role": "user", "content": user_message}]
+    response = await get_ai_chat_response(system_prompt, full_history, char["model"])
+    return response or t(lang, "ai_error")
 
 
 # ====================== AI MENU ======================
@@ -182,7 +163,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         )
     except Exception: pass
     await callback.message.answer(t(lang, "ai_chat_active"), reply_markup=kb_ai_chat(lang))
-    greeting = await ask_venice(char_id, [], t(lang, "ai_greeting"), lang)
+    greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang)
     if greeting:
         _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
         await callback.message.answer(f"{char['emoji']} {greeting}")
@@ -286,7 +267,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     await _bot.send_chat_action(uid, "typing")
     await _update_user(uid, last_seen=datetime.now())
     session["history"].append({"role": "user", "content": txt})
-    response = await ask_venice(char_id, session["history"][:-1], txt, lang)
+    response = await ask_ai(char_id, session["history"][:-1], txt, lang)
     session["history"].append({"role": "assistant", "content": response})
     session["msg_count"] += 1
     new_count = current_count + 1
@@ -366,7 +347,7 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
           limit_text=limit_text),
         reply_markup=kb_ai_chat(lang)
     )
-    greeting = await ask_venice(char_id, [], t(lang, "ai_greeting"), lang)
+    greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang)
     if greeting:
         _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
         await callback.message.answer(f"{char['emoji']} {greeting}")
