@@ -100,7 +100,7 @@ async def migrate_db():
                 pass
 
 
-_MODERATION_MODEL = "google/gemini-flash-1.5"
+_MODERATION_MODEL = "mistralai/mistral-7b-instruct"
 
 
 def _parse_json_response(text: str) -> dict | None:
