@@ -28,7 +28,7 @@ AI_CHARACTERS = {
         "emoji": "🌙",
         "tier": "basic",
         "block": "simple",
-        "model": "mistralai/mistral-7b-instruct",
+        "model": "openai/gpt-4o-mini",
         "system": {
             "ru": (
                 "Ты — Луна, 21 год, учишься в художке. "
@@ -86,7 +86,7 @@ AI_CHARACTERS = {
         "emoji": "🧢",
         "tier": "basic",
         "block": "simple",
-        "model": "mistralai/mistral-7b-instruct",
+        "model": "openai/gpt-4o-mini",
         "system": {
             "ru": (
                 "Ты — Макс, 24 года, работаешь в IT поддержке. "
