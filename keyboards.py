@@ -173,39 +173,39 @@ def kb_edit(lang="ru"):
     ])
 
 
-def kb_complaint_action(complaint_id, accused_uid, reporter_uid, has_log=False, stop_words=False):
-    sw_text = "⚠️ Стоп-слова: ДА" if stop_words else "✅ Стоп-слова: НЕТ"
+def kb_complaint_action(complaint_id, accused_uid, reporter_uid, has_log=False, stop_words=False, lang="ru"):
+    sw_text = t(lang, "adm_stopwords_yes") if stop_words else t(lang, "adm_stopwords_no")
     buttons = [[InlineKeyboardButton(text=sw_text, callback_data="noop")]]
     if has_log:
-        buttons.append([InlineKeyboardButton(text="📄 Показать переписку", callback_data=f"clog:show:{complaint_id}")])
+        buttons.append([InlineKeyboardButton(text=t(lang, "adm_show_log"), callback_data=f"clog:show:{complaint_id}")])
     buttons += [
-        [InlineKeyboardButton(text="🚫 Бан 3ч нарушителю", callback_data=f"cadm:ban3:{complaint_id}:{accused_uid}")],
-        [InlineKeyboardButton(text="🚫 Бан 24ч нарушителю", callback_data=f"cadm:ban24:{complaint_id}:{accused_uid}")],
-        [InlineKeyboardButton(text="🚫 Перм бан нарушителю", callback_data=f"cadm:banperm:{complaint_id}:{accused_uid}")],
-        [InlineKeyboardButton(text="⚠️ Предупреждение нарушителю", callback_data=f"cadm:warn:{complaint_id}:{accused_uid}")],
-        [InlineKeyboardButton(text="⚠️ Предупреждение жалобщику", callback_data=f"cadm:warnrep:{complaint_id}:{reporter_uid}")],
-        [InlineKeyboardButton(text="🚫 Бан жалобщику", callback_data=f"cadm:banrep:{complaint_id}:{reporter_uid}")],
-        [InlineKeyboardButton(text="👻 Shadow ban нарушителю", callback_data=f"cadm:shadow:{complaint_id}:{accused_uid}")],
-        [InlineKeyboardButton(text="✅ Отклонить жалобу", callback_data=f"cadm:dismiss:{complaint_id}:0")],
+        [InlineKeyboardButton(text=t(lang, "adm_ban3"), callback_data=f"cadm:ban3:{complaint_id}:{accused_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_ban24"), callback_data=f"cadm:ban24:{complaint_id}:{accused_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_banperm"), callback_data=f"cadm:banperm:{complaint_id}:{accused_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_warn"), callback_data=f"cadm:warn:{complaint_id}:{accused_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_warn_rep"), callback_data=f"cadm:warnrep:{complaint_id}:{reporter_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_ban_rep"), callback_data=f"cadm:banrep:{complaint_id}:{reporter_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_shadow"), callback_data=f"cadm:shadow:{complaint_id}:{accused_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_dismiss"), callback_data=f"cadm:dismiss:{complaint_id}:0")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def kb_user_actions(target_uid, is_shadow=False):
+def kb_user_actions(target_uid, is_shadow=False, lang="ru"):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚫 Бан 3ч", callback_data=f"uadm:ban3:{target_uid}"),
-         InlineKeyboardButton(text="🚫 Бан 24ч", callback_data=f"uadm:ban24:{target_uid}")],
-        [InlineKeyboardButton(text="🚫 Перм бан", callback_data=f"uadm:banperm:{target_uid}"),
-         InlineKeyboardButton(text="✅ Разбан", callback_data=f"uadm:unban:{target_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_uban3"), callback_data=f"uadm:ban3:{target_uid}"),
+         InlineKeyboardButton(text=t(lang, "adm_uban24"), callback_data=f"uadm:ban24:{target_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_ubanperm"), callback_data=f"uadm:banperm:{target_uid}"),
+         InlineKeyboardButton(text=t(lang, "adm_unban"), callback_data=f"uadm:unban:{target_uid}")],
         [InlineKeyboardButton(
-            text="👻 Снять shadow ban" if is_shadow else "👻 Shadow ban",
+            text=t(lang, "adm_shadow_remove") if is_shadow else t(lang, "adm_shadow_set"),
             callback_data=f"uadm:shadowtoggle:{target_uid}",
         )],
-        [InlineKeyboardButton(text="⚠️ Предупреждение", callback_data=f"uadm:warn:{target_uid}"),
-         InlineKeyboardButton(text="❌ Кик", callback_data=f"uadm:kick:{target_uid}")],
-        [InlineKeyboardButton(text="⭐ Дать Premium 30д", callback_data=f"uadm:premium:{target_uid}"),
-         InlineKeyboardButton(text="⭐ Забрать Premium", callback_data=f"uadm:unpremium:{target_uid}")],
-        [InlineKeyboardButton(text="🗑 Полное удаление", callback_data=f"uadm:fulldelete:{target_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_uwarn"), callback_data=f"uadm:warn:{target_uid}"),
+         InlineKeyboardButton(text=t(lang, "adm_kick"), callback_data=f"uadm:kick:{target_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_give_premium"), callback_data=f"uadm:premium:{target_uid}"),
+         InlineKeyboardButton(text=t(lang, "adm_take_premium"), callback_data=f"uadm:unpremium:{target_uid}")],
+        [InlineKeyboardButton(text=t(lang, "adm_fulldelete"), callback_data=f"uadm:fulldelete:{target_uid}")],
     ])
 
 
