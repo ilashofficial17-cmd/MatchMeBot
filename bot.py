@@ -205,7 +205,44 @@ async def init_db():
             ADMIN_ID
         )
 
+    await _migrate_interests()
     await restore_chats()
+
+async def _migrate_interests():
+    """One-time migration: convert old Russian interest strings to locale keys."""
+    OLD_TO_NEW = {
+        "Разговор по душам 🗣": "int_talk",
+        "Юмор и мемы 😂":       "int_humor",
+        "Советы по жизни 💡":    "int_advice",
+        "Музыка 🎵":             "int_music",
+        "Игры 🎮":               "int_games",
+        "Лёгкий флирт 😏":       "int_flirt_light",
+        "Комплименты 💌":         "int_compliments",
+        "Секстинг 🔥":            "int_sexting",
+        "Виртуальные свидания 💑": "int_virtual_date",
+        "Флирт и игры 🎭":        "int_flirt_games",
+        "BDSM 🖤":               "int_bdsm",
+        "Bondage 🔗":            "int_bondage",
+        "Roleplay 🎭":           "int_roleplay",
+        "Dom/Sub ⛓":            "int_domsub",
+        "Pet play 🐾":           "int_petplay",
+        "Другой фетиш ✨":        "int_other_fetish",
+    }
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT uid, interests FROM users WHERE interests IS NOT NULL AND interests != ''"
+        )
+        updated = 0
+        for row in rows:
+            parts = [p.strip() for p in row["interests"].split(",") if p.strip()]
+            if all(p.startswith("int_") for p in parts):
+                continue  # already migrated
+            new_parts = [OLD_TO_NEW.get(p, p) for p in parts]
+            new_val = ",".join(new_parts)
+            await conn.execute("UPDATE users SET interests=$1 WHERE uid=$2", new_val, row["uid"])
+            updated += 1
+    if updated:
+        logger.info(f"Migrated interests for {updated} users")
 
 async def restore_chats():
     async with db_pool.acquire() as conn:
