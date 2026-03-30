@@ -1265,14 +1265,13 @@ async def reset_confirm(callback: types.CallbackQuery, state: FSMContext):
                 interests='', likes=0, dislikes=0, accept_simple=TRUE,
                 accept_flirt=TRUE, accept_kink=FALSE, only_own_mode=FALSE,
                 accept_cross_mode=FALSE,
-                search_gender='any', search_age_min=16, search_age_max=99
+                search_gender='any', search_age_min=16, search_age_max=99,
+                lang=NULL, accepted_privacy=FALSE, accepted_rules=FALSE
             WHERE uid=$1
         """, uid)
-    lang = await get_lang(uid)
     try:
-        await callback.message.edit_text(t(lang, "reset_done"))
+        await callback.message.edit_text("✅ Профиль сброшен. Нажми /start чтобы начать заново.")
     except Exception: pass
-    await callback.message.answer(t(lang, "reset_refill"), reply_markup=kb_main(lang))
     await callback.answer()
 
 @dp.callback_query(F.data == "reset:cancel", StateFilter(ResetProfile.confirm))
