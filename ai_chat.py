@@ -150,8 +150,9 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         await callback.answer()
         return
-    if char_id == "power_soon":
-        await callback.answer(t(lang, "ai_power_soon"), show_alert=True)
+    if char_id in ("power_soon", "vip_locked"):
+        msg = t(lang, "ai_vip_required") if char_id == "vip_locked" else t(lang, "ai_power_soon")
+        await callback.answer(msg, show_alert=True)
         return
     if char_id == "all":
         user_tier = await _get_premium_tier(uid)

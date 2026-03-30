@@ -110,26 +110,26 @@ def kb_channel_bonus(lang="ru"):
 
 
 def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
+    is_premium = user_tier in ("premium", "plus")
     buttons = []
-    if mode in ["simple", "any"]:
+    # Блок 1 — Общение (всегда показываем)
+    buttons.append([
+        InlineKeyboardButton(text=t(lang, "char_luna"), callback_data="aichar:luna"),
+        InlineKeyboardButton(text=t(lang, "char_max_simple"), callback_data="aichar:max_simple"),
+    ])
+    # VIP персонажи блока 1
+    if is_premium:
         buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_danil"), callback_data="aichar:danil"),
-            InlineKeyboardButton(text=t(lang, "char_polina"), callback_data="aichar:polina"),
+            InlineKeyboardButton(text=t(lang, "char_aurora"), callback_data="aichar:aurora"),
+            InlineKeyboardButton(text=t(lang, "char_alex"), callback_data="aichar:alex"),
         ])
-    if mode in ["flirt", "any"]:
+    else:
         buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_max"), callback_data="aichar:max"),
-            InlineKeyboardButton(text=t(lang, "char_violetta"), callback_data="aichar:violetta"),
+            InlineKeyboardButton(text=t(lang, "char_aurora_locked"), callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text=t(lang, "char_alex_locked"), callback_data="aichar:vip_locked"),
         ])
-    if mode in ["kink", "any"]:
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_alisa"), callback_data="aichar:alisa"),
-            InlineKeyboardButton(text=t(lang, "char_dmitri"), callback_data="aichar:dmitri"),
-        ])
-        buttons.append([InlineKeyboardButton(text=t(lang, "char_rolemaster"), callback_data="aichar:rolemaster")])
-    buttons.append([InlineKeyboardButton(text=t(lang, "char_power_soon"), callback_data="aichar:power_soon")])
-    if mode != "any":
-        buttons.append([InlineKeyboardButton(text=t(lang, "char_all"), callback_data="aichar:all")])
+    # Флирт и Kink — скоро
+    buttons.append([InlineKeyboardButton(text=t(lang, "char_coming_soon"), callback_data="aichar:power_soon")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
