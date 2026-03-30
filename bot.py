@@ -549,6 +549,17 @@ def _all(key):
 async def unavailable(message: types.Message, lang: str, reason_key: str):
     await message.answer(t(lang, "unavailable", reason=t(lang, reason_key)))
 
+async def needs_onboarding(message: types.Message, state: FSMContext) -> bool:
+    """If user has no lang set, redirect to language selection. Returns True if redirected."""
+    uid = message.from_user.id
+    await ensure_user(uid)
+    u = await get_user(uid)
+    if not u or not u.get("lang"):
+        await state.set_state(LangSelect.choosing)
+        await message.answer(t("ru", "welcome"), reply_markup=kb_lang())
+        return True
+    return False
+
 async def get_pending_complaints():
     async with db_pool.acquire() as conn:
         return await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE") or 0
@@ -1091,7 +1102,8 @@ async def rules_other(message: types.Message):
 
 # ====================== СТАТИСТИКА ======================
 @dp.message(Command("stats"), StateFilter("*"))
-async def cmd_stats(message: types.Message):
+async def cmd_stats(message: types.Message, state: FSMContext):
+    if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
     u = await get_user(uid)
@@ -1122,7 +1134,8 @@ async def cmd_stats(message: types.Message):
 
 # ====================== PREMIUM ======================
 @dp.message(Command("premium"), StateFilter("*"))
-async def cmd_premium(message: types.Message):
+async def cmd_premium(message: types.Message, state: FSMContext):
+    if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
     user_tier = await get_premium_tier(uid)
@@ -1275,6 +1288,7 @@ async def reset_cancel(callback: types.CallbackQuery, state: FSMContext):
 # ====================== АНОНИМНЫЙ ПОИСК ======================
 @dp.message(F.text.in_(_all("btn_search")), StateFilter("*"))
 async def anon_search(message: types.Message, state: FSMContext):
+    if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
     current = await state.get_state()
@@ -1345,6 +1359,7 @@ async def anon_search(message: types.Message, state: FSMContext):
 @dp.message(F.text.in_(_all("btn_find")), StateFilter("*"))
 @dp.message(Command("find"), StateFilter("*"))
 async def cmd_find(message: types.Message, state: FSMContext):
+    if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
     current = await state.get_state()
@@ -1740,6 +1755,7 @@ async def cmd_next(message: types.Message, state: FSMContext):
 @dp.message(F.text.in_(_all("btn_profile")), StateFilter("*"))
 @dp.message(Command("profile"), StateFilter("*"))
 async def show_profile(message: types.Message, state: FSMContext):
+    if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
     current = await state.get_state()
@@ -1936,6 +1952,7 @@ async def edit_interest_text(message: types.Message, state: FSMContext):
 @dp.message(F.text.in_(_all("btn_settings")), StateFilter("*"))
 @dp.message(Command("settings"), StateFilter("*"))
 async def show_settings(message: types.Message, state: FSMContext):
+    if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
     current = await state.get_state()
@@ -2013,7 +2030,8 @@ async def set_search_gender(message: types.Message, state: FSMContext):
 # ====================== ПОМОЩЬ ======================
 @dp.message(F.text.in_(_all("btn_help")), StateFilter("*"))
 @dp.message(Command("help"), StateFilter("*"))
-async def show_help(message: types.Message):
+async def show_help(message: types.Message, state: FSMContext):
+    if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
     await message.answer(t(lang, "help_text"), reply_markup=kb_main(lang))
