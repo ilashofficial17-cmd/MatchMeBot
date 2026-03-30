@@ -6,14 +6,14 @@ from locales import t
 
 CHANNEL_ID = "@MATCHMEHUB"
 
-# Интересы хранятся в БД как есть — не переводим
+# INTERESTS_MAP: значения хранятся в БД как ключи локализации
 INTERESTS_MAP = {
-    "simple": ["Разговор по душам 🗣", "Юмор и мемы 😂", "Советы по жизни 💡", "Музыка 🎵", "Игры 🎮"],
-    "flirt":  ["Лёгкий флирт 😏", "Комплименты 💌", "Секстинг 🔥", "Виртуальные свидания 💑", "Флирт и игры 🎭"],
-    "kink":   ["BDSM 🖤", "Bondage 🔗", "Roleplay 🎭", "Dom/Sub ⛓", "Pet play 🐾", "Другой фетиш ✨"],
+    "simple": ["int_talk", "int_humor", "int_advice", "int_music", "int_games"],
+    "flirt":  ["int_flirt_light", "int_compliments", "int_sexting", "int_virtual_date", "int_flirt_games"],
+    "kink":   ["int_bdsm", "int_bondage", "int_roleplay", "int_domsub", "int_petplay", "int_other_fetish"],
 }
 
-# ====================== КЛАВИАТУРЫ ======================
+# ====================== KEYBOARDS ======================
 
 def kb_main(lang="ru"):
     return ReplyKeyboardMarkup(keyboard=[
@@ -143,11 +143,11 @@ def kb_ai_chat(lang="ru"):
 
 
 def kb_interests(mode, selected, lang="ru"):
-    interests = INTERESTS_MAP.get(mode, [])
+    interest_keys = INTERESTS_MAP.get(mode, [])
     buttons = []
-    for interest in interests:
-        mark = "✅ " if interest in selected else ""
-        buttons.append([InlineKeyboardButton(text=f"{mark}{interest}", callback_data=f"int:{interest}")])
+    for key in interest_keys:
+        mark = "✅ " if key in selected else ""
+        buttons.append([InlineKeyboardButton(text=f"{mark}{t(lang, key)}", callback_data=f"int:{key}")])
     buttons.append([InlineKeyboardButton(text="✅ " + t(lang, "edit_done"), callback_data="int:done")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
