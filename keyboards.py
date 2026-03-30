@@ -95,9 +95,9 @@ def kb_search_gender(lang="ru"):
 
 def kb_after_chat(partner_uid, lang="ru"):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❤️ " + t(lang, "mutual_request_sent").split("\n")[0], callback_data=f"mutual:{partner_uid}")],
-        [InlineKeyboardButton(text=t(lang, "btn_find"), callback_data="goto:find")],
-        [InlineKeyboardButton(text=t(lang, "btn_home"), callback_data="goto:menu")],
+        [InlineKeyboardButton(text=t(lang, "btn_continue"), callback_data=f"mutual:{partner_uid}")],
+        [InlineKeyboardButton(text=t(lang, "btn_find_new"), callback_data="goto:find")],
+        [InlineKeyboardButton(text=t(lang, "btn_to_menu"), callback_data="goto:menu")],
     ])
 
 
@@ -113,23 +113,23 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
     buttons = []
     if mode in ["simple", "any"]:
         buttons.append([
-            InlineKeyboardButton(text="👨 Данил", callback_data="aichar:danil"),
-            InlineKeyboardButton(text="👩 Полина", callback_data="aichar:polina"),
+            InlineKeyboardButton(text=t(lang, "char_danil"), callback_data="aichar:danil"),
+            InlineKeyboardButton(text=t(lang, "char_polina"), callback_data="aichar:polina"),
         ])
     if mode in ["flirt", "any"]:
         buttons.append([
-            InlineKeyboardButton(text="😏 Макс", callback_data="aichar:max"),
-            InlineKeyboardButton(text="💋 Виолетта", callback_data="aichar:violetta"),
+            InlineKeyboardButton(text=t(lang, "char_max"), callback_data="aichar:max"),
+            InlineKeyboardButton(text=t(lang, "char_violetta"), callback_data="aichar:violetta"),
         ])
     if mode in ["kink", "any"]:
         buttons.append([
-            InlineKeyboardButton(text="🐾 Алиса", callback_data="aichar:alisa"),
-            InlineKeyboardButton(text="😈 Дмитри", callback_data="aichar:dmitri"),
+            InlineKeyboardButton(text=t(lang, "char_alisa"), callback_data="aichar:alisa"),
+            InlineKeyboardButton(text=t(lang, "char_dmitri"), callback_data="aichar:dmitri"),
         ])
-        buttons.append([InlineKeyboardButton(text="🎭 Ролевой мастер", callback_data="aichar:rolemaster")])
-    buttons.append([InlineKeyboardButton(text="🧠 " + t(lang, "ai_power_soon").replace("🔧 ", ""), callback_data="aichar:power_soon")])
+        buttons.append([InlineKeyboardButton(text=t(lang, "char_rolemaster"), callback_data="aichar:rolemaster")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "char_power_soon"), callback_data="aichar:power_soon")])
     if mode != "any":
-        buttons.append([InlineKeyboardButton(text="🔀 " + t(lang, "btn_find_any").replace("🔀 ", ""), callback_data="aichar:all")])
+        buttons.append([InlineKeyboardButton(text=t(lang, "char_all"), callback_data="aichar:all")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -154,22 +154,22 @@ def kb_interests(mode, selected, lang="ru"):
 
 def kb_complaint(lang="ru"):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔞 Несовершеннолетние", callback_data="rep:minor")],
-        [InlineKeyboardButton(text="💰 Спам / Реклама", callback_data="rep:spam")],
-        [InlineKeyboardButton(text="😡 Угрозы / Оскорбления", callback_data="rep:abuse")],
-        [InlineKeyboardButton(text="🔞 Пошлятина без согласия", callback_data="rep:nsfw")],
-        [InlineKeyboardButton(text="🔄 Другое", callback_data="rep:other")],
-        [InlineKeyboardButton(text=t(lang, "btn_back") + " Отмена", callback_data="rep:cancel")],
+        [InlineKeyboardButton(text=t(lang, "rep_minor"), callback_data="rep:minor")],
+        [InlineKeyboardButton(text=t(lang, "rep_spam"), callback_data="rep:spam")],
+        [InlineKeyboardButton(text=t(lang, "rep_abuse"), callback_data="rep:abuse")],
+        [InlineKeyboardButton(text=t(lang, "rep_nsfw"), callback_data="rep:nsfw")],
+        [InlineKeyboardButton(text=t(lang, "rep_other"), callback_data="rep:other")],
+        [InlineKeyboardButton(text=t(lang, "rep_cancel"), callback_data="rep:cancel")],
     ])
 
 
-def kb_edit():
+def kb_edit(lang="ru"):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✏️ Имя", callback_data="edit:name"),
-         InlineKeyboardButton(text="🎂 Возраст", callback_data="edit:age")],
-        [InlineKeyboardButton(text="⚧ Пол", callback_data="edit:gender"),
-         InlineKeyboardButton(text="💬 Режим", callback_data="edit:mode")],
-        [InlineKeyboardButton(text="🎯 Интересы", callback_data="edit:interests")],
+        [InlineKeyboardButton(text=t(lang, "edit_btn_name"), callback_data="edit:name"),
+         InlineKeyboardButton(text=t(lang, "edit_btn_age"), callback_data="edit:age")],
+        [InlineKeyboardButton(text=t(lang, "edit_btn_gender"), callback_data="edit:gender"),
+         InlineKeyboardButton(text=t(lang, "edit_btn_mode"), callback_data="edit:mode")],
+        [InlineKeyboardButton(text=t(lang, "edit_btn_interests"), callback_data="edit:interests")],
     ])
 
 
@@ -209,17 +209,17 @@ def kb_user_actions(target_uid, is_shadow=False):
     ])
 
 
-def kb_premium():
+def kb_premium(lang="ru"):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="── Premium ──", callback_data="noop")],
-        [InlineKeyboardButton(text="⭐ 7 дней — 99 Stars", callback_data="buy:7d")],
-        [InlineKeyboardButton(text="⭐ 1 месяц — 299 Stars", callback_data="buy:1m")],
-        [InlineKeyboardButton(text="⭐ 3 месяца — 599 Stars", callback_data="buy:3m")],
-        [InlineKeyboardButton(text="── Premium Plus (лучшее!) ──", callback_data="noop")],
-        [InlineKeyboardButton(text="🚀 1 месяц — 499 Stars", callback_data="buy:plus_1m")],
-        [InlineKeyboardButton(text="🚀 3 месяца — 999 Stars", callback_data="buy:plus_3m")],
-        [InlineKeyboardButton(text="── AI Pro ──", callback_data="noop")],
-        [InlineKeyboardButton(text="🧠 1 месяц — 399 Stars", callback_data="buy:ai_1m")],
-        [InlineKeyboardButton(text="🧠 3 месяца — 799 Stars", callback_data="buy:ai_3m")],
-        [InlineKeyboardButton(text="❓ Сравнить подписки", callback_data="buy:info")],
+        [InlineKeyboardButton(text=t(lang, "prem_header"), callback_data="noop")],
+        [InlineKeyboardButton(text=t(lang, "prem_7d"), callback_data="buy:7d")],
+        [InlineKeyboardButton(text=t(lang, "prem_1m"), callback_data="buy:1m")],
+        [InlineKeyboardButton(text=t(lang, "prem_3m"), callback_data="buy:3m")],
+        [InlineKeyboardButton(text=t(lang, "prem_plus_header"), callback_data="noop")],
+        [InlineKeyboardButton(text=t(lang, "prem_plus_1m"), callback_data="buy:plus_1m")],
+        [InlineKeyboardButton(text=t(lang, "prem_plus_3m"), callback_data="buy:plus_3m")],
+        [InlineKeyboardButton(text=t(lang, "prem_ai_header"), callback_data="noop")],
+        [InlineKeyboardButton(text=t(lang, "prem_ai_1m"), callback_data="buy:ai_1m")],
+        [InlineKeyboardButton(text=t(lang, "prem_ai_3m"), callback_data="buy:ai_3m")],
+        [InlineKeyboardButton(text=t(lang, "prem_compare"), callback_data="buy:info")],
     ])
