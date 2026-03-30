@@ -588,6 +588,7 @@ async def do_find(uid, state):
     u = await get_user(uid)
     if not u or not u.get("name") or not u.get("mode"): return False
     mode = u["mode"]
+    my_lang = u.get("lang") or "ru"
     user_premium = await is_premium(uid)
     my_interests = set(filter(None, u.get("interests", "").split(","))) if u.get("interests") else set()
     my_rating = get_rating(u)
@@ -626,6 +627,9 @@ async def do_find(uid, state):
                         continue
                 except Exception:
                     pass
+            # Language isolation: users only match within same language
+            p_lang_val = pu.get("lang") or "ru"
+            if my_lang != p_lang_val: continue
             # Shadow ban: теневые юзеры матчатся только между собой
             p_shadow = pu.get("shadow_ban", False)
             if my_shadow != p_shadow: continue
@@ -1124,6 +1128,10 @@ async def buy_premium(callback: types.CallbackQuery):
     tier_name = tier_names.get(tier, "Premium")
     label = t(lang, plan["label_key"])
     desc = t(lang, plan["desc_key"])
+    stars = plan["stars"]
+    # x2 price for non-Russian languages
+    if lang != "ru":
+        stars *= 2
     await callback.answer()
     await bot.send_invoice(
         chat_id=uid,
@@ -1132,7 +1140,7 @@ async def buy_premium(callback: types.CallbackQuery):
         payload=f"premium_{plan_key}",
         provider_token="",
         currency="XTR",
-        prices=[LabeledPrice(label=f"{tier_name} {label}", amount=plan["stars"])],
+        prices=[LabeledPrice(label=f"{tier_name} {label}", amount=stars)],
     )
 
 @dp.pre_checkout_query(StateFilter("*"))
@@ -1252,16 +1260,19 @@ async def anon_search(message: types.Message, state: FSMContext):
         return
     await ensure_user(uid)
     await message.answer(t(lang, "searching_anon"), reply_markup=kb_cancel_search(lang))
-    # Shadow ban check
+    # Shadow ban & language check
     u = await get_user(uid)
     my_shadow = u.get("shadow_ban", False) if u else False
+    my_lang = (u.get("lang") or "ru") if u else "ru"
     # Собираем кандидатов ВНЕ лока
     anon_candidates = []
     for pid in list(waiting_anon):
         if pid != uid and pid not in active_chats:
             pu = await get_user(pid)
-            if pu and pu.get("shadow_ban", False) == my_shadow:
-                anon_candidates.append(pid)
+            if not pu: continue
+            if pu.get("shadow_ban", False) != my_shadow: continue
+            if (pu.get("lang") or "ru") != my_lang: continue
+            anon_candidates.append(pid)
     # Внутри лока — только атомарное спаривание
     partner = None
     async with pairing_lock:
