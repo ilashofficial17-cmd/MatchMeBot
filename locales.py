@@ -54,12 +54,54 @@ TEXTS = {
         "welcome_new": "👋 Добро пожаловать в MatchMe!{badge}",
         "banned_permanent": "🚫 Ты заблокирован навсегда.",
         "banned_until": "🚫 Ты заблокирован до {until}",
-        # Кнопки
+        # Кнопки — privacy/rules/channel
         "btn_accept_privacy": "✅ Принять и продолжить",
         "btn_decline_privacy": "❌ Отказаться",
         "btn_accept_rules": "✅ Принять правила",
         "btn_check_channel": "✅ Проверить подписку",
         "btn_skip_channel": "⏭ Пропустить",
+        # Кнопки — главное меню
+        "btn_search": "⚡ Поиск",
+        "btn_find": "🔍 По анкете",
+        "btn_ai_chat": "🤖 ИИ чат",
+        "btn_profile": "👤 Профиль",
+        "btn_settings": "⚙️ Настройки",
+        "btn_help": "❓ Помощь",
+        # Кнопки — чат
+        "btn_next": "⏭ Следующий",
+        "btn_stop": "❌ Стоп",
+        "btn_like": "👍 Лайк",
+        "btn_complaint": "🚩 Жалоба",
+        "btn_topic": "🎲 Дай тему",
+        "btn_home": "🏠 Главное меню",
+        # Кнопки — анкета/поиск
+        "btn_cancel_reg": "❌ Отменить анкету",
+        "btn_start_form": "✅ Понятно, начать анкету",
+        "btn_cancel_search": "❌ Отменить поиск",
+        # Кнопки — пол
+        "btn_male": "👨 Парень",
+        "btn_female": "👩 Девушка",
+        "btn_other": "⚧ Другое",
+        "btn_find_male": "👨 Парня",
+        "btn_find_female": "👩 Девушку",
+        "btn_find_other": "⚧ Другое",
+        "btn_find_any": "🔀 Не важно",
+        "btn_back": "◀️ Назад",
+        # Кнопки — режим
+        "btn_mode_simple": "💬 Просто общение",
+        "btn_mode_flirt": "💋 Флирт",
+        "btn_mode_kink": "🔥 Kink / ролевые (18+)",
+        # Кнопки — AI чат
+        "btn_change_char": "🔄 Сменить персонажа",
+        "btn_end_ai_chat": "❌ Завершить чат",
+        "btn_find_live": "🔍 Найти живого собеседника",
+        # Названия режимов и пола (для отображения)
+        "mode_simple": "Просто общение 💬",
+        "mode_flirt": "Флирт 💋",
+        "mode_kink": "Kink 🔥",
+        "gender_male": "Парень 👨",
+        "gender_female": "Девушка 👩",
+        "gender_other": "Другое ⚧",
     },
 
     "en": {
@@ -112,12 +154,54 @@ TEXTS = {
         "welcome_new": "👋 Welcome to MatchMe!{badge}",
         "banned_permanent": "🚫 You are permanently banned.",
         "banned_until": "🚫 You are banned until {until}",
-        # Buttons
+        # Buttons — privacy/rules/channel
         "btn_accept_privacy": "✅ Accept and continue",
         "btn_decline_privacy": "❌ Decline",
         "btn_accept_rules": "✅ Accept rules",
         "btn_check_channel": "✅ Check subscription",
         "btn_skip_channel": "⏭ Skip",
+        # Buttons — main menu
+        "btn_search": "⚡ Search",
+        "btn_find": "🔍 By profile",
+        "btn_ai_chat": "🤖 AI Chat",
+        "btn_profile": "👤 Profile",
+        "btn_settings": "⚙️ Settings",
+        "btn_help": "❓ Help",
+        # Buttons — chat
+        "btn_next": "⏭ Next",
+        "btn_stop": "❌ Stop",
+        "btn_like": "👍 Like",
+        "btn_complaint": "🚩 Report",
+        "btn_topic": "🎲 Give topic",
+        "btn_home": "🏠 Main menu",
+        # Buttons — form/search
+        "btn_cancel_reg": "❌ Cancel form",
+        "btn_start_form": "✅ Got it, start form",
+        "btn_cancel_search": "❌ Cancel search",
+        # Buttons — gender
+        "btn_male": "👨 Guy",
+        "btn_female": "👩 Girl",
+        "btn_other": "⚧ Other",
+        "btn_find_male": "👨 A guy",
+        "btn_find_female": "👩 A girl",
+        "btn_find_other": "⚧ Other",
+        "btn_find_any": "🔀 Anyone",
+        "btn_back": "◀️ Back",
+        # Buttons — mode
+        "btn_mode_simple": "💬 Just chatting",
+        "btn_mode_flirt": "💋 Flirt",
+        "btn_mode_kink": "🔥 Kink / roleplay (18+)",
+        # Buttons — AI chat
+        "btn_change_char": "🔄 Change character",
+        "btn_end_ai_chat": "❌ End chat",
+        "btn_find_live": "🔍 Find a real person",
+        # Mode and gender display names
+        "mode_simple": "Just chatting 💬",
+        "mode_flirt": "Flirt 💋",
+        "mode_kink": "Kink 🔥",
+        "gender_male": "Guy 👨",
+        "gender_female": "Girl 👩",
+        "gender_other": "Other ⚧",
     },
 
     "es": {
@@ -170,12 +254,54 @@ TEXTS = {
         "welcome_new": "👋 ¡Bienvenido a MatchMe!{badge}",
         "banned_permanent": "🚫 Estás baneado permanentemente.",
         "banned_until": "🚫 Estás baneado hasta {until}",
-        # Botones
+        # Botones — privacy/rules/channel
         "btn_accept_privacy": "✅ Aceptar y continuar",
         "btn_decline_privacy": "❌ Rechazar",
         "btn_accept_rules": "✅ Aceptar reglas",
         "btn_check_channel": "✅ Verificar suscripción",
         "btn_skip_channel": "⏭ Omitir",
+        # Botones — menú principal
+        "btn_search": "⚡ Buscar",
+        "btn_find": "🔍 Por perfil",
+        "btn_ai_chat": "🤖 Chat IA",
+        "btn_profile": "👤 Perfil",
+        "btn_settings": "⚙️ Ajustes",
+        "btn_help": "❓ Ayuda",
+        # Botones — chat
+        "btn_next": "⏭ Siguiente",
+        "btn_stop": "❌ Parar",
+        "btn_like": "👍 Me gusta",
+        "btn_complaint": "🚩 Reportar",
+        "btn_topic": "🎲 Dar tema",
+        "btn_home": "🏠 Menú principal",
+        # Botones — formulario/búsqueda
+        "btn_cancel_reg": "❌ Cancelar formulario",
+        "btn_start_form": "✅ Entendido, iniciar formulario",
+        "btn_cancel_search": "❌ Cancelar búsqueda",
+        # Botones — género
+        "btn_male": "👨 Chico",
+        "btn_female": "👩 Chica",
+        "btn_other": "⚧ Otro",
+        "btn_find_male": "👨 Un chico",
+        "btn_find_female": "👩 Una chica",
+        "btn_find_other": "⚧ Otro",
+        "btn_find_any": "🔀 Cualquiera",
+        "btn_back": "◀️ Volver",
+        # Botones — modo
+        "btn_mode_simple": "💬 Solo charlar",
+        "btn_mode_flirt": "💋 Coqueteo",
+        "btn_mode_kink": "🔥 Kink / juego de rol (18+)",
+        # Botones — chat IA
+        "btn_change_char": "🔄 Cambiar personaje",
+        "btn_end_ai_chat": "❌ Terminar chat",
+        "btn_find_live": "🔍 Buscar persona real",
+        # Nombres de modos y géneros (para mostrar)
+        "mode_simple": "Solo charlar 💬",
+        "mode_flirt": "Coqueteo 💋",
+        "mode_kink": "Kink 🔥",
+        "gender_male": "Chico 👨",
+        "gender_female": "Chica 👩",
+        "gender_other": "Otro ⚧",
     },
 }
 
