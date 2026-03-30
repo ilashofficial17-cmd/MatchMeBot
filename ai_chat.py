@@ -24,7 +24,7 @@ AI_LIMITS = {
 AI_CHARACTERS = {
     "luna": {
         "name_key": "char_luna", "desc_key": "char_luna_desc", "emoji": "🌙",
-        "tier": "basic", "block": "simple", "model": "openai/gpt-4o-mini",
+        "tier": "basic", "block": "simple", "model": "openai/gpt-4o-mini", "max_tokens": 120,
         "system": {
             "ru": (
                 "Ты — Луна, 21 год. Учишься в художке, рисуешь акварель, слушаешь музыку, смотришь кино. "
@@ -60,7 +60,7 @@ AI_CHARACTERS = {
     },
     "max_simple": {
         "name_key": "char_max_simple", "desc_key": "char_max_simple_desc", "emoji": "🧢",
-        "tier": "basic", "block": "simple", "model": "openai/gpt-4o-mini",
+        "tier": "basic", "block": "simple", "model": "openai/gpt-4o-mini", "max_tokens": 120,
         "system": {
             "ru": (
                 "Ты — Макс, 24 года. Работаешь в IT поддержке, играешь в игры, смотришь спорт, тусуешься с друзьями. "
@@ -96,7 +96,7 @@ AI_CHARACTERS = {
     },
     "aurora": {
         "name_key": "char_aurora", "desc_key": "char_aurora_desc", "emoji": "✨",
-        "tier": "premium", "block": "simple", "model": "anthropic/claude-3-haiku",
+        "tier": "premium", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
         "system": {
             "ru": (
                 "Ты — Аврора, 28 лет. Маркетинг-директор в международной компании, объездила 18 стран, "
@@ -132,7 +132,7 @@ AI_CHARACTERS = {
     },
     "alex": {
         "name_key": "char_alex", "desc_key": "char_alex_desc", "emoji": "🔥",
-        "tier": "premium", "block": "simple", "model": "anthropic/claude-3-haiku",
+        "tier": "premium", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
         "system": {
             "ru": (
                 "Ты — Алекс, 26 лет. Фрилансер, путешествуешь, читаешь Камю и Кафку, "
@@ -172,7 +172,7 @@ AI_CHARACTERS = {
 AI_CHARACTERS.update({
     "mia": {
         "name_key": "char_mia", "desc_key": "char_mia_desc", "emoji": "🍭",
-        "tier": "basic", "block": "flirt", "model": "sao10k/l3-euryale-70b",
+        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b", "max_tokens": 120,
         "system": {
             "ru": (
                 "Ты — Мия, 22 года. Бариста в андеграунд-кофейне, татуировки, чёрный мотоцикл, техно до трёх ночи.\n\n"
@@ -214,7 +214,7 @@ AI_CHARACTERS.update({
     },
     "kai": {
         "name_key": "char_kai", "desc_key": "char_kai_desc", "emoji": "🎧",
-        "tier": "basic", "block": "flirt", "model": "sao10k/l3-euryale-70b",
+        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b", "max_tokens": 120,
         "system": {
             "ru": (
                 "Ты — Кай, 21 год. Фриланс-дизайнер, всегда в наушниках, путешествуешь с одним рюкзаком.\n\n"
@@ -250,7 +250,7 @@ AI_CHARACTERS.update({
     },
     "diana": {
         "name_key": "char_diana", "desc_key": "char_diana_desc", "emoji": "🏛️",
-        "tier": "premium", "block": "flirt", "model": "nousresearch/hermes-4-405b",
+        "tier": "premium", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
         "system": {
             "ru": (
                 "Ты — Диана, 27 лет. Куратор галереи, объездила полмира, читаешь людей как книгу. "
@@ -289,7 +289,7 @@ AI_CHARACTERS.update({
     },
     "leon": {
         "name_key": "char_leon", "desc_key": "char_leon_desc", "emoji": "⌚",
-        "tier": "premium", "block": "flirt", "model": "nousresearch/hermes-4-405b",
+        "tier": "premium", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
         "system": {
             "ru": (
                 "Ты — Леон, 29 лет. Венчурный инвестор и архитектор. "
@@ -379,6 +379,23 @@ def get_ai_limit(char_tier: str, user_tier) -> int | None:
     return AI_LIMITS.get(char_tier, {}).get(tier_key, 10)
 
 
+def _is_garbage(text: str) -> bool:
+    """Возвращает True если ответ модели выглядит как мусор/утечка промта."""
+    if not text or len(text.strip()) < 2:
+        return True
+    garbage_markers = ["_internal_", "_what_is_happening", "currentPlayer", "CONFIGURE??",
+                       "istanice", "istayesin", "mandatopermission", "besplatnaol"]
+    lower = text.lower()
+    for marker in garbage_markers:
+        if marker.lower() in lower:
+            return True
+    # Слишком много нечитаемых символов подряд
+    import re
+    if re.search(r'[A-Za-z]{15,}[^a-zA-Z\s]{0,3}[A-Za-z]{10,}', text):
+        return True
+    return False
+
+
 async def ask_ai(character_id: str, history: list, user_message: str, lang: str = "ru") -> str:
     """Отправляет сообщение персонажу через OpenRouter."""
     from ai_utils import OPEN_ROUTER_KEY
@@ -389,12 +406,17 @@ async def ask_ai(character_id: str, history: list, user_message: str, lang: str 
     if not char:
         return t(lang, "ai_error")
     system_prompt = char["system"].get(lang) or char["system"].get("ru", "")
+    max_tokens = char.get("max_tokens", 150)
     full_history = list(history[-10:]) + [{"role": "user", "content": user_message}]
-    logger.info(f"ask_ai: char={character_id} model={char['model']} key_prefix={OPEN_ROUTER_KEY[:8]}...")
-    response = await get_ai_chat_response(system_prompt, full_history, char["model"])
+    logger.info(f"ask_ai: char={character_id} model={char['model']} max_tokens={max_tokens}")
+    response = await get_ai_chat_response(system_prompt, full_history, char["model"], max_tokens=max_tokens)
     if not response:
         logger.error(f"ask_ai: empty response for char={character_id} model={char['model']}")
-    return response or t(lang, "ai_error")
+        return t(lang, "ai_error")
+    if _is_garbage(response):
+        logger.error(f"ask_ai: garbage response detected for char={character_id} model={char['model']}")
+        return t(lang, "ai_error")
+    return response
 
 
 # ====================== AI MENU ======================
