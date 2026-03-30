@@ -28,7 +28,7 @@ AI_CHARACTERS = {
         "emoji": "🌙",
         "tier": "basic",
         "block": "simple",
-        "model": "meta-llama/llama-3.1-8b-instruct",
+        "model": "google/gemini-flash-1.5",
         "system": {
             "ru": (
                 "Ты — Луна, 21 год, учишься в художке. "
@@ -86,7 +86,7 @@ AI_CHARACTERS = {
         "emoji": "🧢",
         "tier": "basic",
         "block": "simple",
-        "model": "meta-llama/llama-3.1-8b-instruct",
+        "model": "google/gemini-flash-1.5",
         "system": {
             "ru": (
                 "Ты — Макс, 24 года, работаешь в IT поддержке. "
@@ -396,6 +396,9 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         return
     char = AI_CHARACTERS[char_id]
     user_tier = await _get_premium_tier(uid)
+    if char["tier"] == "premium" and user_tier not in ("premium", "plus"):
+        await callback.answer(t(lang, "ai_vip_required"), show_alert=True)
+        return
     limit = get_ai_limit(char["tier"], user_tier)
     _ai_sessions[uid] = {"character": char_id, "history": [], "msg_count": 0}
     _last_ai_msg[uid] = datetime.now()
