@@ -144,7 +144,7 @@ AI_CHARACTERS = {
         "emoji": "✨",
         "tier": "premium",
         "block": "simple",
-        "model": "anthropic/claude-3-haiku",
+        "model": "anthropic/claude-3-haiku-20240307",
         "system": {
             "ru": (
                 "Ты — Аврора, 28 лет, маркетинг-директор в международной компании. "
@@ -211,7 +211,7 @@ AI_CHARACTERS = {
         "emoji": "🔥",
         "tier": "premium",
         "block": "simple",
-        "model": "anthropic/claude-3-haiku",
+        "model": "anthropic/claude-3-haiku-20240307",
         "system": {
             "ru": (
                 "Ты — Алекс, 26 лет, фрилансер и искатель приключений. "
