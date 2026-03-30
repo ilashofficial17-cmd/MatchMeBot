@@ -2,73 +2,24 @@ from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton,
 )
-from datetime import datetime
 from locales import t
 
 CHANNEL_ID = "@MATCHMEHUB"
 
-MODE_NAMES = {"simple": "Просто общение 💬", "flirt": "Флирт 💋", "kink": "Kink 🔥"}
+# Интересы хранятся в БД как есть — не переводим
 INTERESTS_MAP = {
     "simple": ["Разговор по душам 🗣", "Юмор и мемы 😂", "Советы по жизни 💡", "Музыка 🎵", "Игры 🎮"],
     "flirt":  ["Лёгкий флирт 😏", "Комплименты 💌", "Секстинг 🔥", "Виртуальные свидания 💑", "Флирт и игры 🎭"],
     "kink":   ["BDSM 🖤", "Bondage 🔗", "Roleplay 🎭", "Dom/Sub ⛓", "Pet play 🐾", "Другой фетиш ✨"],
 }
 
-WELCOME_TEXT = (
-    "👋 Привет! Я MatchMe — анонимный чат для общения, флирта и знакомств.\n\n"
-    "🇷🇺 Нажми кнопку для продолжения\n"
-    "🇬🇧 Click button to continue"
-)
-
-PRIVACY_TEXT = """🔒 Политика конфиденциальности MatchMe
-
-Что собираем: Telegram ID, имя, возраст, пол — для подбора собеседников.
-Данные НЕ передаются третьим лицам. Переписка НЕ хранится постоянно.
-
-🛡 Конфиденциальность чатов:
-Все чаты в боте полностью конфиденциальны и защищены.
-Мы не предоставляем доступ к вашим перепискам третьим лицам.
-Модерация чатов осуществляется исключительно ИИ-модератором.
-Ни администраторы, ни владелец бота не просматривают личные чаты пользователей.
-
-Возраст: минимум 16 лет. 16-17 — Общение и Флирт. 18+ — все режимы.
-Удаление данных: /reset или написать администратору.
-
-Принимая условия ты соглашаешься с политикой конфиденциальности."""
-
-RULES_RU = """📜 Правила MatchMe
-
-Разрешено: общение, флирт, ролевые игры (18+), лайки собеседникам.
-Возраст: 16-17 — Общение и Флирт. 18+ — все режимы. Ложный возраст = перм бан.
-
-❌ Запрещено:
-• Реклама, спам, мошенничество — бан
-• Интим-услуги, контент с несовершеннолетними — перм бан
-• Пошлые темы без согласия в «Общении» — бан
-• Угрозы, оскорбления, ложные жалобы — бан
-
-Нарушения: предупреждение → бан 3ч → бан 24ч → перм бан.
-
-Нажми ✅ Принять правила для продолжения."""
-
-RULES_PROFILE = """📜 Правила общения:
-
-• Уважай собеседника
-• 👍 Лайк — если понравилось
-• 🚩 Жалоба — только при реальных нарушениях!
-• Реклама = бан
-• Ложная жалоба = санкции
-
-Нажми ✅ Понятно для продолжения."""
-
-
 # ====================== КЛАВИАТУРЫ ======================
 
-def kb_main():
+def kb_main(lang="ru"):
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="⚡ Поиск"), KeyboardButton(text="🔍 По анкете")],
-        [KeyboardButton(text="🤖 ИИ чат"), KeyboardButton(text="👤 Профиль")],
-        [KeyboardButton(text="⚙️ Настройки"), KeyboardButton(text="❓ Помощь")]
+        [KeyboardButton(text=t(lang, "btn_search")), KeyboardButton(text=t(lang, "btn_find"))],
+        [KeyboardButton(text=t(lang, "btn_ai_chat")), KeyboardButton(text=t(lang, "btn_profile"))],
+        [KeyboardButton(text=t(lang, "btn_settings")), KeyboardButton(text=t(lang, "btn_help"))],
     ], resize_keyboard=True)
 
 
@@ -86,59 +37,67 @@ def kb_privacy(lang="ru"):
 
 
 def kb_rules(lang="ru"):
-    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=t(lang, "btn_accept_rules"))]], resize_keyboard=True)
-
-
-def kb_rules_profile():
-    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="✅ Понятно, начать анкету")]], resize_keyboard=True)
-
-
-def kb_cancel_reg():
-    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="❌ Отменить анкету")]], resize_keyboard=True)
-
-
-def kb_gender():
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="👨 Парень"), KeyboardButton(text="👩 Девушка")],
-        [KeyboardButton(text="⚧ Другое")],
-        [KeyboardButton(text="❌ Отменить анкету")]
+        [KeyboardButton(text=t(lang, "btn_accept_rules"))]
     ], resize_keyboard=True)
 
 
-def kb_mode():
+def kb_rules_profile(lang="ru"):
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="💬 Просто общение")],
-        [KeyboardButton(text="💋 Флирт")],
-        [KeyboardButton(text="🔥 Kink / ролевые (18+)")],
-        [KeyboardButton(text="❌ Отменить анкету")]
+        [KeyboardButton(text=t(lang, "btn_start_form"))]
     ], resize_keyboard=True)
 
 
-def kb_cancel_search():
-    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="❌ Отменить поиск")]], resize_keyboard=True)
-
-
-def kb_chat():
+def kb_cancel_reg(lang="ru"):
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="⏭ Следующий"), KeyboardButton(text="❌ Стоп")],
-        [KeyboardButton(text="👍 Лайк"), KeyboardButton(text="🚩 Жалоба")],
-        [KeyboardButton(text="🎲 Дай тему"), KeyboardButton(text="🏠 Главное меню")]
+        [KeyboardButton(text=t(lang, "btn_cancel_reg"))]
     ], resize_keyboard=True)
 
 
-def kb_search_gender():
+def kb_gender(lang="ru"):
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="👨 Парня"), KeyboardButton(text="👩 Девушку")],
-        [KeyboardButton(text="⚧ Другое"), KeyboardButton(text="🔀 Не важно")],
-        [KeyboardButton(text="◀️ Назад")]
+        [KeyboardButton(text=t(lang, "btn_male")), KeyboardButton(text=t(lang, "btn_female"))],
+        [KeyboardButton(text=t(lang, "btn_other"))],
+        [KeyboardButton(text=t(lang, "btn_cancel_reg"))],
     ], resize_keyboard=True)
 
 
-def kb_after_chat(partner_uid):
+def kb_mode(lang="ru"):
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text=t(lang, "btn_mode_simple"))],
+        [KeyboardButton(text=t(lang, "btn_mode_flirt"))],
+        [KeyboardButton(text=t(lang, "btn_mode_kink"))],
+        [KeyboardButton(text=t(lang, "btn_cancel_reg"))],
+    ], resize_keyboard=True)
+
+
+def kb_cancel_search(lang="ru"):
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text=t(lang, "btn_cancel_search"))]
+    ], resize_keyboard=True)
+
+
+def kb_chat(lang="ru"):
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text=t(lang, "btn_next")), KeyboardButton(text=t(lang, "btn_stop"))],
+        [KeyboardButton(text=t(lang, "btn_like")), KeyboardButton(text=t(lang, "btn_complaint"))],
+        [KeyboardButton(text=t(lang, "btn_topic")), KeyboardButton(text=t(lang, "btn_home"))],
+    ], resize_keyboard=True)
+
+
+def kb_search_gender(lang="ru"):
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text=t(lang, "btn_find_male")), KeyboardButton(text=t(lang, "btn_find_female"))],
+        [KeyboardButton(text=t(lang, "btn_find_other")), KeyboardButton(text=t(lang, "btn_find_any"))],
+        [KeyboardButton(text=t(lang, "btn_back"))],
+    ], resize_keyboard=True)
+
+
+def kb_after_chat(partner_uid, lang="ru"):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❤️ Хочу продолжить общение", callback_data=f"mutual:{partner_uid}")],
-        [InlineKeyboardButton(text="🔍 Найти нового", callback_data="goto:find")],
-        [InlineKeyboardButton(text="🏠 В меню", callback_data="goto:menu")],
+        [InlineKeyboardButton(text="❤️ " + t(lang, "mutual_request_sent").split("\n")[0], callback_data=f"mutual:{partner_uid}")],
+        [InlineKeyboardButton(text=t(lang, "btn_find"), callback_data="goto:find")],
+        [InlineKeyboardButton(text=t(lang, "btn_home"), callback_data="goto:menu")],
     ])
 
 
@@ -150,57 +109,57 @@ def kb_channel_bonus(lang="ru"):
     ])
 
 
-def kb_ai_characters(user_tier=None, mode="simple"):
+def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
     buttons = []
     if mode in ["simple", "any"]:
         buttons.append([
             InlineKeyboardButton(text="👨 Данил", callback_data="aichar:danil"),
-            InlineKeyboardButton(text="👩 Полина", callback_data="aichar:polina")
+            InlineKeyboardButton(text="👩 Полина", callback_data="aichar:polina"),
         ])
     if mode in ["flirt", "any"]:
         buttons.append([
             InlineKeyboardButton(text="😏 Макс", callback_data="aichar:max"),
-            InlineKeyboardButton(text="💋 Виолетта", callback_data="aichar:violetta")
+            InlineKeyboardButton(text="💋 Виолетта", callback_data="aichar:violetta"),
         ])
     if mode in ["kink", "any"]:
         buttons.append([
             InlineKeyboardButton(text="🐾 Алиса", callback_data="aichar:alisa"),
-            InlineKeyboardButton(text="😈 Дмитри", callback_data="aichar:dmitri")
+            InlineKeyboardButton(text="😈 Дмитри", callback_data="aichar:dmitri"),
         ])
         buttons.append([InlineKeyboardButton(text="🎭 Ролевой мастер", callback_data="aichar:rolemaster")])
-    buttons.append([InlineKeyboardButton(text="🧠 Мощная нейронка (скоро)", callback_data="aichar:power_soon")])
+    buttons.append([InlineKeyboardButton(text="🧠 " + t(lang, "ai_power_soon").replace("🔧 ", ""), callback_data="aichar:power_soon")])
     if mode != "any":
-        buttons.append([InlineKeyboardButton(text="🔀 Все персонажи", callback_data="aichar:all")])
-    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="aichar:back")])
+        buttons.append([InlineKeyboardButton(text="🔀 " + t(lang, "btn_find_any").replace("🔀 ", ""), callback_data="aichar:all")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def kb_ai_chat():
+def kb_ai_chat(lang="ru"):
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="🔄 Сменить персонажа"), KeyboardButton(text="❌ Завершить чат")],
-        [KeyboardButton(text="🔍 Найти живого собеседника")],
-        [KeyboardButton(text="🏠 Главное меню")]
+        [KeyboardButton(text=t(lang, "btn_change_char")), KeyboardButton(text=t(lang, "btn_end_ai_chat"))],
+        [KeyboardButton(text=t(lang, "btn_find_live"))],
+        [KeyboardButton(text=t(lang, "btn_home"))],
     ], resize_keyboard=True)
 
 
-def kb_interests(mode, selected):
+def kb_interests(mode, selected, lang="ru"):
     interests = INTERESTS_MAP.get(mode, [])
     buttons = []
     for interest in interests:
         mark = "✅ " if interest in selected else ""
         buttons.append([InlineKeyboardButton(text=f"{mark}{interest}", callback_data=f"int:{interest}")])
-    buttons.append([InlineKeyboardButton(text="✅ Готово — сохранить", callback_data="int:done")])
+    buttons.append([InlineKeyboardButton(text="✅ " + t(lang, "edit_done"), callback_data="int:done")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def kb_complaint():
+def kb_complaint(lang="ru"):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔞 Несовершеннолетние", callback_data="rep:minor")],
         [InlineKeyboardButton(text="💰 Спам / Реклама", callback_data="rep:spam")],
         [InlineKeyboardButton(text="😡 Угрозы / Оскорбления", callback_data="rep:abuse")],
         [InlineKeyboardButton(text="🔞 Пошлятина без согласия", callback_data="rep:nsfw")],
         [InlineKeyboardButton(text="🔄 Другое", callback_data="rep:other")],
-        [InlineKeyboardButton(text="◀️ Отмена", callback_data="rep:cancel")],
+        [InlineKeyboardButton(text=t(lang, "btn_back") + " Отмена", callback_data="rep:cancel")],
     ])
 
 
@@ -240,8 +199,8 @@ def kb_user_actions(target_uid, is_shadow=False):
          InlineKeyboardButton(text="✅ Разбан", callback_data=f"uadm:unban:{target_uid}")],
         [InlineKeyboardButton(
             text="👻 Снять shadow ban" if is_shadow else "👻 Shadow ban",
-            callback_data=f"uadm:shadowtoggle:{target_uid}"
-         )],
+            callback_data=f"uadm:shadowtoggle:{target_uid}",
+        )],
         [InlineKeyboardButton(text="⚠️ Предупреждение", callback_data=f"uadm:warn:{target_uid}"),
          InlineKeyboardButton(text="❌ Кик", callback_data=f"uadm:kick:{target_uid}")],
         [InlineKeyboardButton(text="⭐ Дать Premium 30д", callback_data=f"uadm:premium:{target_uid}"),
