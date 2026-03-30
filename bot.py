@@ -73,6 +73,7 @@ chat_logs = {}
 ai_sessions = {}
 last_ai_msg = {}  # uid -> datetime последнего сообщения в AI чат
 mutual_likes = {}  # uid -> set of partner_uids которым лайкнул
+liked_chats = set()  # (uid, chat_key) — защита от спама лайков
 
 
 # Стоп-слова для логирования жалоб
@@ -518,7 +519,7 @@ def get_queue(mode, premium=False):
         if mode == "simple": return waiting_simple
         if mode == "flirt": return waiting_flirt
         if mode == "kink": return waiting_kink
-    return waiting_anon
+    return waiting_simple
 
 def get_rating(u):
     return u.get("likes", 0) - u.get("dislikes", 0)
@@ -533,6 +534,10 @@ async def cleanup(uid, state=None):
     if partner:
         await remove_chat_from_db(uid, partner)
         clear_chat_log(uid, partner)
+        # Cleanup liked_chats for this chat
+        chat_key = get_chat_key(uid, partner)
+        liked_chats.discard((uid, chat_key))
+        liked_chats.discard((partner, chat_key))
     ai_sessions.pop(uid, None)
     if state: await state.clear()
     return partner
@@ -1518,13 +1523,11 @@ async def relay(message: types.Message, state: FSMContext):
             partner = active_chats[uid]
             # Защита от спама лайков — 1 лайк за чат
             chat_key = get_chat_key(uid, partner)
-            if not hasattr(do_find, '_liked_chats'):
-                do_find._liked_chats = set()
             like_key = (uid, chat_key)
-            if like_key in do_find._liked_chats:
+            if like_key in liked_chats:
                 await message.answer(t(lang, "like_already"))
                 return
-            do_find._liked_chats.add(like_key)
+            liked_chats.add(like_key)
             await increment_user(partner, likes=1)
             await message.answer(t(lang, "like_sent"))
             try:
@@ -1984,7 +1987,7 @@ async def show_help(message: types.Message):
     lang = await get_lang(uid)
     await message.answer(t(lang, "help_text"), reply_markup=kb_main(lang))
 
-@dp.message(F.text.contains("Перезапустить"), StateFilter("*"))
+@dp.message(Command("restart"), StateFilter("*"))
 async def cmd_restart(message: types.Message, state: FSMContext):
     await cmd_start(message, state)
 

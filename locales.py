@@ -135,6 +135,14 @@ TEXTS = {
         "mod_ban3h": "🚫 Бан на 3 часа: {reason}",
         "mod_ban24h": "🚫 Бан на 24 часа: {reason}",
         "mod_banperm": "🚫 Перманентный бан: {reason}",
+        # Административные действия — уведомления пользователю
+        "adm_warn_user": "⚠️ Предупреждение от администратора.",
+        "adm_kick_user": "❌ Кик от администратора.",
+        "adm_premium_granted": "⭐ Тебе выдан Premium на 30 дней!",
+        "adm_premium_removed": "❌ Premium отменён администратором.",
+        "adm_update_now": "🔧 Бот обновляется прямо сейчас!",
+        "adm_update_soon": "🔧 Через {minutes} мин. обновление!",
+        "reminder_ai_bonus": "🎁 Мы скучали! +5 бесплатных AI сообщений специально для тебя!\nЗаходи общаться 💬",
         # Тексты — жалоба
         "complaint_prompt": "🚩 Укажи причину жалобы:",
         "complaint_cancelled": "↩️ Жалоба отменена.",
@@ -618,6 +626,14 @@ TEXTS = {
         "mod_ban3h": "🚫 Banned for 3 hours: {reason}",
         "mod_ban24h": "🚫 Banned for 24 hours: {reason}",
         "mod_banperm": "🚫 Permanent ban: {reason}",
+        # Admin actions — user notifications
+        "adm_warn_user": "⚠️ Warning from administrator.",
+        "adm_kick_user": "❌ Kicked by administrator.",
+        "adm_premium_granted": "⭐ You've been granted Premium for 30 days!",
+        "adm_premium_removed": "❌ Premium revoked by administrator.",
+        "adm_update_now": "🔧 Bot is updating right now!",
+        "adm_update_soon": "🔧 Update in {minutes} min!",
+        "reminder_ai_bonus": "🎁 We missed you! +5 free AI messages just for you!\nCome chat 💬",
         # Complaint
         "complaint_prompt": "🚩 Choose the reason for your report:",
         "complaint_cancelled": "↩️ Report cancelled.",
@@ -1101,6 +1117,14 @@ TEXTS = {
         "mod_ban3h": "🚫 Baneado por 3 horas: {reason}",
         "mod_ban24h": "🚫 Baneado por 24 horas: {reason}",
         "mod_banperm": "🚫 Ban permanente: {reason}",
+        # Acciones administrativas — notificaciones al usuario
+        "adm_warn_user": "⚠️ Advertencia del administrador.",
+        "adm_kick_user": "❌ Expulsado por el administrador.",
+        "adm_premium_granted": "⭐ ¡Se te ha otorgado Premium por 30 días!",
+        "adm_premium_removed": "❌ Premium revocado por el administrador.",
+        "adm_update_now": "🔧 ¡El bot se está actualizando ahora mismo!",
+        "adm_update_soon": "🔧 ¡Actualización en {minutes} min!",
+        "reminder_ai_bonus": "🎁 ¡Te extrañamos! +5 mensajes IA gratis solo para ti!\nVen a chatear 💬",
         # Reporte
         "complaint_prompt": "🚩 Elige el motivo del reporte:",
         "complaint_cancelled": "↩️ Reporte cancelado.",

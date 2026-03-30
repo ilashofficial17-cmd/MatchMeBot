@@ -11,6 +11,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from states import AdminState
 from keyboards import kb_main, kb_complaint_action, kb_user_actions, MODE_NAMES
+from locales import t
 import moderation
 
 router = Router()
@@ -74,6 +75,11 @@ def init(*, bot, dp, db_pool, admin_id, active_chats, ai_sessions, last_ai_msg,
     _get_rating = get_rating
     _remove_chat_from_db = remove_chat_from_db
     _AI_CHARACTERS = AI_CHARACTERS
+
+
+async def _get_lang(uid: int) -> str:
+    u = await _get_user(uid)
+    return (u.get("lang") or "ru") if u else "ru"
 
 
 async def get_pending_complaints():
@@ -257,21 +263,26 @@ async def handle_update_notify(callback: types.CallbackQuery):
         await callback.answer("Нет доступа", show_alert=True)
         return
     minutes = int(callback.data.split(":")[1])
-    text = "🔧 Бот обновляется прямо сейчас!" if minutes == 0 else f"🔧 Через {minutes} мин. обновление!"
     sent = 0
     for uid, partner in list(_active_chats.items()):
         if uid < partner:
             try:
-                await _bot.send_message(uid, text, reply_markup=kb_main())
-                await _bot.send_message(partner, text, reply_markup=kb_main())
+                uid_lang = await _get_lang(uid)
+                p_lang = await _get_lang(partner)
+                uid_text = t(uid_lang, "adm_update_now") if minutes == 0 else t(uid_lang, "adm_update_soon", minutes=minutes)
+                p_text = t(p_lang, "adm_update_now") if minutes == 0 else t(p_lang, "adm_update_soon", minutes=minutes)
+                await _bot.send_message(uid, uid_text, reply_markup=kb_main(uid_lang))
+                await _bot.send_message(partner, p_text, reply_markup=kb_main(p_lang))
                 sent += 2
             except Exception: pass
     async with _db_pool.acquire() as conn:
-        all_users = await conn.fetch("SELECT uid FROM users WHERE last_seen > NOW() - INTERVAL '7 days'")
+        all_users = await conn.fetch("SELECT uid, lang FROM users WHERE last_seen > NOW() - INTERVAL '7 days'")
     active_uids = set(_active_chats.keys())
     for row in all_users:
         if row["uid"] in active_uids: continue
         try:
+            u_lang = row.get("lang") or "ru"
+            text = t(u_lang, "adm_update_now") if minutes == 0 else t(u_lang, "adm_update_soon", minutes=minutes)
             await _bot.send_message(row["uid"], text)
             sent += 1
             await asyncio.sleep(0.05)
@@ -457,17 +468,23 @@ async def admin_user_action(callback: types.CallbackQuery):
     elif action == "warn":
         await _increment_user(target_uid, warn_count=1)
         await callback.answer("✅ Предупреждение")
-        try: await _bot.send_message(target_uid, "⚠️ Предупреждение от администратора.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_warn_user"))
         except Exception: pass
     elif action == "kick":
         if target_uid in _active_chats:
             partner = _active_chats.pop(target_uid, None)
             if partner: _active_chats.pop(partner, None)
             await _remove_chat_from_db(target_uid, partner)
-            try: await _bot.send_message(target_uid, "❌ Кик от администратора.", reply_markup=kb_main())
+            try:
+                u_lang = await _get_lang(target_uid)
+                await _bot.send_message(target_uid, t(u_lang, "adm_kick_user"), reply_markup=kb_main(u_lang))
             except Exception: pass
             if partner:
-                try: await _bot.send_message(partner, "😔 Собеседник покинул чат.", reply_markup=kb_main())
+                try:
+                    p_lang = await _get_lang(partner)
+                    await _bot.send_message(partner, t(p_lang, "partner_left"), reply_markup=kb_main(p_lang))
                 except Exception: pass
             await callback.answer("✅ Кикнут")
         else:
@@ -476,12 +493,16 @@ async def admin_user_action(callback: types.CallbackQuery):
         until = datetime.now() + timedelta(days=30)
         await _update_user(target_uid, premium_until=until.isoformat())
         await callback.answer("✅ Premium 30д")
-        try: await _bot.send_message(target_uid, "⭐ Тебе выдан Premium на 30 дней!", reply_markup=kb_main())
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_premium_granted"), reply_markup=kb_main(u_lang))
         except Exception: pass
     elif action == "unpremium":
         await _update_user(target_uid, premium_until=None)
         await callback.answer("✅ Premium забран")
-        try: await _bot.send_message(target_uid, "❌ Premium отменён администратором.")
+        try:
+            u_lang = await _get_lang(target_uid)
+            await _bot.send_message(target_uid, t(u_lang, "adm_premium_removed"))
         except Exception: pass
     elif action == "shadowtoggle":
         tu = await _get_user(target_uid)
@@ -509,7 +530,9 @@ async def admin_user_action(callback: types.CallbackQuery):
             if partner:
                 _active_chats.pop(partner, None)
                 await _remove_chat_from_db(target_uid, partner)
-                try: await _bot.send_message(partner, "😔 Собеседник покинул чат.", reply_markup=kb_main())
+                try:
+                    p_lang = await _get_lang(partner)
+                    await _bot.send_message(partner, t(p_lang, "partner_left"), reply_markup=kb_main(p_lang))
                 except Exception: pass
         _ai_sessions.pop(target_uid, None)
         _last_ai_msg.pop(target_uid, None)
@@ -553,9 +576,13 @@ async def inactivity_checker():
                     await FSMContext(_dp.storage, key=key).clear()
                 except Exception:
                     pass
-            try: await _bot.send_message(uid, "⏰ Чат завершён — 7 мин неактивности.", reply_markup=kb_main())
+            try:
+                uid_lang = await _get_lang(uid)
+                await _bot.send_message(uid, t(uid_lang, "inactivity_end"), reply_markup=kb_main(uid_lang))
             except Exception: pass
-            try: await _bot.send_message(partner, "⏰ Чат завершён — 7 мин неактивности.", reply_markup=kb_main())
+            try:
+                p_lang = await _get_lang(partner)
+                await _bot.send_message(partner, t(p_lang, "inactivity_end"), reply_markup=kb_main(p_lang))
             except Exception: pass
 
         # Завершаем неактивные AI чаты (10 мин)
@@ -572,7 +599,8 @@ async def inactivity_checker():
                 await FSMContext(_dp.storage, key=key).clear()
             except Exception: pass
             try:
-                await _bot.send_message(uid_key, "⏰ AI чат завершён — 10 мин неактивности.", reply_markup=kb_main())
+                ai_lang = await _get_lang(uid_key)
+                await _bot.send_message(uid_key, t(ai_lang, "inactivity_ai_end"), reply_markup=kb_main(ai_lang))
             except Exception: pass
 
         # Обновляем bot_stats для channel_bot (live-данные)
@@ -617,10 +645,11 @@ async def reminder_task():
         await asyncio.sleep(7200)  # каждые 2 часа
         try:
             online_count = len(_active_chats) // 2 + sum(len(q) for q in _get_all_queues())
-            char_name = random.choice(list(_AI_CHARACTERS.values()))["name"]
+            char_data = random.choice(list(_AI_CHARACTERS.values()))
+            char_name = t("ru", char_data["name_key"])
             async with _db_pool.acquire() as conn:
                 rows = await conn.fetch("""
-                    SELECT uid, ai_msg_basic, ai_msg_premium, premium_until, last_seen
+                    SELECT uid, lang, ai_msg_basic, ai_msg_premium, premium_until, last_seen
                     FROM users
                     WHERE last_seen < NOW() - INTERVAL '24 hours'
                     AND (last_reminder IS NULL OR last_reminder < NOW() - INTERVAL '24 hours')
@@ -638,11 +667,12 @@ async def reminder_task():
                         days_inactive = (datetime.now() - row["last_seen"]).days
                     is_prem = bool(row.get("premium_until"))
                     used_ai = (row.get("ai_msg_basic", 0) >= 15 or row.get("ai_msg_premium", 0) >= 8)
+                    u_lang = row.get("lang") or "ru"
+                    u_char_name = t(u_lang, char_data["name_key"])
                     if days_inactive >= 3 and used_ai and not is_prem:
                         await _bot.send_message(uid,
-                            "🎁 Мы скучали! +5 бесплатных AI сообщений специально для тебя!\n"
-                            "Заходи общаться 💬",
-                            reply_markup=kb_main()
+                            t(u_lang, "reminder_ai_bonus"),
+                            reply_markup=kb_main(u_lang)
                         )
                         async with _db_pool.acquire() as conn:
                             await conn.execute(
@@ -651,8 +681,8 @@ async def reminder_task():
                             )
                     else:
                         template = random.choice(REMINDER_TEMPLATES)
-                        text = template.format(n=max(online_count, 3), char=char_name)
-                        await _bot.send_message(uid, text, reply_markup=kb_main())
+                        text = template.format(n=max(online_count, 3), char=u_char_name)
+                        await _bot.send_message(uid, text, reply_markup=kb_main(u_lang))
                         async with _db_pool.acquire() as conn:
                             await conn.execute("UPDATE users SET last_reminder = NOW() WHERE uid = $1", uid)
                     sent += 1

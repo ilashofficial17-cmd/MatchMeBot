@@ -277,6 +277,7 @@ async def ai_choosing_text(message: types.Message, state: FSMContext):
         await message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         return
     if txt == t(lang, "btn_change_char"):
+        await message.answer(t(lang, "ai_select_from_buttons"))
         return
     if txt == t(lang, "btn_find_live"):
         _ai_sessions.pop(uid, None)
