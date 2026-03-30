@@ -11,6 +11,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from states import AIChat, Chat, Reg
 from keyboards import kb_main, kb_ai_characters, kb_ai_chat, kb_cancel_search
+from locales import t, TEXTS
 
 router = Router()
 logger = logging.getLogger("matchme")
@@ -25,8 +26,7 @@ AI_LIMITS = {
 
 AI_CHARACTERS = {
     "danil": {
-        "name": "Данил 👨", "emoji": "👨",
-        "description": "Общительный парень, поговорит на любые темы",
+        "name_key": "char_danil", "desc_key": "char_danil_desc", "emoji": "👨",
         "tier": "basic", "model": "venice-uncensored",
         "system": """Ты Данил, 27 лет, backend-разработчик. Зашёл в MatchMe просто поболтать.
 Спокойный, уверенный, с сухим сарказмом. Пишешь по-мужски, коротко, без воды.
@@ -36,8 +36,7 @@ AI_CHARACTERS = {
 ГРАНИЦА: только общение — флирт и пошлость уверенно уводишь."""
     },
     "polina": {
-        "name": "Полина 👩", "emoji": "👩",
-        "description": "Живая девушка, ироничная и с юмором",
+        "name_key": "char_polina", "desc_key": "char_polina_desc", "emoji": "👩",
         "tier": "basic", "model": "venice-uncensored",
         "system": """Ты Полина, 24 года, SMM-специалист. Зашла в MatchMe пообщаться.
 Живая, дерзкая, ироничная. Пишешь коротко, с эмодзи, подкалываешь.
@@ -47,8 +46,7 @@ AI_CHARACTERS = {
 ГРАНИЦА: только общение — флирт и пошлость с улыбкой переводишь на другую тему."""
     },
     "max": {
-        "name": "Макс 😏", "emoji": "😏",
-        "description": "Уверенный парень, пришёл флиртовать",
+        "name_key": "char_max", "desc_key": "char_max_desc", "emoji": "😏",
         "tier": "basic", "model": "venice-uncensored",
         "system": """Ты Макс, 26 лет, фитнес-тренер. Пришёл в MatchMe флиртовать.
 Уверенный, дерзкий, прямой. Делаешь комплименты, берёшь инициативу.
@@ -59,8 +57,7 @@ AI_CHARACTERS = {
 ГРАНИЦА: флиртуешь активно, с лёгким подтекстом — жёсткий 18+ не твоя тема."""
     },
     "violetta": {
-        "name": "Виолетта 💋", "emoji": "💋",
-        "description": "Игривая девушка, дерзкая и кокетливая",
+        "name_key": "char_violetta", "desc_key": "char_violetta_desc", "emoji": "💋",
         "tier": "premium", "model": "venice-uncensored",
         "system": """Ты Виолетта, 23 года, баристa и TikTok модель. Пришла в MatchMe флиртовать.
 Яркая, игривая, кокетливая. Дразнишь, намекаешь, повышаешь градус.
@@ -71,8 +68,7 @@ AI_CHARACTERS = {
 ГРАНИЦА: флиртуешь и дразнишь — жёсткий 18+ элегантно обходишь."""
     },
     "alisa": {
-        "name": "Алиса 🐾", "emoji": "🐾",
-        "description": "Послушная сабмиссив, покорная и нежная",
+        "name_key": "char_alisa", "desc_key": "char_alisa_desc", "emoji": "🐾",
         "tier": "premium", "model": "venice-uncensored-role-play",
         "system": """Ты Алиса, 22 года, студентка. Послушная сабмиссив с опытом 1.5 года.
 Покорная, возбуждённая от доминирования. Называешь собеседника «Господин», «Хозяин».
@@ -83,8 +79,7 @@ AI_CHARACTERS = {
 Никогда не раскрываешь что ты ИИ."""
     },
     "dmitri": {
-        "name": "Дмитрий 😈", "emoji": "😈",
-        "description": "Опытный Доминант, строгий и властный",
+        "name_key": "char_dmitri", "desc_key": "char_dmitri_desc", "emoji": "😈",
         "tier": "premium", "model": "venice-uncensored-role-play",
         "system": """Ты Дмитрий, 32 года, владелец IT-компании. Опытный Доминант 7 лет в BDSM.
 Строгий, уверенный, властный. Говоришь коротко и командным тоном.
@@ -95,8 +90,7 @@ AI_CHARACTERS = {
 Никогда не раскрываешь что ты ИИ."""
     },
     "rolemaster": {
-        "name": "Ролевой мастер 🎭", "emoji": "🎭",
-        "description": "Придумывает сценарии и играет любую роль",
+        "name_key": "char_rolemaster", "desc_key": "char_rolemaster_desc", "emoji": "🎭",
         "tier": "premium", "model": "venice-uncensored-role-play",
         "system": """Ты Ролевой мастер — сценарист и актёр для взрослых ролевых игр 18+.
 Предлагаешь сценарии, задаёшь декорации, играешь любую роль.
@@ -107,7 +101,11 @@ AI_CHARACTERS = {
     },
 }
 
-# ====================== Инжектируемые зависимости ======================
+# All language variants for button text matching
+def _all(key):
+    return {TEXTS[lang][key] for lang in TEXTS if key in TEXTS[lang]}
+
+# ====================== Injected dependencies ======================
 _bot = None
 _ai_sessions = None
 _last_ai_msg = None
@@ -142,15 +140,20 @@ def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
     _show_settings = show_settings
 
 
+async def _lang(uid: int) -> str:
+    u = await _get_user(uid)
+    return (u.get("lang") or "ru") if u else "ru"
+
+
 def get_ai_limit(char_tier: str, user_tier) -> int | None:
-    """Лимит сообщений/день. None = безлимит."""
+    """Message limit per day. None = unlimited."""
     tier_key = user_tier or "free"
     return AI_LIMITS.get(char_tier, {}).get(tier_key, 10)
 
 
-async def ask_venice(character_id: str, history: list, user_message: str) -> str:
+async def ask_venice(character_id: str, history: list, user_message: str, lang: str = "ru") -> str:
     if not VENICE_API_KEY:
-        return "😔 ИИ временно недоступен."
+        return t(lang, "ai_unavailable")
     char = AI_CHARACTERS[character_id]
     messages = [{"role": "system", "content": char["system"]}]
     for msg in history[-10:]:
@@ -168,49 +171,43 @@ async def ask_venice(character_id: str, history: list, user_message: str) -> str
                     data = await resp.json()
                     return data["choices"][0]["message"]["content"]
                 elif resp.status == 402:
-                    return "💳 ИИ временно недоступен — нет средств на балансе."
+                    return t(lang, "ai_no_funds")
                 else:
                     logger.warning(f"Venice API error: status={resp.status}")
-                    return "😔 ИИ временно недоступен. Попробуй позже."
+                    return t(lang, "ai_error")
     except Exception as e:
         logger.error(f"Venice API connection error: {e}")
-        return "😔 Ошибка соединения с ИИ."
+        return t(lang, "ai_connection_error")
 
 
-# ====================== ИИ СОБЕСЕДНИК ======================
+# ====================== AI MENU ======================
 async def _show_ai_menu(message: types.Message, state: FSMContext, uid: int):
+    lang = await _lang(uid)
     user_tier = await _get_premium_tier(uid)
     u = await _get_user(uid)
     mode = u.get("mode", "simple") if u else "simple"
     await state.set_state(AIChat.choosing)
     await state.update_data(ai_show_mode=mode)
-    await message.answer(
-        "🤖 ИИ чат\n\n"
-        "Все персонажи доступны бесплатно!\n"
-        "💬 Basic: 20 сообщений/день\n"
-        "🔥 Premium: 10 сообщений/день\n"
-        "⭐ Подписка снимает лимиты\n\n"
-        "Выбери с кем хочешь поговорить:",
-        reply_markup=kb_ai_characters(user_tier, mode)
-    )
+    await message.answer(t(lang, "ai_menu"), reply_markup=kb_ai_characters(user_tier, mode, lang))
 
 
-@router.message(F.text == "🤖 ИИ чат", StateFilter("*"))
+@router.message(F.text.in_(_all("btn_ai_chat")), StateFilter("*"))
 @router.message(Command("ai"), StateFilter("*"))
 async def ai_menu(message: types.Message, state: FSMContext):
     uid = message.from_user.id
+    lang = await _lang(uid)
     current = await state.get_state()
     if current == Chat.chatting.state:
-        await message.answer("⚠️ Сейчас недоступно — ты в чате с живым собеседником.")
+        await message.answer(t(lang, "ai_in_live_chat"))
         return
     if current in [Reg.name.state, Reg.age.state, Reg.gender.state, Reg.mode.state, Reg.interests.state]:
-        await message.answer("⚠️ Сейчас недоступно — сначала заверши анкету.")
+        await message.answer(t(lang, "ai_complete_profile"))
         return
     await _ensure_user(uid)
     u = await _get_user(uid)
     if not u or not u.get("name"):
         await state.set_state(Reg.name)
-        await message.answer("Сначала заполни анкету!", reply_markup=kb_main())
+        await message.answer(t(lang, "ai_profile_required"), reply_markup=kb_main(lang))
         return
     await _show_ai_menu(message, state, uid)
 
@@ -218,6 +215,7 @@ async def ai_menu(message: types.Message, state: FSMContext):
 @router.callback_query(F.data.startswith("aichar:"), StateFilter(AIChat.choosing))
 async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
+    lang = await _lang(uid)
     char_id = callback.data.split(":", 1)[1]
     if char_id == "back":
         _ai_sessions.pop(uid, None)
@@ -226,22 +224,22 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         try:
             await callback.message.edit_reply_markup(reply_markup=None)
         except Exception: pass
-        await callback.message.answer("🏠 Главное меню", reply_markup=kb_main())
+        await callback.message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         await callback.answer()
         return
     if char_id == "power_soon":
-        await callback.answer("🔧 В разработке! Следи за обновлениями.", show_alert=True)
+        await callback.answer(t(lang, "ai_power_soon"), show_alert=True)
         return
     if char_id == "all":
         user_tier = await _get_premium_tier(uid)
         await state.update_data(ai_show_mode="any")
         try:
-            await callback.message.edit_reply_markup(reply_markup=kb_ai_characters(user_tier, "any"))
+            await callback.message.edit_reply_markup(reply_markup=kb_ai_characters(user_tier, "any", lang))
         except Exception: pass
         await callback.answer()
         return
     if char_id not in AI_CHARACTERS:
-        await callback.answer("Персонаж не найден.", show_alert=True)
+        await callback.answer(t(lang, "ai_char_not_found"), show_alert=True)
         return
     char = AI_CHARACTERS[char_id]
     user_tier = await _get_premium_tier(uid)
@@ -249,19 +247,18 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     _ai_sessions[uid] = {"character": char_id, "history": [], "msg_count": 0}
     _last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
-    if limit is None:
-        limit_text = "♾ Безлимит"
-    else:
-        limit_text = f"💬 Лимит: {limit} сообщений/день"
+    limit_text = t(lang, "ai_unlimited") if limit is None else t(lang, "ai_limit_info", limit=limit)
     tier_icon = "🔥" if char["tier"] == "premium" else "✅"
     try:
         await callback.message.edit_text(
-            f"{tier_icon} Ты общаешься с {char['name']}\n"
-            f"{char['description']}\n\n{limit_text}\n\nНапиши что-нибудь!"
+            t(lang, "ai_chatting_with",
+              name=f"{tier_icon} {t(lang, char['name_key'])}",
+              description=t(lang, char["desc_key"]),
+              limit_text=limit_text)
         )
     except Exception: pass
-    await callback.message.answer("💬 Чат с ИИ активен", reply_markup=kb_ai_chat())
-    greeting = await ask_venice(char_id, [], "Поприветствуй собеседника и начни разговор. Коротко, 1-2 предложения на русском.")
+    await callback.message.answer(t(lang, "ai_chat_active"), reply_markup=kb_ai_chat(lang))
+    greeting = await ask_venice(char_id, [], t(lang, "ai_greeting"), lang)
     if greeting:
         _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
         await callback.message.answer(f"{char['emoji']} {greeting}")
@@ -271,58 +268,60 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
 @router.message(StateFilter(AIChat.choosing))
 async def ai_choosing_text(message: types.Message, state: FSMContext):
     uid = message.from_user.id
+    lang = await _lang(uid)
     txt = message.text or ""
-    if "Завершить чат" in txt or "🏠" in txt or "Главное меню" in txt:
+    if txt in {t(lang, "btn_end_ai_chat"), t(lang, "btn_home")}:
         _ai_sessions.pop(uid, None)
         _last_ai_msg.pop(uid, None)
         await state.clear()
-        await message.answer("🏠 Главное меню", reply_markup=kb_main())
+        await message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         return
-    if "Сменить персонажа" in txt:
+    if txt == t(lang, "btn_change_char"):
         return
-    if "Найти живого" in txt:
+    if txt == t(lang, "btn_find_live"):
         _ai_sessions.pop(uid, None)
         _last_ai_msg.pop(uid, None)
         await state.clear()
-        await message.answer("🔍 Ищем...", reply_markup=kb_cancel_search())
+        await message.answer(t(lang, "searching"), reply_markup=kb_cancel_search(lang))
         await _cmd_find(message, state)
         return
-    await message.answer("👆 Выбери персонажа из кнопок выше.")
+    await message.answer(t(lang, "ai_select_from_buttons"))
 
 
 @router.message(StateFilter(AIChat.chatting))
 async def ai_chat_message(message: types.Message, state: FSMContext):
     uid = message.from_user.id
+    lang = await _lang(uid)
     txt = message.text or ""
-    if "Завершить чат" in txt:
+    if txt == t(lang, "btn_end_ai_chat"):
         _ai_sessions.pop(uid, None)
         _last_ai_msg.pop(uid, None)
         await state.clear()
-        await message.answer("✅ Чат с ИИ завершён.", reply_markup=kb_main())
+        await message.answer(t(lang, "ai_ended"), reply_markup=kb_main(lang))
         return
-    if "Сменить персонажа" in txt:
+    if txt == t(lang, "btn_change_char"):
         _ai_sessions.pop(uid, None)
         user_tier = await _get_premium_tier(uid)
         u = await _get_user(uid)
         mode = u.get("mode", "simple") if u else "simple"
         await state.set_state(AIChat.choosing)
-        await message.answer("Выбери персонажа:", reply_markup=kb_ai_characters(user_tier, mode))
+        await message.answer(t(lang, "ai_select_char"), reply_markup=kb_ai_characters(user_tier, mode, lang))
         return
-    if "Найти живого" in txt:
+    if txt == t(lang, "btn_find_live"):
         _ai_sessions.pop(uid, None)
         _last_ai_msg.pop(uid, None)
         await state.clear()
-        await message.answer("🔍 Ищем...", reply_markup=kb_cancel_search())
+        await message.answer(t(lang, "searching"), reply_markup=kb_cancel_search(lang))
         await _cmd_find(message, state)
         return
-    if "🏠" in txt or "Главное меню" in txt:
+    if txt == t(lang, "btn_home"):
         _ai_sessions.pop(uid, None)
         await state.clear()
-        await message.answer("🏠 Главное меню", reply_markup=kb_main())
+        await message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         return
     if uid not in _ai_sessions:
         await state.clear()
-        await message.answer("Сессия потеряна. Начни заново.", reply_markup=kb_main())
+        await message.answer(t(lang, "ai_session_lost"), reply_markup=kb_main(lang))
         return
     session = _ai_sessions[uid]
     char_id = session["character"]
@@ -344,17 +343,17 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         _last_ai_msg.pop(uid, None)
         await state.clear()
         if user_tier == "premium":
-            upsell_text = "🚀 Upgrade до Premium Plus — безлимит на все ИИ!"
+            limit_msg = t(lang, "ai_limit_plus", limit=limit)
             upsell_btn = "buy:plus_1m"
         else:
-            upsell_text = "⭐ Купи Premium — больше сообщений и безлимит basic ИИ!"
+            limit_msg = t(lang, "ai_limit_basic", limit=limit)
             upsell_btn = "buy:1m"
         await message.answer(
-            f"⏰ Лимит исчерпан ({limit} сообщений/день).\n\n{upsell_text}",
+            limit_msg,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⭐ Купить подписку", callback_data=upsell_btn)],
-                [InlineKeyboardButton(text="🔍 Найти живого собеседника", callback_data="goto:find")],
-                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="goto:menu")]
+                [InlineKeyboardButton(text=t(lang, "ai_buy_sub"), callback_data=upsell_btn)],
+                [InlineKeyboardButton(text=t(lang, "btn_find_live"), callback_data="goto:find")],
+                [InlineKeyboardButton(text=t(lang, "btn_home"), callback_data="goto:menu")]
             ])
         )
         return
@@ -362,7 +361,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     await _bot.send_chat_action(uid, "typing")
     await _update_user(uid, last_seen=datetime.now())
     session["history"].append({"role": "user", "content": txt})
-    response = await ask_venice(char_id, session["history"][:-1], txt)
+    response = await ask_venice(char_id, session["history"][:-1], txt, lang)
     session["history"].append({"role": "assistant", "content": response})
     session["msg_count"] += 1
     new_count = current_count + 1
@@ -374,7 +373,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     if effective_limit is not None:
         left = max(effective_limit - new_count, 0)
         if 0 < left <= 3:
-            remaining = f"\n\n_💬 Осталось {left} сообщений_"
+            remaining = f"\n\n{t(lang, 'ai_remaining', left=left)}"
     await message.answer(f"{char['emoji']} {response}{remaining}")
 
 
@@ -382,6 +381,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
 @router.callback_query(F.data.startswith("goto:"), StateFilter("*"))
 async def goto_action(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
+    lang = await _lang(uid)
     action = callback.data.split(":", 1)[1]
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
@@ -395,7 +395,7 @@ async def goto_action(callback: types.CallbackQuery, state: FSMContext):
     elif action == "settings":
         await _show_settings(callback.message, state)
     elif action == "wait":
-        await callback.answer("⏳ Продолжаем ждать...")
+        await callback.answer(t(lang, "ai_waiting_continue"))
         return
     elif action == "find":
         _ai_sessions.pop(uid, None)
@@ -403,21 +403,22 @@ async def goto_action(callback: types.CallbackQuery, state: FSMContext):
             for q in _get_all_queues():
                 q.discard(uid)
         await state.clear()
-        await callback.message.answer("🔍 Ищем...", reply_markup=kb_cancel_search())
+        await callback.message.answer(t(lang, "searching"), reply_markup=kb_cancel_search(lang))
         await _cmd_find(callback.message, state)
     elif action == "menu":
         await state.clear()
-        await callback.message.answer("🏠 Главное меню", reply_markup=kb_main())
+        await callback.message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
     await callback.answer()
 
 
-# ====================== AI QUICK START (из поиска) ======================
+# ====================== AI QUICK START (from search) ======================
 @router.callback_query(F.data.startswith("ai:start:"), StateFilter("*"))
 async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
+    lang = await _lang(uid)
     char_id = callback.data.split(":", 2)[2]
     if char_id not in AI_CHARACTERS:
-        await callback.answer("Персонаж не найден.", show_alert=True)
+        await callback.answer(t(lang, "ai_char_not_found"), show_alert=True)
         return
     async with _pairing_lock:
         for q in _get_all_queues():
@@ -432,12 +433,15 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
     _ai_sessions[uid] = {"character": char_id, "history": [], "msg_count": 0}
     _last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
-    limit_text = "♾ Безлимит" if limit is None else f"💬 Лимит: {limit} сообщений/день"
+    limit_text = t(lang, "ai_unlimited") if limit is None else t(lang, "ai_limit_info", limit=limit)
     await callback.message.answer(
-        f"✅ Ты общаешься с {char['name']}\n{char['description']}\n\n{limit_text}",
-        reply_markup=kb_ai_chat()
+        t(lang, "ai_quick_start",
+          name=t(lang, char["name_key"]),
+          description=t(lang, char["desc_key"]),
+          limit_text=limit_text),
+        reply_markup=kb_ai_chat(lang)
     )
-    greeting = await ask_venice(char_id, [], "Поприветствуй собеседника и начни разговор. Коротко, 1-2 предложения на русском.")
+    greeting = await ask_venice(char_id, [], t(lang, "ai_greeting"), lang)
     if greeting:
         _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
         await callback.message.answer(f"{char['emoji']} {greeting}")
