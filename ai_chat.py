@@ -172,7 +172,7 @@ AI_CHARACTERS = {
 AI_CHARACTERS.update({
     "mia": {
         "name_key": "char_mia", "desc_key": "char_mia_desc", "emoji": "🍭",
-        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b",
+        "tier": "basic", "block": "flirt", "model": "sao10k/l3-euryale-70b",
         "system": {
             "ru": (
                 "Ты — Мия, 22 года. Бариста в андеграунд-кофейне, татуировки, чёрный мотоцикл, техно до трёх ночи.\n\n"
@@ -214,7 +214,7 @@ AI_CHARACTERS.update({
     },
     "kai": {
         "name_key": "char_kai", "desc_key": "char_kai_desc", "emoji": "🎧",
-        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b",
+        "tier": "basic", "block": "flirt", "model": "sao10k/l3-euryale-70b",
         "system": {
             "ru": (
                 "Ты — Кай, 21 год. Фриланс-дизайнер, всегда в наушниках, путешествуешь с одним рюкзаком.\n\n"
