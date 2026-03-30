@@ -200,6 +200,20 @@ async def init_db():
             )
         """)
 
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_history (
+                id SERIAL PRIMARY KEY,
+                uid BIGINT NOT NULL,
+                character_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS ai_history_uid_char ON ai_history(uid, character_id)"
+        )
+
         await conn.execute(
             """INSERT INTO users (uid, premium_until, show_premium, accepted_privacy, accepted_rules)
                VALUES ($1, 'permanent', TRUE, TRUE, TRUE)
@@ -303,6 +317,46 @@ async def increment_user(uid, **kwargs):
     vals = list(kwargs.values())
     async with db_pool.acquire() as conn:
         await conn.execute(f"UPDATE users SET {sets} WHERE uid=$1", uid, *vals)
+
+async def get_ai_history(uid: int, character_id: str, limit: int = 20) -> list:
+    if not db_pool:
+        return []
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT role, content FROM ai_history "
+            "WHERE uid=$1 AND character_id=$2 ORDER BY created_at DESC LIMIT $3",
+            uid, character_id, limit
+        )
+    return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
+
+
+async def save_ai_message(uid: int, character_id: str, role: str, content: str):
+    if not db_pool:
+        return
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO ai_history (uid, character_id, role, content) VALUES ($1, $2, $3, $4)",
+            uid, character_id, role, content
+        )
+        await conn.execute("""
+            DELETE FROM ai_history WHERE id IN (
+                SELECT id FROM ai_history WHERE uid=$1 AND character_id=$2
+                ORDER BY created_at DESC OFFSET 20
+            )
+        """, uid, character_id)
+
+
+async def clear_ai_history(uid: int, character_id: str = None):
+    if not db_pool:
+        return
+    async with db_pool.acquire() as conn:
+        if character_id:
+            await conn.execute(
+                "DELETE FROM ai_history WHERE uid=$1 AND character_id=$2", uid, character_id
+            )
+        else:
+            await conn.execute("DELETE FROM ai_history WHERE uid=$1", uid)
+
 
 async def get_premium_tier(uid):
     """Возвращает 'plus', 'premium' или None"""
@@ -2072,6 +2126,9 @@ async def main():
         update_user=update_user,
         cmd_find=cmd_find,
         show_settings=show_settings,
+        get_ai_history=get_ai_history,
+        save_ai_message=save_ai_message,
+        clear_ai_history=clear_ai_history,
     )
     admin_module.init(
         bot=bot,

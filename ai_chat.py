@@ -346,14 +346,19 @@ _get_premium_tier = None
 _update_user = None
 _cmd_find = None
 _show_settings = None
+_get_ai_history = None
+_save_ai_message = None
+_clear_ai_history = None
 
 
 def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
          active_chats, get_user, ensure_user, get_premium_tier, update_user,
-         cmd_find, show_settings):
+         cmd_find, show_settings, get_ai_history=None, save_ai_message=None,
+         clear_ai_history=None):
     global _bot, _ai_sessions, _last_ai_msg, _pairing_lock, _get_all_queues
     global _active_chats, _get_user, _ensure_user, _get_premium_tier
     global _update_user, _cmd_find, _show_settings
+    global _get_ai_history, _save_ai_message, _clear_ai_history
     _bot = bot
     _ai_sessions = ai_sessions
     _last_ai_msg = last_ai_msg
@@ -366,6 +371,9 @@ def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
     _update_user = update_user
     _cmd_find = cmd_find
     _show_settings = show_settings
+    _get_ai_history = get_ai_history
+    _save_ai_message = save_ai_message
+    _clear_ai_history = clear_ai_history
 
 
 async def _lang(uid: int) -> str:
@@ -377,6 +385,51 @@ def get_ai_limit(char_tier: str, user_tier) -> int | None:
     """Message limit per day. None = unlimited."""
     tier_key = user_tier or "free"
     return AI_LIMITS.get(char_tier, {}).get(tier_key, 10)
+
+
+def _user_context(user: dict, lang: str) -> str:
+    """Строит строку с профилем пользователя для добавления в системный промт."""
+    if not user:
+        return ""
+    name = user.get("name") or ""
+    age = user.get("age")
+    gender = user.get("gender", "")
+    parts = []
+    if lang == "ru":
+        if name: parts.append(f"Имя: {name}")
+        if age: parts.append(f"возраст: {age}")
+        if gender == "male": parts.append("пол: мужчина")
+        elif gender == "female": parts.append("пол: женщина")
+        elif gender == "other": parts.append("пол: другой")
+        if not parts:
+            return ""
+        gender_note = "Обращайся к нему как к мужчине." if gender == "male" else \
+                      "Обращайся к ней как к женщине." if gender == "female" else \
+                      "Обращайся нейтрально."
+        return f"\n\nСобеседник — {', '.join(parts)}. {gender_note} Используй имя в разговоре."
+    elif lang == "en":
+        if name: parts.append(f"Name: {name}")
+        if age: parts.append(f"age: {age}")
+        if gender == "male": parts.append("gender: male")
+        elif gender == "female": parts.append("gender: female")
+        if not parts:
+            return ""
+        gender_note = "Address them as a man." if gender == "male" else \
+                      "Address them as a woman." if gender == "female" else \
+                      "Use neutral address."
+        return f"\n\nThe person you're talking to — {', '.join(parts)}. {gender_note} Use their name naturally."
+    elif lang == "es":
+        if name: parts.append(f"Nombre: {name}")
+        if age: parts.append(f"edad: {age}")
+        if gender == "male": parts.append("género: hombre")
+        elif gender == "female": parts.append("género: mujer")
+        if not parts:
+            return ""
+        gender_note = "Dirígete a él como hombre." if gender == "male" else \
+                      "Dirígete a ella como mujer." if gender == "female" else \
+                      "Usa un trato neutro."
+        return f"\n\nLa persona con la que hablas — {', '.join(parts)}. {gender_note} Usa su nombre de forma natural."
+    return ""
 
 
 def _is_garbage(text: str) -> bool:
@@ -396,7 +449,8 @@ def _is_garbage(text: str) -> bool:
     return False
 
 
-async def ask_ai(character_id: str, history: list, user_message: str, lang: str = "ru") -> str:
+async def ask_ai(character_id: str, history: list, user_message: str,
+                 lang: str = "ru", user: dict = None) -> str:
     """Отправляет сообщение персонажу через OpenRouter."""
     from ai_utils import OPEN_ROUTER_KEY
     if not OPEN_ROUTER_KEY:
@@ -406,8 +460,9 @@ async def ask_ai(character_id: str, history: list, user_message: str, lang: str 
     if not char:
         return t(lang, "ai_error")
     system_prompt = char["system"].get(lang) or char["system"].get("ru", "")
+    system_prompt += _user_context(user, lang)
     max_tokens = char.get("max_tokens", 150)
-    full_history = list(history[-10:]) + [{"role": "user", "content": user_message}]
+    full_history = list(history[-20:]) + [{"role": "user", "content": user_message}]
     logger.info(f"ask_ai: char={character_id} model={char['model']} max_tokens={max_tokens}")
     response = await get_ai_chat_response(system_prompt, full_history, char["model"], max_tokens=max_tokens)
     if not response:
@@ -487,7 +542,8 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer(t(lang, "ai_vip_required"), show_alert=True)
         return
     limit = get_ai_limit(char["tier"], user_tier)
-    _ai_sessions[uid] = {"character": char_id, "history": [], "msg_count": 0}
+    db_history = await _get_ai_history(uid, char_id) if _get_ai_history else []
+    _ai_sessions[uid] = {"character": char_id, "history": db_history, "msg_count": 0}
     _last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
     limit_text = t(lang, "ai_unlimited") if limit is None else t(lang, "ai_limit_info", limit=limit)
@@ -501,10 +557,14 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         )
     except Exception: pass
     await callback.message.answer(t(lang, "ai_chat_active"), reply_markup=kb_ai_chat(lang))
-    greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang)
-    if greeting:
-        _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
-        await callback.message.answer(f"{char['emoji']} {greeting}")
+    u = await _get_user(uid)
+    if not db_history:
+        greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u)
+        if greeting:
+            _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
+            if _save_ai_message:
+                await _save_ai_message(uid, char_id, "assistant", greeting)
+            await callback.message.answer(f"{char['emoji']} {greeting}")
     await callback.answer()
 
 
@@ -605,8 +665,11 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     await _bot.send_chat_action(uid, "typing")
     await _update_user(uid, last_seen=datetime.now())
     session["history"].append({"role": "user", "content": txt})
-    response = await ask_ai(char_id, session["history"][:-1], txt, lang)
+    response = await ask_ai(char_id, session["history"][:-1], txt, lang, user=u)
     session["history"].append({"role": "assistant", "content": response})
+    if _save_ai_message:
+        await _save_ai_message(uid, char_id, "user", txt)
+        await _save_ai_message(uid, char_id, "assistant", response)
     session["msg_count"] += 1
     new_count = current_count + 1
     if limit is not None and new_count > limit and ai_bonus > 0:
@@ -674,7 +737,8 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
     char = AI_CHARACTERS[char_id]
     user_tier = await _get_premium_tier(uid)
     limit = get_ai_limit(char["tier"], user_tier)
-    _ai_sessions[uid] = {"character": char_id, "history": [], "msg_count": 0}
+    db_history = await _get_ai_history(uid, char_id) if _get_ai_history else []
+    _ai_sessions[uid] = {"character": char_id, "history": db_history, "msg_count": 0}
     _last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
     limit_text = t(lang, "ai_unlimited") if limit is None else t(lang, "ai_limit_info", limit=limit)
@@ -685,8 +749,12 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
           limit_text=limit_text),
         reply_markup=kb_ai_chat(lang)
     )
-    greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang)
-    if greeting:
-        _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
-        await callback.message.answer(f"{char['emoji']} {greeting}")
+    u = await _get_user(uid)
+    if not db_history:
+        greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u)
+        if greeting:
+            _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
+            if _save_ai_message:
+                await _save_ai_message(uid, char_id, "assistant", greeting)
+            await callback.message.answer(f"{char['emoji']} {greeting}")
     await callback.answer()
