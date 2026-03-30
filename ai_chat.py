@@ -172,7 +172,7 @@ AI_CHARACTERS = {
 AI_CHARACTERS.update({
     "mia": {
         "name_key": "char_mia", "desc_key": "char_mia_desc", "emoji": "🍭",
-        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b:free",
+        "tier": "basic", "block": "flirt", "model": "openai/gpt-4o-mini",
         "system": {
             "ru": (
                 "Ты — Мия, 22 года. Бариста в андеграунд-кофейне, татуировки, чёрный мотоцикл, техно до трёх ночи.\n\n"
@@ -214,7 +214,7 @@ AI_CHARACTERS.update({
     },
     "kai": {
         "name_key": "char_kai", "desc_key": "char_kai_desc", "emoji": "🎧",
-        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b:free",
+        "tier": "basic", "block": "flirt", "model": "openai/gpt-4o-mini",
         "system": {
             "ru": (
                 "Ты — Кай, 21 год. Фриланс-дизайнер, всегда в наушниках, путешествуешь с одним рюкзаком.\n\n"
@@ -250,7 +250,7 @@ AI_CHARACTERS.update({
     },
     "diana": {
         "name_key": "char_diana", "desc_key": "char_diana_desc", "emoji": "🏛️",
-        "tier": "premium", "block": "flirt", "model": "nousresearch/hermes-4-405b",
+        "tier": "premium", "block": "flirt", "model": "anthropic/claude-3-haiku",
         "system": {
             "ru": (
                 "Ты — Диана, 27 лет. Куратор галереи, объездила полмира, читаешь людей как книгу. "
@@ -289,7 +289,7 @@ AI_CHARACTERS.update({
     },
     "leon": {
         "name_key": "char_leon", "desc_key": "char_leon_desc", "emoji": "⌚",
-        "tier": "premium", "block": "flirt", "model": "nousresearch/hermes-4-405b",
+        "tier": "premium", "block": "flirt", "model": "anthropic/claude-3-haiku",
         "system": {
             "ru": (
                 "Ты — Леон, 29 лет. Венчурный инвестор и архитектор. "
