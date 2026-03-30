@@ -366,6 +366,39 @@ TEXTS = {
         "btn_continue": "❤️ Хочу продолжить общение",
         "btn_find_new": "🔍 Найти нового",
         "btn_to_menu": "🏠 В меню",
+        # Общие — восстановление, чат
+        "bot_restarted": "🔄 Бот обновлён. Твой чат восстановлен!",
+        "chat_start": "✅ Начинайте общение!",
+        "partner_found": (
+            "👤 Собеседник найден!{badge}\n"
+            "Имя: {name}\nВозраст: {age}\nПол: {gender}\n"
+            "Режим: {mode}\nИнтересы: {interests}\n⭐ Рейтинг: {rating}"
+        ),
+        # Настройки — инлайн кнопки
+        "settings_mode_label": "📌 Режим: {mode}",
+        "settings_cross_kink": "Также принимать из Kink 🔥",
+        "settings_cross_flirt": "Также принимать из Флирта 💋",
+        "settings_simple_only": "🔒 Поиск только среди «Общение»",
+        "settings_find_gender": "👤 Искать: {gender}",
+        "settings_find_gender_premium": "👤 Искать: {gender} 🔒 Premium",
+        "settings_show_badge": "Значок ⭐ в профиле",
+        "settings_buy_premium": "💎 Купить Premium",
+        "premium_active": "⭐ Premium активен",
+        "settings_gender_any": "🔀 Все",
+        "settings_gender_male": "👨 Парни",
+        "settings_gender_female": "👩 Девушки",
+        "settings_gender_other": "⚧ Другое",
+        # Причины «недоступно»
+        "reason_finish_form": "сначала заверши заполнение анкеты",
+        "reason_enter_name": "сначала введи имя",
+        "reason_enter_age": "сначала введи возраст",
+        "reason_choose_gender": "сначала выбери пол",
+        "reason_choose_mode": "сначала выбери режим",
+        "reason_in_chat": "ты уже в чате",
+        "reason_in_chat_stop": "ты в чате — нажми ❌ Стоп",
+        "reason_finish_chat": "сначала выйди из чата",
+        "reason_finish_action": "сначала заверши текущее действие",
+        "reason_finish_anketa": "сначала заверши анкету",
         # Админ — кнопки действий над жалобой
         "adm_stopwords_yes": "⚠️ Стоп-слова: ДА",
         "adm_stopwords_no": "✅ Стоп-слова: НЕТ",
@@ -771,6 +804,39 @@ TEXTS = {
         "btn_continue": "❤️ Want to keep chatting",
         "btn_find_new": "🔍 Find someone new",
         "btn_to_menu": "🏠 To menu",
+        # General — restart, chat
+        "bot_restarted": "🔄 Bot updated. Your chat has been restored!",
+        "chat_start": "✅ Start chatting!",
+        "partner_found": (
+            "👤 Partner found!{badge}\n"
+            "Name: {name}\nAge: {age}\nGender: {gender}\n"
+            "Mode: {mode}\nInterests: {interests}\n⭐ Rating: {rating}"
+        ),
+        # Settings — inline buttons
+        "settings_mode_label": "📌 Mode: {mode}",
+        "settings_cross_kink": "Also accept from Kink 🔥",
+        "settings_cross_flirt": "Also accept from Flirt 💋",
+        "settings_simple_only": "🔒 Search only in Chat mode",
+        "settings_find_gender": "👤 Search: {gender}",
+        "settings_find_gender_premium": "👤 Search: {gender} 🔒 Premium",
+        "settings_show_badge": "Show ⭐ badge in profile",
+        "settings_buy_premium": "💎 Buy Premium",
+        "premium_active": "⭐ Premium active",
+        "settings_gender_any": "🔀 Anyone",
+        "settings_gender_male": "👨 Guys",
+        "settings_gender_female": "👩 Girls",
+        "settings_gender_other": "⚧ Other",
+        # Unavailable reasons
+        "reason_finish_form": "complete your profile first",
+        "reason_enter_name": "enter your name first",
+        "reason_enter_age": "enter your age first",
+        "reason_choose_gender": "choose your gender first",
+        "reason_choose_mode": "choose your mode first",
+        "reason_in_chat": "you are already in a chat",
+        "reason_in_chat_stop": "you are in a chat — press ❌ Stop",
+        "reason_finish_chat": "leave the chat first",
+        "reason_finish_action": "complete your current action first",
+        "reason_finish_anketa": "complete your profile first",
         # Admin — complaint action buttons
         "adm_stopwords_yes": "⚠️ Stop-words: YES",
         "adm_stopwords_no": "✅ Stop-words: NO",
@@ -1176,6 +1242,39 @@ TEXTS = {
         "btn_continue": "❤️ Quiero seguir chateando",
         "btn_find_new": "🔍 Buscar a alguien nuevo",
         "btn_to_menu": "🏠 Al menú",
+        # General — reinicio, chat
+        "bot_restarted": "🔄 Bot actualizado. ¡Tu chat ha sido restaurado!",
+        "chat_start": "✅ ¡Empieza a chatear!",
+        "partner_found": (
+            "👤 ¡Compañero encontrado!{badge}\n"
+            "Nombre: {name}\nEdad: {age}\nGénero: {gender}\n"
+            "Modo: {mode}\nIntereses: {interests}\n⭐ Puntuación: {rating}"
+        ),
+        # Ajustes — botones inline
+        "settings_mode_label": "📌 Modo: {mode}",
+        "settings_cross_kink": "También aceptar de Kink 🔥",
+        "settings_cross_flirt": "También aceptar de Coqueteo 💋",
+        "settings_simple_only": "🔒 Buscar solo en modo Charla",
+        "settings_find_gender": "👤 Buscar: {gender}",
+        "settings_find_gender_premium": "👤 Buscar: {gender} 🔒 Premium",
+        "settings_show_badge": "Mostrar insignia ⭐ en perfil",
+        "settings_buy_premium": "💎 Comprar Premium",
+        "premium_active": "⭐ Premium activo",
+        "settings_gender_any": "🔀 Cualquiera",
+        "settings_gender_male": "👨 Chicos",
+        "settings_gender_female": "👩 Chicas",
+        "settings_gender_other": "⚧ Otro",
+        # Razones «no disponible»
+        "reason_finish_form": "completa tu perfil primero",
+        "reason_enter_name": "ingresa tu nombre primero",
+        "reason_enter_age": "ingresa tu edad primero",
+        "reason_choose_gender": "elige tu género primero",
+        "reason_choose_mode": "elige tu modo primero",
+        "reason_in_chat": "ya estás en un chat",
+        "reason_in_chat_stop": "estás en un chat — presiona ❌ Stop",
+        "reason_finish_chat": "sal del chat primero",
+        "reason_finish_action": "completa tu acción actual primero",
+        "reason_finish_anketa": "completa tu perfil primero",
         # Admin — botones de queja
         "adm_stopwords_yes": "⚠️ Stop-words: SÍ",
         "adm_stopwords_no": "✅ Stop-words: NO",
