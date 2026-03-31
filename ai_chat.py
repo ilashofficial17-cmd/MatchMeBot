@@ -1317,9 +1317,6 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         )
     except Exception: pass
     await callback.message.answer(t(lang, "ai_chat_active"), reply_markup=kb_ai_chat(lang))
-    bio_text = char.get("bio", {}).get(lang) or char.get("bio", {}).get("ru", "")
-    char_name = f"{char['emoji']} {t(lang, char['name_key'])}"
-    await callback.message.answer(t(lang, "ai_char_entered", name=char_name, bio=bio_text))
     u = await _get_user(uid)
     if not db_history:
         greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u)
@@ -1513,9 +1510,6 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
           limit_text=limit_text),
         reply_markup=kb_ai_chat(lang)
     )
-    bio_text = char.get("bio", {}).get(lang) or char.get("bio", {}).get("ru", "")
-    char_name = f"{char['emoji']} {t(lang, char['name_key'])}"
-    await callback.message.answer(t(lang, "ai_char_entered", name=char_name, bio=bio_text))
     u = await _get_user(uid)
     if not db_history:
         greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u)
