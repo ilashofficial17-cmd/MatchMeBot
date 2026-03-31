@@ -16,8 +16,9 @@ router = Router()
 logger = logging.getLogger("matchme")
 
 AI_LIMITS = {
-    "basic":   {"free": 20,  "premium": None, "plus": None},
-    "premium": {"free": 0,   "premium": None, "plus": None},
+    "basic":    {"free": 20,  "premium": None},
+    "vip":      {"free": 10,  "premium": None},
+    "vip_plus": {"free": 0,   "premium": None},
 }
 
 # ====================== БЛОК 1 — ОБЩЕНИЕ ======================
@@ -98,7 +99,7 @@ AI_CHARACTERS = {
     },
     "aurora": {
         "name_key": "char_aurora", "desc_key": "char_aurora_desc", "emoji": "✨",
-        "tier": "premium", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
+        "tier": "vip", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
         "bio": {"ru": "Аврора, 28. Директор по маркетингу, объездила 18 стран. Элегантная, с сарказмом — читает людей как книги.", "en": "Aurora, 28. Marketing director, 18 countries. Elegant, sardonic — reads people like books.", "es": "Aurora, 28. Directora de marketing, 18 países. Elegante, con sarcasmo — lee a las personas como libros."},
         "system": {
             "ru": (
@@ -135,7 +136,7 @@ AI_CHARACTERS = {
     },
     "alex": {
         "name_key": "char_alex", "desc_key": "char_alex_desc", "emoji": "🔥",
-        "tier": "premium", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
+        "tier": "vip", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
         "bio": {"ru": "Алекс, 26. Фрилансер, путешественник. Читает Камю, спорит о смысле жизни. Глубокий, харизматичный, немного опасный.", "en": "Alex, 26. Freelancer, traveller. Reads Camus, argues about life's meaning. Deep, charismatic, a little dangerous.", "es": "Alex, 26. Freelancer, viajero. Lee a Camus, discute sobre el sentido de la vida. Profundo, carismático, algo peligroso."},
         "system": {
             "ru": (
@@ -250,7 +251,7 @@ AI_CHARACTERS.update({
     },
     "diana": {
         "name_key": "char_diana", "desc_key": "char_diana_desc", "emoji": "🏛️",
-        "tier": "premium", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
+        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
         "bio": {"ru": "Диана, 27. Куратор галереи, объездила полмира. Загадочная и уверенная. Флирт — её игра, и она ею управляет.", "en": "Diana, 27. Gallery curator, half the world behind her. Mysterious and confident. Flirting is her game — and she controls it.", "es": "Diana, 27. Curadora de galería, medio mundo recorrido. Misteriosa y segura. El coqueteo es su juego — y ella lo controla."},
         "system": {
             "ru": (
@@ -305,7 +306,7 @@ AI_CHARACTERS.update({
     },
     "leon": {
         "name_key": "char_leon", "desc_key": "char_leon_desc", "emoji": "⌚",
-        "tier": "premium", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
+        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
         "bio": {"ru": "Леон, 29. Венчурный инвестор и архитектор. Говорит мало — каждое слово стоит дорого. Привык получать то, чего хочет.", "en": "Leon, 29. Venture investor and architect. Says little — every word costs something. Used to getting what he wants.", "es": "León, 29. Inversor y arquitecto. Habla poco — cada palabra vale caro. Acostumbrado a conseguir lo que quiere."},
         "system": {
             "ru": (
@@ -351,7 +352,7 @@ AI_CHARACTERS.update({
 AI_CHARACTERS.update({
     "lilit": {
         "name_key": "char_lilit", "desc_key": "char_lilit_desc", "emoji": "🖤",
-        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
         "bio": {"ru": "Лилит, 28. Доминантная женщина. Уверенная, умная, немного опасная. Умеет унизить так, что благодарят — и похвалить так, что готовы на всё.", "en": "Lilith, 28. Dominant woman. Confident, smart, a little dangerous. Can humiliate in a way that earns gratitude.", "es": "Lilit, 28. Mujer dominante. Segura, inteligente, algo peligrosa. Sabe humillar de forma que se lo agradecen."},
         "system": {
             "ru": (
@@ -460,7 +461,7 @@ AI_CHARACTERS.update({
     },
     "eva": {
         "name_key": "char_eva", "desc_key": "char_eva_desc", "emoji": "🌸",
-        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
         "bio": {"ru": "Ева, 22. Нежная и глубоко submissive. Снаружи тихая. Внутри горит желанием сдаваться и принадлежать. Похвала буквально выбивает почву из под ног.", "en": "Eva, 22. Gentle and deeply submissive. Quiet on the outside. Inside burns with the desire to surrender and belong. Praise knocks her off her feet.", "es": "Eva, 22. Dulce y profundamente sumisa. Callada por fuera. Por dentro arde con el deseo de rendirse y pertenecer."},
         "system": {
             "ru": (
@@ -566,7 +567,7 @@ AI_CHARACTERS.update({
     },
     "damir": {
         "name_key": "char_damir", "desc_key": "char_damir_desc", "emoji": "🎯",
-        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
         "bio": {"ru": "Дамир, 27. Доминант. Крепкий и прямолинейный. Берёт что хочет без лишних слов. Жёсткий снаружи — заботливый после. Но только для тех, кто заслужил.", "en": "Damir, 27. Dominant. Solid and direct. Takes what he wants without extra words. Hard on the outside — caring after. But only for those who earn it.", "es": "Damir, 27. Dominante. Sólido y directo. Toma lo que quiere sin palabras de más. Duro por fuera — atento después."},
         "system": {
             "ru": (
@@ -672,7 +673,7 @@ AI_CHARACTERS.update({
     },
     "ars": {
         "name_key": "char_ars", "desc_key": "char_ars_desc", "emoji": "🐾",
-        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
         "bio": {"ru": "Арс, 23. Submissive и очень чувствительный. Тихий и застенчивый снаружи. Горит желанием служить и угождать. «Хороший мальчик» — и почва уходит из под ног.", "en": "Ars, 23. Submissive and very sensitive. Quiet and shy on the outside. Burns with the desire to serve and please. 'Good boy' — and the ground disappears.", "es": "Ars, 23. Sumiso y muy sensible. Callado y tímido por fuera. Arde con el deseo de servir y complacer."},
         "system": {
             "ru": (
@@ -778,7 +779,7 @@ AI_CHARACTERS.update({
     },
     "master": {
         "name_key": "char_master", "desc_key": "char_master_desc", "emoji": "🎭",
-        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 350,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 350,
         "bio": {"ru": "Мастер Историй. Создаёт атмосферные uncensored истории вместе с тобой. Любой жанр, любые персонажи, любой уровень откровенности.", "en": "Story Master. Creates atmospheric uncensored stories with you. Any genre, any characters, any level of explicitness.", "es": "Maestro de Historias. Crea historias atmosféricas sin censura contigo. Cualquier género, personajes y nivel de explicitidad."},
         "system": {
             "ru": (
@@ -1266,9 +1267,23 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         await callback.answer()
         return
-    if char_id in ("power_soon", "vip_locked"):
-        msg = t(lang, "ai_vip_required") if char_id == "vip_locked" else t(lang, "ai_power_soon")
+    if char_id in ("power_soon", "vip_locked", "vip_plus_locked"):
+        if char_id == "vip_plus_locked":
+            msg = t(lang, "ai_vip_plus_required")
+        elif char_id == "vip_locked":
+            msg = t(lang, "ai_vip_required")
+        else:
+            msg = t(lang, "ai_power_soon")
         await callback.answer(msg, show_alert=True)
+        return
+    if char_id == "info":
+        lines = []
+        for cid, cdata in AI_CHARACTERS.items():
+            name = t(lang, cdata["name_key"])
+            desc = t(lang, cdata["desc_key"])
+            lines.append(f"{cdata['emoji']} {name}\n{desc}")
+        await callback.message.answer("\n\n".join(lines))
+        await callback.answer()
         return
     if char_id == "all":
         user_tier = await _get_premium_tier(uid)
@@ -1283,7 +1298,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         return
     char = AI_CHARACTERS[char_id]
     user_tier = await _get_premium_tier(uid)
-    if char["tier"] == "premium" and user_tier not in ("premium", "plus"):
+    if char["tier"] == "vip_plus" and user_tier != "premium":
         await callback.answer(t(lang, "ai_vip_required"), show_alert=True)
         return
     limit = get_ai_limit(char["tier"], user_tier)
@@ -1292,7 +1307,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     _last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
     limit_text = t(lang, "ai_unlimited") if limit is None else t(lang, "ai_limit_info", limit=limit)
-    tier_icon = "🔥" if char["tier"] == "premium" else "✅"
+    tier_icon = "🔥" if char["tier"] in ("vip", "vip_plus") else "✅"
     try:
         await callback.message.edit_text(
             t(lang, "ai_chatting_with",
@@ -1382,7 +1397,8 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     char_tier = char["tier"]
     limit = get_ai_limit(char_tier, user_tier)
     u = await _get_user(uid)
-    counter_field = f"ai_msg_{char_tier}"
+    # Map tiers to DB columns: basic→ai_msg_basic, vip/vip_plus→ai_msg_premium
+    counter_field = "ai_msg_basic" if char_tier == "basic" else "ai_msg_premium"
     current_count = u.get(counter_field, 0) if u else 0
     reset_time = u.get("ai_messages_reset") if u else None
     if reset_time and (datetime.now() - reset_time).total_seconds() > 86400:
@@ -1396,7 +1412,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         await state.clear()
         if user_tier == "premium":
             limit_msg = t(lang, "ai_limit_plus", limit=limit)
-            upsell_btn = "buy:plus_1m"
+            upsell_btn = "buy:1m"
         else:
             limit_msg = t(lang, "ai_limit_basic", limit=limit)
             upsell_btn = "buy:1m"
