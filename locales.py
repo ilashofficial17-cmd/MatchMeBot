@@ -926,6 +926,18 @@ TEXTS = {
             "15,000+ users trust it. Try it today."
         ),
         "btn_ad_get_vpn": "🛒 Get VPN",
+        # --- Ads: EN kink-only — Playbox ---
+        "ad_playbox_1": (
+            "🔥 Turn any image into a video — no limits.\n\n"
+            "Playbox AI: adult video generator used by 250K+ people.\n"
+            "Create something unforgettable."
+        ),
+        "ad_playbox_2": (
+            "⚡ AI-powered NSFW video creation.\n\n"
+            "Playbox — bring your fantasies to life in seconds.\n"
+            "250K+ users. Tap to start."
+        ),
+        "btn_ad_playbox": "🎬 Try Playbox",
         "hardban": "🚫 Permanent ban for violating the rules.",
         # AI chat
         "ai_menu": (

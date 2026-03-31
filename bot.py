@@ -824,32 +824,29 @@ async def get_premium_badge(uid):
 # langs=None — все языки, modes=None — все режимы
 # modes=["kink","flirt"] — только 18+/флирт контент
 PARTNER_ADS = [
-    # --- Нейтральные — все языки, все режимы ---
+    # --- Dzen VPN — только RU ---
     {
         "text_key": "ad_dzen_1",
         "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
         "btn_key": "btn_ad_connect",
-        "langs": None,
+        "langs": ["ru"],
         "modes": None,
     },
     {
         "text_key": "ad_dzen_2",
         "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
         "btn_key": "btn_ad_connect",
-        "langs": None,
+        "langs": ["ru"],
         "modes": None,
     },
     {
         "text_key": "ad_dzen_3",
         "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
         "btn_key": "btn_ad_connect",
-        "langs": None,
+        "langs": ["ru"],
         "modes": None,
     },
-    # --- Только RU ---
-    # {"text_key": "ad_ru_example", "url": "https://t.me/...", "btn_key": "btn_ad_try",
-    #  "langs": ["ru"], "modes": None},
-    # --- Только EN ---
+    # --- Buy VPN Global — только EN ---
     {
         "text_key": "ad_vpnglobal_1",
         "url": "https://t.me/BuyVPN_Global_bot?start=_tgr_YDRuRzQwYzhi",
@@ -864,9 +861,21 @@ PARTNER_ADS = [
         "langs": ["en"],
         "modes": None,
     },
-    # --- 18+ только kink/flirt ---
-    # {"text_key": "ad_nsfw_example", "url": "https://t.me/...", "btn_key": "btn_ad_open",
-    #  "langs": None, "modes": ["kink", "flirt"]},
+    # --- Playbox — только EN, только kink ---
+    {
+        "text_key": "ad_playbox_1",
+        "url": "https://t.me/playbox?start=_tgr_BStO_C8wYjBi",
+        "btn_key": "btn_ad_playbox",
+        "langs": ["en"],
+        "modes": ["kink"],
+    },
+    {
+        "text_key": "ad_playbox_2",
+        "url": "https://t.me/playbox?start=_tgr_BStO_C8wYjBi",
+        "btn_key": "btn_ad_playbox",
+        "langs": ["en"],
+        "modes": ["kink"],
+    },
 ]
 
 
