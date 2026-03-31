@@ -71,6 +71,7 @@ async def get_ai_chat_response(
     history: list,
     model_name: str,
     max_tokens: int = 300,
+    temperature: float | None = None,
 ) -> str | None:
     """
     Отправляет запрос в OpenRouter с полной историей чата.
@@ -80,6 +81,7 @@ async def get_ai_chat_response(
         history:       Список сообщений [{"role": "user/assistant", "content": "..."}]
         model_name:    Модель OpenRouter
         max_tokens:    Максимум токенов в ответе
+        temperature:   Температура генерации (None = дефолт модели)
 
     Returns:
         Строка с ответом или None при ошибке.
@@ -98,6 +100,8 @@ async def get_ai_chat_response(
         "max_tokens": max_tokens,
         "messages": messages,
     }
+    if temperature is not None:
+        payload["temperature"] = temperature
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(

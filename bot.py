@@ -39,16 +39,10 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "590443268"))
 
 PREMIUM_PLANS = {
-    # Premium — базовая
-    "7d":      {"stars": 99,  "days": 7,  "label_key": "plan_label_7d",    "desc_key": "plan_desc_try",          "tier": "premium"},
-    "1m":      {"stars": 299, "days": 30, "label_key": "plan_label_1m",    "desc_key": "plan_desc_popular",      "tier": "premium"},
-    "3m":      {"stars": 599, "days": 90, "label_key": "plan_label_3m",    "desc_key": "plan_desc_discount",     "tier": "premium"},
-    # Premium Plus — всё безлимит
-    "plus_1m": {"stars": 499, "days": 30, "label_key": "plan_label_plus_1m", "desc_key": "plan_desc_ai_unlimited", "tier": "plus"},
-    "plus_3m": {"stars": 999, "days": 90, "label_key": "plan_label_plus_3m", "desc_key": "plan_desc_best_price",   "tier": "plus"},
-    # AI Pro — отдельная подписка, разблокирует всё как Plus
-    "ai_1m":   {"stars": 399, "days": 30, "label_key": "plan_label_ai_1m", "desc_key": "plan_desc_powerful_ai",  "tier": "ai_pro"},
-    "ai_3m":   {"stars": 799, "days": 90, "label_key": "plan_label_ai_3m", "desc_key": "plan_desc_ai_discount",  "tier": "ai_pro"},
+    "7d":  {"stars": 99,   "days": 7,   "label_key": "plan_label_7d",  "desc_key": "plan_desc_try",      "tier": "premium"},
+    "1m":  {"stars": 299,  "days": 30,  "label_key": "plan_label_1m",  "desc_key": "plan_desc_popular",  "tier": "premium"},
+    "3m":  {"stars": 599,  "days": 90,  "label_key": "plan_label_3m",  "desc_key": "plan_desc_discount", "tier": "premium"},
+    "1y":  {"stars": 1799, "days": 365, "label_key": "plan_label_1y",  "desc_key": "plan_desc_best",     "tier": "premium"},
 }
 
 
@@ -359,30 +353,20 @@ async def clear_ai_history(uid: int, character_id: str = None):
 
 
 async def get_premium_tier(uid):
-    """Возвращает 'plus', 'premium' или None"""
+    """Возвращает 'premium' или None"""
     if uid == ADMIN_ID:
-        return "plus"
+        return "premium"
     u = await get_user(uid)
     if not u:
         return None
-    # Проверить ai_pro_until (отдельная AI подписка = как plus)
-    ai_until = u.get("ai_pro_until")
-    if ai_until:
-        try:
-            if datetime.now() < datetime.fromisoformat(ai_until):
-                return "plus"
-        except Exception:
-            pass
-        await update_user(uid, ai_pro_until=None)
-    # Проверить premium_until
     p_until = u.get("premium_until")
     if not p_until:
         return None
     if p_until == "permanent":
-        return u.get("premium_tier") or "plus"
+        return "premium"
     try:
         if datetime.now() < datetime.fromisoformat(p_until):
-            return u.get("premium_tier") or "premium"
+            return "premium"
         await update_user(uid, premium_until=None, premium_tier=None)
     except Exception:
         pass
@@ -1194,20 +1178,18 @@ async def cmd_premium(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     lang = await get_lang(uid)
     user_tier = await get_premium_tier(uid)
-    tier_names = {"premium": "Premium", "plus": "Premium Plus"}
     status_text = ""
     if user_tier:
         u = await get_user(uid)
-        tier_name = tier_names.get(user_tier, "Premium")
         if uid == ADMIN_ID or (u and u.get("premium_until") == "permanent"):
-            status_text = t(lang, "premium_status_eternal", tier=tier_name)
+            status_text = t(lang, "premium_status_eternal", tier="Premium")
         else:
-            p_until = (u.get("premium_until") or u.get("ai_pro_until") or "") if u else ""
+            p_until = (u.get("premium_until") or "") if u else ""
             try:
                 until = datetime.fromisoformat(p_until)
-                status_text = t(lang, "premium_status_until", tier=tier_name, until=until.strftime('%d.%m.%Y'))
+                status_text = t(lang, "premium_status_until", tier="Premium", until=until.strftime('%d.%m.%Y'))
             except Exception:
-                status_text = t(lang, "premium_status_eternal", tier=tier_name)
+                status_text = t(lang, "premium_status_eternal", tier="Premium")
     await message.answer(t(lang, "premium_title", status=status_text), reply_markup=kb_premium(lang))
 
 @dp.callback_query(F.data == "buy:info", StateFilter("*"))
@@ -1226,10 +1208,7 @@ async def buy_premium(callback: types.CallbackQuery):
         await callback.answer(t(lang, "premium_unknown_plan"), show_alert=True)
         return
     plan = PREMIUM_PLANS[plan_key]
-    tier = plan["tier"]
     lang = await get_lang(uid)
-    tier_names = {"premium": "Premium", "plus": "Premium Plus", "ai_pro": "AI Pro"}
-    tier_name = tier_names.get(tier, "Premium")
     label = t(lang, plan["label_key"])
     desc = t(lang, plan["desc_key"])
     stars = plan["stars"]
@@ -1239,12 +1218,12 @@ async def buy_premium(callback: types.CallbackQuery):
     await callback.answer()
     await bot.send_invoice(
         chat_id=uid,
-        title=f"MatchMe {tier_name} — {label}",
-        description=t(lang, "invoice_desc", tier=tier_name, label=label, desc=desc),
+        title=f"MatchMe Premium — {label}",
+        description=t(lang, "invoice_desc", tier="Premium", label=label, desc=desc),
         payload=f"premium_{plan_key}",
         provider_token="",
         currency="XTR",
-        prices=[LabeledPrice(label=f"{tier_name} {label}", amount=stars)],
+        prices=[LabeledPrice(label=f"Premium {label}", amount=stars)],
     )
 
 @dp.pre_checkout_query(StateFilter("*"))
@@ -1257,13 +1236,11 @@ async def successful_payment(message: types.Message):
     payload = message.successful_payment.invoice_payload
     plan_key = payload.replace("premium_", "")
     plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1m"])
-    tier = plan.get("tier", "premium")
     u = await get_user(uid)
     base = datetime.now()
-    until_field = "ai_pro_until" if tier == "ai_pro" else "premium_until"
     # Продлеваем от текущей даты окончания если есть
     if u:
-        current_until = u.get(until_field)
+        current_until = u.get("premium_until")
         if current_until and current_until != "permanent":
             try:
                 existing = datetime.fromisoformat(current_until)
@@ -1272,23 +1249,15 @@ async def successful_payment(message: types.Message):
             except Exception:
                 pass
     until = base + timedelta(days=plan["days"])
-    if tier == "ai_pro":
-        await update_user(uid, ai_pro_until=until.isoformat())
-    elif tier == "plus":
-        await update_user(uid, premium_until=until.isoformat(), premium_tier="plus")
-    else:
-        await update_user(uid, premium_until=until.isoformat(), premium_tier="premium")
+    await update_user(uid, premium_until=until.isoformat(), premium_tier="premium")
     lang = await get_lang(uid)
-    tier_names = {"premium": "Premium", "plus": "Premium Plus", "ai_pro": "AI Pro"}
-    tier_name = tier_names.get(tier, "Premium")
     label = t(lang, plan["label_key"])
-    benefit_keys = {"premium": "benefit_premium", "plus": "benefit_plus", "ai_pro": "benefit_ai_pro"}
     await message.answer(
         t(lang, "premium_activated",
-          tier=tier_name,
+          tier="Premium",
           label=label,
           until=until.strftime('%d.%m.%Y'),
-          benefits=t(lang, benefit_keys.get(tier, "benefit_premium"))),
+          benefits=t(lang, "benefit_premium")),
         reply_markup=kb_main(lang)
     )
 
@@ -1835,17 +1804,16 @@ async def show_profile(message: types.Message, state: FSMContext):
         return
     user_tier = await get_premium_tier(uid)
     show_badge = u.get("show_premium", True)
-    tier_names = {"premium": "Premium", "plus": "Premium Plus"}
     if user_tier:
         if uid == ADMIN_ID or u.get("premium_until") == "permanent":
-            premium_status = t(lang, "premium_eternal", tier=tier_names.get(user_tier, "Premium"))
+            premium_status = t(lang, "premium_eternal", tier="Premium")
         else:
-            p_until = u.get("premium_until") or u.get("ai_pro_until") or ""
+            p_until = u.get("premium_until") or ""
             try:
                 until = datetime.fromisoformat(p_until)
-                premium_status = t(lang, "premium_until_date", tier=tier_names.get(user_tier, "Premium"), until=until.strftime('%d.%m.%Y'))
+                premium_status = t(lang, "premium_until_date", tier="Premium", until=until.strftime('%d.%m.%Y'))
             except Exception:
-                premium_status = tier_names.get(user_tier, "Premium")
+                premium_status = "Premium"
     else:
         premium_status = t(lang, "premium_none")
     badge = " ⭐" if (user_tier and show_badge) else ""

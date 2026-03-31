@@ -113,7 +113,7 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
     is_premium = user_tier in ("premium", "plus")
     buttons = []
     # Блок 1 — Общение
-    buttons.append([InlineKeyboardButton(text="💬 Общение", callback_data="aichar:power_soon")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_simple"), callback_data="aichar:power_soon")])
     buttons.append([
         InlineKeyboardButton(text=t(lang, "char_luna"), callback_data="aichar:luna"),
         InlineKeyboardButton(text=t(lang, "char_max_simple"), callback_data="aichar:max_simple"),
@@ -129,7 +129,7 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
             InlineKeyboardButton(text=t(lang, "char_alex_locked"), callback_data="aichar:vip_locked"),
         ])
     # Блок 2 — Флирт
-    buttons.append([InlineKeyboardButton(text="💋 Флирт", callback_data="aichar:power_soon")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_flirt"), callback_data="aichar:power_soon")])
     buttons.append([
         InlineKeyboardButton(text=t(lang, "char_mia"), callback_data="aichar:mia"),
         InlineKeyboardButton(text=t(lang, "char_kai"), callback_data="aichar:kai"),
@@ -144,8 +144,8 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
             InlineKeyboardButton(text=t(lang, "char_diana_locked"), callback_data="aichar:vip_locked"),
             InlineKeyboardButton(text=t(lang, "char_leon_locked"), callback_data="aichar:vip_locked"),
         ])
-    # Блок 3 — Kink (все Premium)
-    buttons.append([InlineKeyboardButton(text="🔥 Kink", callback_data="aichar:power_soon")])
+    # Блок 3 — Kink (все VIP)
+    buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_kink"), callback_data="aichar:power_soon")])
     if is_premium:
         buttons.append([
             InlineKeyboardButton(text=t(lang, "char_lilit"), callback_data="aichar:lilit"),
@@ -160,15 +160,15 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
         ])
     else:
         buttons.append([
-            InlineKeyboardButton(text="🔒 Лилит — Premium", callback_data="aichar:vip_locked"),
-            InlineKeyboardButton(text="🔒 Ева — Premium", callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text=t(lang, "char_lilit_locked"), callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text=t(lang, "char_eva_locked"), callback_data="aichar:vip_locked"),
         ])
         buttons.append([
-            InlineKeyboardButton(text="🔒 Дамир — Premium", callback_data="aichar:vip_locked"),
-            InlineKeyboardButton(text="🔒 Арс — Premium", callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text=t(lang, "char_damir_locked"), callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text=t(lang, "char_ars_locked"), callback_data="aichar:vip_locked"),
         ])
         buttons.append([
-            InlineKeyboardButton(text="🔒 Мастер историй — Premium", callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text=t(lang, "char_master_locked"), callback_data="aichar:vip_locked"),
         ])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -255,11 +255,6 @@ def kb_premium(lang="ru"):
         [InlineKeyboardButton(text=t(lang, "prem_7d"), callback_data="buy:7d")],
         [InlineKeyboardButton(text=t(lang, "prem_1m"), callback_data="buy:1m")],
         [InlineKeyboardButton(text=t(lang, "prem_3m"), callback_data="buy:3m")],
-        [InlineKeyboardButton(text=t(lang, "prem_plus_header"), callback_data="noop")],
-        [InlineKeyboardButton(text=t(lang, "prem_plus_1m"), callback_data="buy:plus_1m")],
-        [InlineKeyboardButton(text=t(lang, "prem_plus_3m"), callback_data="buy:plus_3m")],
-        [InlineKeyboardButton(text=t(lang, "prem_ai_header"), callback_data="noop")],
-        [InlineKeyboardButton(text=t(lang, "prem_ai_1m"), callback_data="buy:ai_1m")],
-        [InlineKeyboardButton(text=t(lang, "prem_ai_3m"), callback_data="buy:ai_3m")],
+        [InlineKeyboardButton(text=t(lang, "prem_1y"), callback_data="buy:1y")],
         [InlineKeyboardButton(text=t(lang, "prem_compare"), callback_data="buy:info")],
     ])

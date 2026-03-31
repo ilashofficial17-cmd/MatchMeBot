@@ -244,29 +244,21 @@ TEXTS = {
         "stats_no_premium": "💎 Premium: Нет",
         "not_registered": "Сначала зарегистрируйся через /start!",
         # Тексты — premium
-        "premium_title": "⭐ MatchMe Подписки\n\n{status}📊 Что входит:\n⭐ Premium: безлимит basic ИИ, 50 сообщений premium ИИ, приоритет, без рекламы\n🚀 Premium Plus: безлимит на ВСЕ ИИ, приоритет, без рекламы\n🧠 AI Pro: безлимит на все ИИ модели\n\nВыбери тариф:",
+        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 Что входит:\n• Безлимит на всех ИИ персонажей\n• VIP персонажи открыты\n• Приоритет в поиске\n• Без рекламы\n\nВыбери тариф:",
         "premium_status_eternal": "✅ Сейчас: {tier} (вечный)\n\n",
         "premium_status_until": "✅ Сейчас: {tier} до {until}\n\n",
         "premium_info": (
-            "📊 Сравнение подписок:\n\n"
-            "⭐ Premium (от 99 Stars):\n"
-            "• Безлимит на basic ИИ (Данил, Полина, Макс)\n"
-            "• 50 сообщений/день на premium ИИ + бонус 10\n"
-            "• Приоритет в поиске, без рекламы\n\n"
-            "🚀 Premium Plus (от 499 Stars):\n"
-            "• Всё из Premium\n"
-            "• Безлимит на ВСЕ ИИ модели\n"
-            "• Лучшая цена!\n\n"
-            "🧠 AI Pro (от 399 Stars):\n"
-            "• Безлимит на все ИИ модели\n"
-            "• Разблокирует всё как Plus\n\n"
-            "💡 Совет: Premium Plus — самый выгодный вариант!"
+            "📊 Premium подписка:\n\n"
+            "⭐ Что входит:\n"
+            "• Безлимит на всех ИИ персонажей\n"
+            "• VIP персонажи (Флирт, Kink) открыты\n"
+            "• Приоритет в поиске\n"
+            "• Без рекламы\n\n"
+            "💡 Совет: годовая подписка — самый выгодный вариант!"
         ),
         "premium_activated": "🎉 {tier} активирован!\n\n📦 Тариф: {label}\n📅 До {until}\n\n{benefits}",
         "premium_unknown_plan": "Неизвестный тариф",
-        "benefit_premium": "Безлимит basic ИИ, 50 сообщений/день premium ИИ, приоритет, без рекламы!",
-        "benefit_plus": "Безлимит на ВСЕ ИИ модели, приоритет, без рекламы!",
-        "benefit_ai_pro": "Безлимит на ВСЕ ИИ модели!",
+        "benefit_premium": "Безлимит ИИ, VIP персонажи, приоритет, без рекламы!",
         # Тексты — сброс профиля
         "reset_confirm": (
             "⚠️ Полный сброс профиля!\n\n"
@@ -308,21 +300,21 @@ TEXTS = {
             "🤖 ИИ чат\n\n"
             "Все персонажи доступны бесплатно!\n"
             "💬 Basic: 20 сообщений/день\n"
-            "🔥 Premium: 10 сообщений/день\n"
+            "🔥 VIP: доступны с подпиской\n"
             "⭐ Подписка снимает лимиты\n\n"
             "Выбери с кем хочешь поговорить:"
         ),
         "ai_select_char": "Выбери персонажа:",
         "ai_char_not_found": "Персонаж не найден.",
         "ai_power_soon": "🔧 В разработке! Следи за обновлениями.",
-        "ai_vip_required": "🔒 Этот персонаж доступен только с Premium подпиской.",
+        "ai_vip_required": "🔒 Этот персонаж доступен только с VIP подпиской.",
         "ai_chat_active": "💬 Чат с ИИ активен",
         "ai_unlimited": "♾ Безлимит",
         "ai_limit_info": "💬 Лимит: {limit} сообщений/день",
         "ai_ended": "✅ Чат с ИИ завершён.",
         "ai_select_from_buttons": "👆 Выбери персонажа из кнопок выше.",
-        "ai_limit_plus": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\n🚀 Upgrade до Premium Plus — безлимит на все ИИ!",
-        "ai_limit_basic": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\n⭐ Купи Premium — больше сообщений и безлимит basic ИИ!",
+        "ai_limit_plus": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\nУ тебя уже Premium — безлимит!",
+        "ai_limit_basic": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\n⭐ Купи Premium — безлимит на ИИ и VIP персонажи!",
         "ai_remaining": "_💬 Осталось {left} сообщений_",
         "ai_unavailable": "😔 ИИ временно недоступен.",
         "ai_no_funds": "💳 ИИ временно недоступен — нет средств на балансе.",
@@ -368,8 +360,8 @@ TEXTS = {
         "char_aurora_desc": "Директор по маркетингу, 18 стран — элегантность и сарказм",
         "char_alex": "🔥 Алекс — VIP",
         "char_alex_desc": "Фрилансер и искатель приключений — философия и вызов",
-        "char_aurora_locked": "🔒 Аврора — Premium",
-        "char_alex_locked": "🔒 Алекс — Premium",
+        "char_aurora_locked": "🔒 Аврора — VIP",
+        "char_alex_locked": "🔒 Алекс — VIP",
         "char_coming_soon": "🔜 Kink — скоро",
         # AI персонажи — Блок 2: Флирт
         "char_mia": "🍭 Мия",
@@ -380,9 +372,9 @@ TEXTS = {
         "char_diana_desc": "Куратор галереи — чувственно и загадочно",
         "char_leon": "⌚ Леон — VIP",
         "char_leon_desc": "Архитектор — сдержанный огонь и доминирование",
-        "char_diana_locked": "🔒 Диана — Premium",
-        "char_leon_locked": "🔒 Леон — Premium",
-        # AI персонажи — Блок 3: Kink (все Premium)
+        "char_diana_locked": "🔒 Диана — VIP",
+        "char_leon_locked": "🔒 Леон — VIP",
+        # AI персонажи — Блок 3: Kink (все VIP)
         "char_lilit": "🖤 Лилит — VIP",
         "char_lilit_desc": "Доминант-девушка — контроль и страсть",
         "char_eva": "🌸 Ева — VIP",
@@ -393,20 +385,24 @@ TEXTS = {
         "char_ars_desc": "Сабмиссив-парень — мягкий и покорный",
         "char_master": "🎭 Мастер историй — VIP",
         "char_master_desc": "Генератор сценариев — любой сюжет по твоему желанию",
+        "char_lilit_locked": "🔒 Лилит — VIP",
+        "char_eva_locked": "🔒 Ева — VIP",
+        "char_damir_locked": "🔒 Дамир — VIP",
+        "char_ars_locked": "🔒 Арс — VIP",
+        "char_master_locked": "🔒 Мастер историй — VIP",
         "char_power_soon": "🧠 Мощная нейронка (скоро)",
-        "char_vip_locked": "🔒 Только для Premium",
+        "char_vip_locked": "🔒 Только для VIP",
+        # Заголовки блоков ИИ
+        "ai_block_simple": "💬 Общение",
+        "ai_block_flirt": "💋 Флирт",
+        "ai_block_kink": "🔥 Kink",
         # Premium кнопки
         "prem_header": "── Premium ──",
-        "prem_plus_header": "── Premium Plus (лучшее!) ──",
-        "prem_ai_header": "── AI Pro ──",
-        "prem_compare": "❓ Сравнить подписки",
+        "prem_compare": "❓ Что входит",
         "prem_7d": "⭐ 7 дней — 99 Stars",
         "prem_1m": "⭐ 1 месяц — 299 Stars",
         "prem_3m": "⭐ 3 месяца — 599 Stars",
-        "prem_plus_1m": "🚀 1 месяц — 499 Stars",
-        "prem_plus_3m": "🚀 3 месяца — 999 Stars",
-        "prem_ai_1m": "🧠 1 месяц — 399 Stars",
-        "prem_ai_3m": "🧠 3 месяца — 799 Stars",
+        "prem_1y": "⭐ 1 год — 1799 Stars",
         "btn_continue": "❤️ Хочу продолжить общение",
         "btn_find_new": "🔍 Найти нового",
         "btn_to_menu": "🏠 В меню",
@@ -517,17 +513,11 @@ TEXTS = {
         "plan_label_7d":    "7 дней",
         "plan_label_1m":    "1 месяц",
         "plan_label_3m":    "3 месяца",
-        "plan_label_plus_1m": "1 мес Plus",
-        "plan_label_plus_3m": "3 мес Plus",
-        "plan_label_ai_1m": "1 мес AI Pro",
-        "plan_label_ai_3m": "3 мес AI Pro",
+        "plan_label_1y":    "1 год",
         "plan_desc_try":     "Попробовать",
         "plan_desc_popular": "Популярный",
         "plan_desc_discount": "Скидка 33%",
-        "plan_desc_ai_unlimited": "Безлимит AI",
-        "plan_desc_best_price":   "Лучшая цена",
-        "plan_desc_powerful_ai":  "Мощная нейронка",
-        "plan_desc_ai_discount":  "AI Pro скидка",
+        "plan_desc_best":    "Лучшая цена — скидка 50%",
         "invoice_desc": "{tier} на {label}. {desc}",
         # AI-персонажи: системные промпты (используются get_ai_answer в будущем)
         "ai_char_system_violetta": (
@@ -782,29 +772,21 @@ TEXTS = {
         "stats_no_premium": "💎 Premium: None",
         "not_registered": "Register first via /start!",
         # Premium
-        "premium_title": "⭐ MatchMe Subscriptions\n\n{status}📊 What's included:\n⭐ Premium: unlimited basic AI, 50 premium AI msgs/day, priority, no ads\n🚀 Premium Plus: unlimited ALL AI, priority, no ads\n🧠 AI Pro: unlimited all AI models\n\nChoose a plan:",
+        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 What's included:\n• Unlimited all AI characters\n• VIP characters unlocked\n• Priority search\n• No ads\n\nChoose a plan:",
         "premium_status_eternal": "✅ Current: {tier} (lifetime)\n\n",
         "premium_status_until": "✅ Current: {tier} until {until}\n\n",
         "premium_info": (
-            "📊 Subscription comparison:\n\n"
-            "⭐ Premium (from 99 Stars):\n"
-            "• Unlimited basic AI (Danil, Polina, Max)\n"
-            "• 50 msgs/day premium AI + 10 bonus\n"
-            "• Priority search, no ads\n\n"
-            "🚀 Premium Plus (from 499 Stars):\n"
-            "• Everything in Premium\n"
-            "• Unlimited ALL AI models\n"
-            "• Best value!\n\n"
-            "🧠 AI Pro (from 399 Stars):\n"
-            "• Unlimited all AI models\n"
-            "• Unlocks everything like Plus\n\n"
-            "💡 Tip: Premium Plus is the best deal!"
+            "📊 Premium subscription:\n\n"
+            "⭐ What's included:\n"
+            "• Unlimited all AI characters\n"
+            "• VIP characters (Flirt, Kink) unlocked\n"
+            "• Priority search\n"
+            "• No ads\n\n"
+            "💡 Tip: yearly plan is the best deal!"
         ),
         "premium_activated": "🎉 {tier} activated!\n\n📦 Plan: {label}\n📅 Until {until}\n\n{benefits}",
         "premium_unknown_plan": "Unknown plan",
-        "benefit_premium": "Unlimited basic AI, 50 premium AI msgs/day, priority, no ads!",
-        "benefit_plus": "Unlimited ALL AI models, priority, no ads!",
-        "benefit_ai_pro": "Unlimited ALL AI models!",
+        "benefit_premium": "Unlimited AI, VIP characters, priority, no ads!",
         # Reset
         "reset_confirm": (
             "⚠️ Full profile reset!\n\n"
@@ -846,21 +828,21 @@ TEXTS = {
             "🤖 AI Chat\n\n"
             "All characters are free!\n"
             "💬 Basic: 20 messages/day\n"
-            "🔥 Premium: 10 messages/day\n"
+            "🔥 VIP: available with subscription\n"
             "⭐ Subscription removes limits\n\n"
             "Choose who you want to talk to:"
         ),
         "ai_select_char": "Choose a character:",
         "ai_char_not_found": "Character not found.",
         "ai_power_soon": "🔧 Coming soon! Stay tuned.",
-        "ai_vip_required": "🔒 This character is available with Premium only.",
+        "ai_vip_required": "🔒 This character is available with VIP subscription only.",
         "ai_chat_active": "💬 AI chat active",
         "ai_unlimited": "♾ Unlimited",
         "ai_limit_info": "💬 Limit: {limit} messages/day",
         "ai_ended": "✅ AI chat ended.",
         "ai_select_from_buttons": "👆 Choose a character from the buttons above.",
-        "ai_limit_plus": "⏰ Limit reached ({limit} messages/day).\n\n🚀 Upgrade to Premium Plus — unlimited all AI!",
-        "ai_limit_basic": "⏰ Limit reached ({limit} messages/day).\n\n⭐ Buy Premium — more messages and unlimited basic AI!",
+        "ai_limit_plus": "⏰ Limit reached ({limit} messages/day).\n\nYou already have Premium — unlimited!",
+        "ai_limit_basic": "⏰ Limit reached ({limit} messages/day).\n\n⭐ Buy Premium — unlimited AI and VIP characters!",
         "ai_remaining": "_💬 {left} messages left_",
         "ai_unavailable": "😔 AI is temporarily unavailable.",
         "ai_no_funds": "💳 AI temporarily unavailable — no balance.",
@@ -906,8 +888,8 @@ TEXTS = {
         "char_aurora_desc": "Marketing director, 18 countries — elegance and sarcasm",
         "char_alex": "🔥 Alex — VIP",
         "char_alex_desc": "Freelancer and adventurer — philosophy and challenge",
-        "char_aurora_locked": "🔒 Aurora — Premium",
-        "char_alex_locked": "🔒 Alex — Premium",
+        "char_aurora_locked": "🔒 Aurora — VIP",
+        "char_alex_locked": "🔒 Alex — VIP",
         "char_coming_soon": "🔜 Kink — coming soon",
         # AI characters — Block 2: Flirt
         "char_mia": "🍭 Mia",
@@ -918,9 +900,9 @@ TEXTS = {
         "char_diana_desc": "Gallery curator — sensual and mysterious",
         "char_leon": "⌚ Leon — VIP",
         "char_leon_desc": "Architect — restrained fire and dominance",
-        "char_diana_locked": "🔒 Diana — Premium",
-        "char_leon_locked": "🔒 Leon — Premium",
-        # AI characters — Block 3: Kink (all Premium)
+        "char_diana_locked": "🔒 Diana — VIP",
+        "char_leon_locked": "🔒 Leon — VIP",
+        # AI characters — Block 3: Kink (all VIP)
         "char_lilit": "🖤 Lilit — VIP",
         "char_lilit_desc": "Dominant girl — control and passion",
         "char_eva": "🌸 Eva — VIP",
@@ -931,20 +913,24 @@ TEXTS = {
         "char_ars_desc": "Submissive guy — soft and yielding",
         "char_master": "🎭 Story Master — VIP",
         "char_master_desc": "Scenario generator — any story on your request",
+        "char_lilit_locked": "🔒 Lilit — VIP",
+        "char_eva_locked": "🔒 Eva — VIP",
+        "char_damir_locked": "🔒 Damir — VIP",
+        "char_ars_locked": "🔒 Ars — VIP",
+        "char_master_locked": "🔒 Story Master — VIP",
         "char_power_soon": "🧠 Powerful AI (soon)",
-        "char_vip_locked": "🔒 Premium only",
+        "char_vip_locked": "🔒 VIP only",
+        # AI block headers
+        "ai_block_simple": "💬 Chat",
+        "ai_block_flirt": "💋 Flirt",
+        "ai_block_kink": "🔥 Kink",
         # Premium buttons
         "prem_header": "── Premium ──",
-        "prem_plus_header": "── Premium Plus (best!) ──",
-        "prem_ai_header": "── AI Pro ──",
-        "prem_compare": "❓ Compare plans",
+        "prem_compare": "❓ What's included",
         "prem_7d": "⭐ 7 days — 198 Stars",
         "prem_1m": "⭐ 1 month — 598 Stars",
         "prem_3m": "⭐ 3 months — 1198 Stars",
-        "prem_plus_1m": "🚀 1 month — 998 Stars",
-        "prem_plus_3m": "🚀 3 months — 1998 Stars",
-        "prem_ai_1m": "🧠 1 month — 798 Stars",
-        "prem_ai_3m": "🧠 3 months — 1598 Stars",
+        "prem_1y": "⭐ 1 year — 3598 Stars",
         "btn_continue": "❤️ Want to keep chatting",
         "btn_find_new": "🔍 Find someone new",
         "btn_to_menu": "🏠 To menu",
@@ -1055,17 +1041,11 @@ TEXTS = {
         "plan_label_7d":    "7 days",
         "plan_label_1m":    "1 month",
         "plan_label_3m":    "3 months",
-        "plan_label_plus_1m": "1 mo Plus",
-        "plan_label_plus_3m": "3 mo Plus",
-        "plan_label_ai_1m": "1 mo AI Pro",
-        "plan_label_ai_3m": "3 mo AI Pro",
+        "plan_label_1y":    "1 year",
         "plan_desc_try":     "Try it",
         "plan_desc_popular": "Popular",
         "plan_desc_discount": "33% off",
-        "plan_desc_ai_unlimited": "Unlimited AI",
-        "plan_desc_best_price":   "Best value",
-        "plan_desc_powerful_ai":  "Powerful AI",
-        "plan_desc_ai_discount":  "AI Pro deal",
+        "plan_desc_best":    "Best value — 50% off",
         "invoice_desc": "{tier} for {label}. {desc}",
         # AI characters: system prompts (used by get_ai_answer in the future)
         "ai_char_system_violetta": (
@@ -1320,29 +1300,21 @@ TEXTS = {
         "stats_no_premium": "💎 Premium: Ninguno",
         "not_registered": "¡Regístrate primero via /start!",
         # Premium
-        "premium_title": "⭐ Suscripciones MatchMe\n\n{status}📊 Qué incluye:\n⭐ Premium: IA básica ilimitada, 50 msgs IA premium/día, prioridad, sin anuncios\n🚀 Premium Plus: TODA IA ilimitada, prioridad, sin anuncios\n🧠 AI Pro: todos los modelos IA ilimitados\n\nElige un plan:",
+        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 Qué incluye:\n• IA ilimitada en todos los personajes\n• Personajes VIP desbloqueados\n• Búsqueda prioritaria\n• Sin anuncios\n\nElige un plan:",
         "premium_status_eternal": "✅ Actual: {tier} (de por vida)\n\n",
         "premium_status_until": "✅ Actual: {tier} hasta {until}\n\n",
         "premium_info": (
-            "📊 Comparación de suscripciones:\n\n"
-            "⭐ Premium (desde 99 Stars):\n"
-            "• IA básica ilimitada\n"
-            "• 50 msgs/día IA premium + 10 bonus\n"
-            "• Búsqueda prioritaria, sin anuncios\n\n"
-            "🚀 Premium Plus (desde 499 Stars):\n"
-            "• Todo de Premium\n"
-            "• TODOS los modelos IA ilimitados\n"
-            "• ¡Mejor precio!\n\n"
-            "🧠 AI Pro (desde 399 Stars):\n"
-            "• Todos los modelos IA ilimitados\n"
-            "• Desbloquea todo como Plus\n\n"
-            "💡 Consejo: ¡Premium Plus es la mejor opción!"
+            "📊 Suscripción Premium:\n\n"
+            "⭐ Qué incluye:\n"
+            "• IA ilimitada en todos los personajes\n"
+            "• Personajes VIP (Coqueteo, Kink) desbloqueados\n"
+            "• Búsqueda prioritaria\n"
+            "• Sin anuncios\n\n"
+            "💡 Consejo: ¡el plan anual es la mejor opción!"
         ),
         "premium_activated": "🎉 ¡{tier} activado!\n\n📦 Plan: {label}\n📅 Hasta {until}\n\n{benefits}",
         "premium_unknown_plan": "Plan desconocido",
-        "benefit_premium": "IA básica ilimitada, 50 msgs IA premium/día, prioridad, ¡sin anuncios!",
-        "benefit_plus": "¡TODOS los modelos IA ilimitados, prioridad, sin anuncios!",
-        "benefit_ai_pro": "¡Todos los modelos IA ilimitados!",
+        "benefit_premium": "IA ilimitada, personajes VIP, prioridad, ¡sin anuncios!",
         # Restablecer perfil
         "reset_confirm": (
             "⚠️ ¡Restablecimiento completo del perfil!\n\n"
@@ -1384,21 +1356,21 @@ TEXTS = {
             "🤖 Chat IA\n\n"
             "¡Todos los personajes son gratis!\n"
             "💬 Básico: 20 mensajes/día\n"
-            "🔥 Premium: 10 mensajes/día\n"
+            "🔥 VIP: disponible con suscripción\n"
             "⭐ La suscripción elimina los límites\n\n"
             "Elige con quién quieres hablar:"
         ),
         "ai_select_char": "Elige un personaje:",
         "ai_char_not_found": "Personaje no encontrado.",
         "ai_power_soon": "🔧 ¡Próximamente! Mantente al tanto.",
-        "ai_vip_required": "🔒 Este personaje está disponible solo con Premium.",
+        "ai_vip_required": "🔒 Este personaje está disponible solo con suscripción VIP.",
         "ai_chat_active": "💬 Chat IA activo",
         "ai_unlimited": "♾ Ilimitado",
         "ai_limit_info": "💬 Límite: {limit} mensajes/día",
         "ai_ended": "✅ Chat IA terminado.",
         "ai_select_from_buttons": "👆 Elige un personaje con los botones de arriba.",
-        "ai_limit_plus": "⏰ Límite alcanzado ({limit} mensajes/día).\n\n🚀 ¡Hazte Premium Plus — IA ilimitada!",
-        "ai_limit_basic": "⏰ Límite alcanzado ({limit} mensajes/día).\n\n⭐ ¡Compra Premium — más mensajes e IA básica ilimitada!",
+        "ai_limit_plus": "⏰ Límite alcanzado ({limit} mensajes/día).\n\nYa tienes Premium — ¡ilimitado!",
+        "ai_limit_basic": "⏰ Límite alcanzado ({limit} mensajes/día).\n\n⭐ ¡Compra Premium — IA ilimitada y personajes VIP!",
         "ai_remaining": "_💬 Te quedan {left} mensajes_",
         "ai_unavailable": "😔 La IA no está disponible temporalmente.",
         "ai_no_funds": "💳 IA no disponible temporalmente — sin saldo.",
@@ -1444,8 +1416,8 @@ TEXTS = {
         "char_aurora_desc": "Directora de marketing, 18 países — elegancia y sarcasmo",
         "char_alex": "🔥 Alex — VIP",
         "char_alex_desc": "Freelancer aventurero — filosofía y desafío",
-        "char_aurora_locked": "🔒 Aurora — Premium",
-        "char_alex_locked": "🔒 Alex — Premium",
+        "char_aurora_locked": "🔒 Aurora — VIP",
+        "char_alex_locked": "🔒 Alex — VIP",
         "char_coming_soon": "🔜 Kink — pronto",
         # Personajes IA — Bloque 2: Flirt
         "char_mia": "🍭 Mia",
@@ -1456,9 +1428,9 @@ TEXTS = {
         "char_diana_desc": "Curadora de galería — sensual y misteriosa",
         "char_leon": "⌚ León — VIP",
         "char_leon_desc": "Arquitecto — fuego contenido y dominancia",
-        "char_diana_locked": "🔒 Diana — Premium",
-        "char_leon_locked": "🔒 León — Premium",
-        # Personajes IA — Bloque 3: Kink (todos Premium)
+        "char_diana_locked": "🔒 Diana — VIP",
+        "char_leon_locked": "🔒 León — VIP",
+        # Personajes IA — Bloque 3: Kink (todos VIP)
         "char_lilit": "🖤 Lilit — VIP",
         "char_lilit_desc": "Chica dominante — control y pasión",
         "char_eva": "🌸 Eva — VIP",
@@ -1469,20 +1441,24 @@ TEXTS = {
         "char_ars_desc": "Chico sumiso — suave y dócil",
         "char_master": "🎭 Maestro de historias — VIP",
         "char_master_desc": "Generador de escenarios — cualquier historia a tu petición",
+        "char_lilit_locked": "🔒 Lilit — VIP",
+        "char_eva_locked": "🔒 Eva — VIP",
+        "char_damir_locked": "🔒 Damir — VIP",
+        "char_ars_locked": "🔒 Ars — VIP",
+        "char_master_locked": "🔒 Maestro de historias — VIP",
         "char_power_soon": "🧠 IA potente (pronto)",
-        "char_vip_locked": "🔒 Solo Premium",
+        "char_vip_locked": "🔒 Solo VIP",
+        # Encabezados de bloques IA
+        "ai_block_simple": "💬 Charla",
+        "ai_block_flirt": "💋 Coqueteo",
+        "ai_block_kink": "🔥 Kink",
         # Botones Premium
         "prem_header": "── Premium ──",
-        "prem_plus_header": "── Premium Plus (¡el mejor!) ──",
-        "prem_ai_header": "── AI Pro ──",
-        "prem_compare": "❓ Comparar planes",
+        "prem_compare": "❓ Qué incluye",
         "prem_7d": "⭐ 7 días — 198 Stars",
         "prem_1m": "⭐ 1 mes — 598 Stars",
         "prem_3m": "⭐ 3 meses — 1198 Stars",
-        "prem_plus_1m": "🚀 1 mes — 998 Stars",
-        "prem_plus_3m": "🚀 3 meses — 1998 Stars",
-        "prem_ai_1m": "🧠 1 mes — 798 Stars",
-        "prem_ai_3m": "🧠 3 meses — 1598 Stars",
+        "prem_1y": "⭐ 1 año — 3598 Stars",
         "btn_continue": "❤️ Quiero seguir chateando",
         "btn_find_new": "🔍 Buscar a alguien nuevo",
         "btn_to_menu": "🏠 Al menú",
@@ -1593,17 +1569,11 @@ TEXTS = {
         "plan_label_7d":    "7 días",
         "plan_label_1m":    "1 mes",
         "plan_label_3m":    "3 meses",
-        "plan_label_plus_1m": "1 mes Plus",
-        "plan_label_plus_3m": "3 meses Plus",
-        "plan_label_ai_1m": "1 mes AI Pro",
-        "plan_label_ai_3m": "3 meses AI Pro",
+        "plan_label_1y":    "1 año",
         "plan_desc_try":     "Pruébalo",
         "plan_desc_popular": "Popular",
         "plan_desc_discount": "33% de descuento",
-        "plan_desc_ai_unlimited": "IA ilimitada",
-        "plan_desc_best_price":   "Mejor precio",
-        "plan_desc_powerful_ai":  "IA potente",
-        "plan_desc_ai_discount":  "Oferta AI Pro",
+        "plan_desc_best":    "Mejor precio — 50% de descuento",
         "invoice_desc": "{tier} por {label}. {desc}",
         # Personajes IA: prompts de sistema (usados por get_ai_answer en el futuro)
         "ai_char_system_violetta": (
