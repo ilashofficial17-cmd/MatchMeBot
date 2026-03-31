@@ -204,9 +204,11 @@ async def init_db():
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """)
-        await conn.execute(
-            "CREATE INDEX IF NOT EXISTS ai_history_uid_char ON ai_history(uid, character_id)"
-        )
+        try:
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS ai_history_uid_char ON ai_history(uid, character_id)"
+            )
+        except Exception: pass
 
         await conn.execute(
             """INSERT INTO users (uid, premium_until, show_premium, accepted_privacy, accepted_rules)
@@ -253,6 +255,51 @@ async def _migrate_interests():
             updated += 1
     if updated:
         logger.info(f"Migrated interests for {updated} users")
+
+
+async def get_ai_history(uid, character_id, limit=20):
+    """Возвращает последние N сообщений истории чата с персонажем."""
+    if not db_pool:
+        return []
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT role, content FROM ai_history
+               WHERE uid=$1 AND character_id=$2
+               ORDER BY created_at DESC LIMIT $3""",
+            uid, character_id, limit
+        )
+    return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
+
+
+async def save_ai_message(uid, character_id, role, content):
+    """Сохраняет одно сообщение и прунит историю до 20."""
+    if not db_pool:
+        return
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO ai_history (uid, character_id, role, content) VALUES ($1,$2,$3,$4)",
+            uid, character_id, role, content
+        )
+        await conn.execute(
+            """DELETE FROM ai_history WHERE id IN (
+               SELECT id FROM ai_history WHERE uid=$1 AND character_id=$2
+               ORDER BY created_at DESC OFFSET 20
+            )""",
+            uid, character_id
+        )
+
+
+async def clear_ai_history(uid, character_id=None):
+    """Удаляет историю для пользователя (всю или по конкретному персонажу)."""
+    if not db_pool:
+        return
+    async with db_pool.acquire() as conn:
+        if character_id:
+            await conn.execute(
+                "DELETE FROM ai_history WHERE uid=$1 AND character_id=$2", uid, character_id
+            )
+        else:
+            await conn.execute("DELETE FROM ai_history WHERE uid=$1", uid)
 
 async def restore_chats():
     async with db_pool.acquire() as conn:
@@ -827,10 +874,10 @@ async def notify_no_partner(uid):
     all_waiting = set().union(*get_all_queues())
     if uid in all_waiting:
         try:
-            lang = await get_lang(uid)
-            char_id = random.choice(["polina", "max", "danil"])
+            char_id = random.choice(["luna", "mia", "aurora"])
             char = ai_chat.AI_CHARACTERS[char_id]
-            name = t(lang, char["name_key"])
+            lang = await get_lang(uid)
+            name = f"{char['emoji']} {t(lang, char['name_key'])}"
             await bot.send_message(uid,
                 t(lang, "no_partner_wait", name=name),
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
