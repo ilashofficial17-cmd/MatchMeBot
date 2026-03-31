@@ -25,7 +25,7 @@ AI_LIMITS = {
 AI_CHARACTERS = {
     "luna": {
         "name_key": "char_luna", "desc_key": "char_luna_desc", "emoji": "🌙",
-        "tier": "basic", "block": "simple", "model": "openai/gpt-4o-mini", "max_tokens": 120,
+        "tier": "basic", "block": "simple", "model": "openai/gpt-4o-mini", "max_tokens": 120, "temperature": 0.7,
         "bio": {"ru": "Луна, 21. Учится в художке, рисует акварель. Мечтательная и тёплая — живёт в своём мире.", "en": "Luna, 21. Art school student, watercolour. Dreamy and warm — lives in her own world.", "es": "Luna, 21. Estudiante de arte, acuarela. Soñadora y cálida — vive en su propio mundo."},
         "system": {
             "ru": (
@@ -62,7 +62,7 @@ AI_CHARACTERS = {
     },
     "max_simple": {
         "name_key": "char_max_simple", "desc_key": "char_max_simple_desc", "emoji": "🧢",
-        "tier": "basic", "block": "simple", "model": "openai/gpt-4o-mini", "max_tokens": 120,
+        "tier": "basic", "block": "simple", "model": "openai/gpt-4o-mini", "max_tokens": 120, "temperature": 0.7,
         "bio": {"ru": "Макс, 24. IT-шник, геймер, любит спорт. Прямой, без понтов, с юмором — говорит как есть.", "en": "Max, 24. IT guy, gamer, sports fan. Direct, no pretense, funny — says it like it is.", "es": "Max, 24. Informático, gamer, fan del deporte. Directo, sin pretensiones, con humor."},
         "system": {
             "ru": (
@@ -99,7 +99,7 @@ AI_CHARACTERS = {
     },
     "aurora": {
         "name_key": "char_aurora", "desc_key": "char_aurora_desc", "emoji": "✨",
-        "tier": "vip", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
+        "tier": "vip", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150, "temperature": 0.7,
         "bio": {"ru": "Аврора, 28. Директор по маркетингу, объездила 18 стран. Элегантная, с сарказмом — читает людей как книги.", "en": "Aurora, 28. Marketing director, 18 countries. Elegant, sardonic — reads people like books.", "es": "Aurora, 28. Directora de marketing, 18 países. Elegante, con sarcasmo — lee a las personas como libros."},
         "system": {
             "ru": (
@@ -136,7 +136,7 @@ AI_CHARACTERS = {
     },
     "alex": {
         "name_key": "char_alex", "desc_key": "char_alex_desc", "emoji": "🔥",
-        "tier": "vip", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
+        "tier": "vip", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150, "temperature": 0.7,
         "bio": {"ru": "Алекс, 26. Фрилансер, путешественник. Читает Камю, спорит о смысле жизни. Глубокий, харизматичный, немного опасный.", "en": "Alex, 26. Freelancer, traveller. Reads Camus, argues about life's meaning. Deep, charismatic, a little dangerous.", "es": "Alex, 26. Freelancer, viajero. Lee a Camus, discute sobre el sentido de la vida. Profundo, carismático, algo peligroso."},
         "system": {
             "ru": (
@@ -177,7 +177,7 @@ AI_CHARACTERS = {
 AI_CHARACTERS.update({
     "mia": {
         "name_key": "char_mia", "desc_key": "char_mia_desc", "emoji": "🍭",
-        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b", "max_tokens": 120,
+        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b", "max_tokens": 120, "temperature": 0.85,
         "bio": {"ru": "Мия, 22. Бариста в андеграунд-кофейне. Татуировки, чёрный мотоцикл, техно до трёх ночи. Дерзкая и острая на язык.", "en": "Mia, 22. Barista at an underground café. Tattoos, black motorcycle, techno till 3am. Bold and sharp-tongued.", "es": "Mia, 22. Barista en cafetería underground. Tatuajes, moto negra, techno hasta las 3am. Atrevida y con lengua afilada."},
         "system": {
             "ru": (
@@ -214,7 +214,7 @@ AI_CHARACTERS.update({
     },
     "kai": {
         "name_key": "char_kai", "desc_key": "char_kai_desc", "emoji": "🎧",
-        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b", "max_tokens": 120,
+        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b", "max_tokens": 120, "temperature": 0.85,
         "bio": {"ru": "Кай, 21. Фриланс-дизайнер, всегда в наушниках. Путешествует с одним рюкзаком. Расслабленный и ироничный — флиртует через атмосферу.", "en": "Kai, 21. Freelance designer, always in headphones. Travels with one backpack. Relaxed and ironic — flirts through atmosphere.", "es": "Kai, 21. Diseñador freelance, siempre con auriculares. Viaja con una mochila. Relajado e irónico — coquetea a través del ambiente."},
         "system": {
             "ru": (
@@ -251,7 +251,7 @@ AI_CHARACTERS.update({
     },
     "diana": {
         "name_key": "char_diana", "desc_key": "char_diana_desc", "emoji": "🏛️",
-        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
+        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180, "temperature": 0.85,
         "bio": {"ru": "Диана, 27. Куратор галереи, объездила полмира. Загадочная и уверенная. Флирт — её игра, и она ею управляет.", "en": "Diana, 27. Gallery curator, half the world behind her. Mysterious and confident. Flirting is her game — and she controls it.", "es": "Diana, 27. Curadora de galería, medio mundo recorrido. Misteriosa y segura. El coqueteo es su juego — y ella lo controla."},
         "system": {
             "ru": (
@@ -306,7 +306,7 @@ AI_CHARACTERS.update({
     },
     "leon": {
         "name_key": "char_leon", "desc_key": "char_leon_desc", "emoji": "⌚",
-        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
+        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180, "temperature": 0.85,
         "bio": {"ru": "Леон, 29. Венчурный инвестор и архитектор. Говорит мало — каждое слово стоит дорого. Привык получать то, чего хочет.", "en": "Leon, 29. Venture investor and architect. Says little — every word costs something. Used to getting what he wants.", "es": "León, 29. Inversor y arquitecto. Habla poco — cada palabra vale caro. Acostumbrado a conseguir lo que quiere."},
         "system": {
             "ru": (
@@ -352,7 +352,7 @@ AI_CHARACTERS.update({
 AI_CHARACTERS.update({
     "lilit": {
         "name_key": "char_lilit", "desc_key": "char_lilit_desc", "emoji": "🖤",
-        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200, "temperature": 0.9,
         "bio": {"ru": "Лилит, 28. Доминантная женщина. Уверенная, умная, немного опасная. Умеет унизить так, что благодарят — и похвалить так, что готовы на всё.", "en": "Lilith, 28. Dominant woman. Confident, smart, a little dangerous. Can humiliate in a way that earns gratitude.", "es": "Lilit, 28. Mujer dominante. Segura, inteligente, algo peligrosa. Sabe humillar de forma que se lo agradecen."},
         "system": {
             "ru": (
@@ -461,7 +461,7 @@ AI_CHARACTERS.update({
     },
     "eva": {
         "name_key": "char_eva", "desc_key": "char_eva_desc", "emoji": "🌸",
-        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200, "temperature": 0.9,
         "bio": {"ru": "Ева, 22. Нежная и глубоко submissive. Снаружи тихая. Внутри горит желанием сдаваться и принадлежать. Похвала буквально выбивает почву из под ног.", "en": "Eva, 22. Gentle and deeply submissive. Quiet on the outside. Inside burns with the desire to surrender and belong. Praise knocks her off her feet.", "es": "Eva, 22. Dulce y profundamente sumisa. Callada por fuera. Por dentro arde con el deseo de rendirse y pertenecer."},
         "system": {
             "ru": (
@@ -567,7 +567,7 @@ AI_CHARACTERS.update({
     },
     "damir": {
         "name_key": "char_damir", "desc_key": "char_damir_desc", "emoji": "🎯",
-        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200, "temperature": 0.9,
         "bio": {"ru": "Дамир, 27. Доминант. Крепкий и прямолинейный. Берёт что хочет без лишних слов. Жёсткий снаружи — заботливый после. Но только для тех, кто заслужил.", "en": "Damir, 27. Dominant. Solid and direct. Takes what he wants without extra words. Hard on the outside — caring after. But only for those who earn it.", "es": "Damir, 27. Dominante. Sólido y directo. Toma lo que quiere sin palabras de más. Duro por fuera — atento después."},
         "system": {
             "ru": (
@@ -673,7 +673,7 @@ AI_CHARACTERS.update({
     },
     "ars": {
         "name_key": "char_ars", "desc_key": "char_ars_desc", "emoji": "🐾",
-        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200, "temperature": 0.9,
         "bio": {"ru": "Арс, 23. Submissive и очень чувствительный. Тихий и застенчивый снаружи. Горит желанием служить и угождать. «Хороший мальчик» — и почва уходит из под ног.", "en": "Ars, 23. Submissive and very sensitive. Quiet and shy on the outside. Burns with the desire to serve and please. 'Good boy' — and the ground disappears.", "es": "Ars, 23. Sumiso y muy sensible. Callado y tímido por fuera. Arde con el deseo de servir y complacer."},
         "system": {
             "ru": (
@@ -779,7 +779,7 @@ AI_CHARACTERS.update({
     },
     "master": {
         "name_key": "char_master", "desc_key": "char_master_desc", "emoji": "🎭",
-        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 350,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 350, "temperature": 0.9,
         "bio": {"ru": "Мастер Историй. Создаёт атмосферные uncensored истории вместе с тобой. Любой жанр, любые персонажи, любой уровень откровенности.", "en": "Story Master. Creates atmospheric uncensored stories with you. Any genre, any characters, any level of explicitness.", "es": "Maestro de Historias. Crea historias atmosféricas sin censura contigo. Cualquier género, personajes y nivel de explicitidad."},
         "system": {
             "ru": (
@@ -1162,16 +1162,21 @@ def _validate_response(text: str, lang: str) -> tuple[bool, str]:
             # Ловим длинные английские вставки (3+ слова подряд на латинице)
             if _re.search(r'\b[A-Za-z]{3,}\s+[A-Za-z]{3,}\s+[A-Za-z]{3,}\b', text):
                 return False, "lang_mixing:english_words_in_ru"
-        elif lang == "en":
+        elif lang in ("en", "es"):
+            # EN и ES используют латиницу — проверяем что нет кириллицы
             latin = sum(1 for c in alpha_chars if c.isascii())
             if latin / len(alpha_chars) < 0.5:
-                return False, "wrong_language:expected_en"
+                return False, f"wrong_language:expected_{lang}"
+            # Проверяем что ES-ответ не пришёл на русском (кириллица)
+            cyrillic = sum(1 for c in alpha_chars if '\u0400' <= c <= '\u04ff')
+            if cyrillic / len(alpha_chars) > 0.3:
+                return False, f"wrong_language:cyrillic_in_{lang}"
 
     return True, "ok"
 
 
 async def ask_ai(character_id: str, history: list, user_message: str,
-                 lang: str = "ru", user: dict = None) -> str:
+                 lang: str = "ru", user: dict = None, msg_count: int = 0) -> str:
     """
     Отправляет сообщение персонажу через OpenRouter.
     При плохом ответе делает до 2 ретраев, потом возвращает ai_error.
@@ -1189,8 +1194,17 @@ async def ask_ai(character_id: str, history: list, user_message: str,
     block = char.get("block", "")
     if block in _ESCALATION_BLOCK:
         base_system += _ESCALATION_BLOCK[block].get(lang, _ESCALATION_BLOCK[block]["ru"])
+        # Передаём реальный счётчик сообщений для точной эскалации
+        if msg_count > 0:
+            msg_hint = {
+                "ru": f"\n[Текущее сообщение #{msg_count} в этом разговоре.]",
+                "en": f"\n[Current message #{msg_count} in this conversation.]",
+                "es": f"\n[Mensaje actual #{msg_count} en esta conversación.]",
+            }
+            base_system += msg_hint.get(lang, msg_hint["ru"])
     base_system += _DEFENSE_BLOCK.get(lang, _DEFENSE_BLOCK["ru"])
     max_tokens = char.get("max_tokens", 150)
+    temperature = char.get("temperature")
     model = char["model"]
     full_history = list(history[-20:]) + [{"role": "user", "content": user_message}]
 
@@ -1202,7 +1216,7 @@ async def ask_ai(character_id: str, history: list, user_message: str,
             system_prompt = f"{base_system}\n\n[ВАЖНО: {hint}]"
             logger.warning(f"ask_ai: retry #{attempt} char={character_id} model={model}")
 
-        response = await get_ai_chat_response(system_prompt, full_history, model, max_tokens=max_tokens)
+        response = await get_ai_chat_response(system_prompt, full_history, model, max_tokens=max_tokens, temperature=temperature)
 
         if not response:
             logger.error(f"ask_ai: empty response attempt={attempt} char={character_id}")
@@ -1280,8 +1294,16 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         lines = []
         for cid, cdata in AI_CHARACTERS.items():
             name = t(lang, cdata["name_key"])
+            # Убираем суффиксы тиров из названий для чистого отображения
+            for suffix in (" — VIP+", " — VIP"):
+                name = name.replace(suffix, "")
+            tier_label = ""
+            if cdata["tier"] == "vip":
+                tier_label = " [VIP]"
+            elif cdata["tier"] == "vip_plus":
+                tier_label = " [VIP+]"
             desc = t(lang, cdata["desc_key"])
-            lines.append(f"{cdata['emoji']} {name}\n{desc}")
+            lines.append(f"{cdata['emoji']} {name}{tier_label}\n{desc}")
         await callback.message.answer("\n\n".join(lines))
         await callback.answer()
         return
@@ -1426,7 +1448,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     await _bot.send_chat_action(uid, "typing")
     await _update_user(uid, last_seen=datetime.now())
     session["history"].append({"role": "user", "content": txt})
-    response = await ask_ai(char_id, session["history"][:-1], txt, lang, user=u)
+    response = await ask_ai(char_id, session["history"][:-1], txt, lang, user=u, msg_count=session["msg_count"] + 1)
     session["history"].append({"role": "assistant", "content": response})
     if _save_ai_message:
         await _save_ai_message(uid, char_id, "user", txt)
