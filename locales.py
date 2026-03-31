@@ -303,23 +303,28 @@ TEXTS = {
         ),
         "upsell": "⭐ Тебе нравится MatchMe?\nPremium = приоритет в поиске + больше AI + без рекламы!",
         "ad_message": "📢 Здесь могла быть ваша реклама\n\n⭐ Купи Premium и убери рекламу навсегда!",
-        "ad_partner_1": (
+        # --- Реклама: нейтральная (все режимы) ---
+        "ad_dzen_1": (
             "🔓 YouTube, TikTok, ChatGPT без блокировок?\n\n"
             "Dzen VPN — быстрый и стабильный.\n"
             "3 дня бесплатно при регистрации!"
         ),
-        "ad_partner_2": (
+        "ad_dzen_2": (
             "🛡 Твоя анонимность — твоё дело.\n\n"
             "Dzen VPN защищает данные и открывает доступ к любым сервисам.\n"
             "Без привязки карты. Отмена в любой момент."
         ),
-        "ad_partner_3": (
+        "ad_dzen_3": (
             "⚡ Интернет без ограничений — это реально.\n\n"
             "Dzen VPN: безлимит на все устройства.\n"
             "Попробуй бесплатно — 3 дня на тест!"
         ),
         "btn_ad_connect": "🔗 Подключиться",
         "btn_ad_remove": "⭐ Убрать рекламу",
+        # --- Реклама: только RU (шаблон) ---
+        # "ad_ru_example": "...",
+        # --- Реклама: 18+ только kink/flirt (шаблон) ---
+        # "ad_nsfw_example": "...",
         "hardban": "🚫 Перманентный бан за нарушение правил.",
         # AI чат
         "ai_menu": (
@@ -891,17 +896,18 @@ TEXTS = {
         ),
         "upsell": "⭐ Enjoying MatchMe?\nPremium = priority search + more AI + no ads!",
         "ad_message": "📢 Your ad could be here\n\n⭐ Buy Premium and remove ads forever!",
-        "ad_partner_1": (
+        # --- Ads: neutral (all modes) ---
+        "ad_dzen_1": (
             "🔓 YouTube, TikTok, ChatGPT — no blocks?\n\n"
             "Dzen VPN — fast and stable.\n"
             "3 days free when you sign up!"
         ),
-        "ad_partner_2": (
+        "ad_dzen_2": (
             "🛡 Your privacy is your business.\n\n"
             "Dzen VPN protects your data and unlocks any service.\n"
             "No card required. Cancel anytime."
         ),
-        "ad_partner_3": (
+        "ad_dzen_3": (
             "⚡ Internet without limits — it's real.\n\n"
             "Dzen VPN: unlimited on all devices.\n"
             "Try free — 3 days to test!"
@@ -1479,17 +1485,18 @@ TEXTS = {
         ),
         "upsell": "⭐ ¿Disfrutas MatchMe?\n¡Premium = búsqueda prioritaria + más IA + sin anuncios!",
         "ad_message": "📢 Tu anuncio podría estar aquí\n\n⭐ ¡Compra Premium y elimina los anuncios para siempre!",
-        "ad_partner_1": (
+        # --- Anuncios: neutral (todos los modos) ---
+        "ad_dzen_1": (
             "🔓 ¿YouTube, TikTok, ChatGPT sin bloqueos?\n\n"
             "Dzen VPN — rápido y estable.\n"
             "¡3 días gratis al registrarte!"
         ),
-        "ad_partner_2": (
+        "ad_dzen_2": (
             "🛡 Tu privacidad es tu asunto.\n\n"
             "Dzen VPN protege tus datos y desbloquea cualquier servicio.\n"
             "Sin tarjeta. Cancela cuando quieras."
         ),
-        "ad_partner_3": (
+        "ad_dzen_3": (
             "⚡ Internet sin límites — es real.\n\n"
             "Dzen VPN: ilimitado en todos los dispositivos.\n"
             "¡Prueba gratis — 3 días de prueba!"

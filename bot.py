@@ -819,22 +819,73 @@ async def get_premium_badge(uid):
     if await is_premium(uid): return " ⭐"
     return ""
 
-PARTNER_AD_URL = "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi"
-PARTNER_AD_KEYS = ["ad_partner_1", "ad_partner_2", "ad_partner_3"]
+# ====================== РЕКЛАМНАЯ СИСТЕМА ======================
+# Каждый слот: text_key (ключ в locales), url, langs (языки), modes (режимы юзера)
+# langs=None — все языки, modes=None — все режимы
+# modes=["kink","flirt"] — только 18+/флирт контент
+PARTNER_ADS = [
+    # --- Нейтральные — все языки, все режимы ---
+    {
+        "text_key": "ad_dzen_1",
+        "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
+        "btn_key": "btn_ad_connect",
+        "langs": None,
+        "modes": None,
+    },
+    {
+        "text_key": "ad_dzen_2",
+        "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
+        "btn_key": "btn_ad_connect",
+        "langs": None,
+        "modes": None,
+    },
+    {
+        "text_key": "ad_dzen_3",
+        "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
+        "btn_key": "btn_ad_connect",
+        "langs": None,
+        "modes": None,
+    },
+    # --- Только RU ---
+    # {"text_key": "ad_ru_example", "url": "https://t.me/...", "btn_key": "btn_ad_try",
+    #  "langs": ["ru"], "modes": None},
+    # --- Только EN ---
+    # {"text_key": "ad_en_example", "url": "https://t.me/...", "btn_key": "btn_ad_try",
+    #  "langs": ["en"], "modes": None},
+    # --- 18+ только kink/flirt ---
+    # {"text_key": "ad_nsfw_example", "url": "https://t.me/...", "btn_key": "btn_ad_open",
+    #  "langs": None, "modes": ["kink", "flirt"]},
+]
+
+
+def _filter_ads(lang: str, mode: str) -> list:
+    """Фильтрует рекламу по языку и режиму юзера."""
+    result = []
+    for ad in PARTNER_ADS:
+        if ad["langs"] is not None and lang not in ad["langs"]:
+            continue
+        if ad["modes"] is not None and mode not in ad["modes"]:
+            continue
+        result.append(ad)
+    return result
 
 
 async def send_ad_message(uid):
-    """Показывает партнёрскую рекламу с ротацией креативов + кнопка убрать рекламу."""
+    """Показывает таргетированную партнёрскую рекламу с ротацией."""
     try:
         lang = await get_lang(uid)
         u = await get_user(uid)
+        mode = u.get("mode", "simple") if u else "simple"
         chats = u.get("total_chats", 0) if u else 0
-        ad_key = PARTNER_AD_KEYS[chats % len(PARTNER_AD_KEYS)]
+        ads = _filter_ads(lang, mode)
+        if not ads:
+            return
+        ad = ads[chats % len(ads)]
         await bot.send_message(
             uid,
-            t(lang, ad_key),
+            t(lang, ad["text_key"]),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=t(lang, "btn_ad_connect"), url=PARTNER_AD_URL)],
+                [InlineKeyboardButton(text=t(lang, ad["btn_key"]), url=ad["url"])],
                 [InlineKeyboardButton(text=t(lang, "btn_ad_remove"), callback_data="buy:info")],
             ])
         )
