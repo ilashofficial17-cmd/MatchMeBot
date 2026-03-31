@@ -891,6 +891,21 @@ PARTNER_ADS = [
         "langs": ["ru"],
         "modes": None,
     },
+    # --- BoundLess3D — все языки, только kink/flirt ---
+    {
+        "text_key": "ad_boundless_1",
+        "url": "https://t.me/Boundless3D_bot?start=_tgr_3hwFzf1kYjg6",
+        "btn_key": "btn_ad_boundless",
+        "langs": None,
+        "modes": ["kink", "flirt"],
+    },
+    {
+        "text_key": "ad_boundless_2",
+        "url": "https://t.me/Boundless3D_bot?start=_tgr_3hwFzf1kYjg6",
+        "btn_key": "btn_ad_boundless",
+        "langs": None,
+        "modes": ["kink", "flirt"],
+    },
 ]
 
 

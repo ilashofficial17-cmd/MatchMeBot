@@ -333,6 +333,18 @@ TEXTS = {
             "SMS PRO: быстро, дёшево, анонимно."
         ),
         "btn_ad_smspro": "📲 Получить номер",
+        # --- Реклама: BoundLess3D — kink/flirt ---
+        "ad_boundless_1": (
+            "🔥 3D-контент без цензуры и ограничений.\n\n"
+            "BoundLess3D — создавай и покупай VIP-подписку.\n"
+            "Партнёрка 50%. Попробуй прямо сейчас."
+        ),
+        "ad_boundless_2": (
+            "🎭 Хочешь больше? BoundLess3D — 3D для взрослых.\n\n"
+            "Безлимитный доступ по подписке.\n"
+            "Присоединяйся — 400+ пользователей уже внутри."
+        ),
+        "btn_ad_boundless": "🎬 Попробовать",
         "hardban": "🚫 Перманентный бан за нарушение правил.",
         # AI чат
         "ai_menu": (
@@ -946,6 +958,18 @@ TEXTS = {
             "250K+ users. Tap to start."
         ),
         "btn_ad_playbox": "🎬 Try Playbox",
+        # --- Ads: BoundLess3D — kink/flirt ---
+        "ad_boundless_1": (
+            "🔥 Uncensored 3D content — no limits.\n\n"
+            "BoundLess3D — VIP subscription, unlimited access.\n"
+            "50% affiliate. Try it now."
+        ),
+        "ad_boundless_2": (
+            "🎭 Want more? BoundLess3D — adult 3D content.\n\n"
+            "Unlimited access with subscription.\n"
+            "Join 400+ users already inside."
+        ),
+        "btn_ad_boundless": "🎬 Try it",
         "hardban": "🚫 Permanent ban for violating the rules.",
         # AI chat
         "ai_menu": (
@@ -1535,6 +1559,18 @@ TEXTS = {
         ),
         "btn_ad_connect": "🔗 Conectar",
         "btn_ad_remove": "⭐ Quitar anuncios",
+        # --- Anuncios: BoundLess3D — kink/flirt ---
+        "ad_boundless_1": (
+            "🔥 Contenido 3D sin censura ni límites.\n\n"
+            "BoundLess3D — suscripción VIP, acceso ilimitado.\n"
+            "50% de afiliado. Pruébalo ahora."
+        ),
+        "ad_boundless_2": (
+            "🎭 ¿Quieres más? BoundLess3D — contenido 3D para adultos.\n\n"
+            "Acceso ilimitado con suscripción.\n"
+            "Únete a 400+ usuarios que ya están dentro."
+        ),
+        "btn_ad_boundless": "🎬 Probar",
         "hardban": "🚫 Ban permanente por violar las reglas.",
         # Chat IA
         "ai_menu": (
