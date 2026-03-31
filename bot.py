@@ -155,6 +155,7 @@ async def init_db():
             ("ai_pro_until", "TEXT DEFAULT NULL"),
             ("ai_bonus", "INTEGER DEFAULT 0"),
             ("search_range", "TEXT DEFAULT 'local'"),
+            ("auto_translate", "BOOLEAN DEFAULT TRUE"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
@@ -626,6 +627,17 @@ async def kb_settings(uid, lang="ru"):
     buttons.append([InlineKeyboardButton(
         text=f"{sr_icon} {sr_label}", callback_data="set:search_range"
     )])
+
+    auto_tr = u.get("auto_translate", True)
+    if user_premium:
+        tr_icon = "✅" if auto_tr else "❌"
+        buttons.append([InlineKeyboardButton(
+            text=f"{tr_icon} {t(lang, 'settings_translate')}", callback_data="set:auto_translate"
+        )])
+    else:
+        buttons.append([InlineKeyboardButton(
+            text=f"🔒 {t(lang, 'settings_translate')}", callback_data="set:translate_locked"
+        )])
 
     if user_premium:
         p_until = u.get("premium_until", "")
@@ -1787,13 +1799,18 @@ async def relay(message: types.Message, state: FSMContext):
     # --- Translation for cross-language chats ---
     p_lang = await get_lang(partner)
     need_translate = lang != p_lang
-    partner_premium = await is_premium(partner) if need_translate else False
+    partner_premium = False
+    partner_auto_translate = True
+    if need_translate:
+        partner_premium = await is_premium(partner)
+        p_user = await get_user(partner)
+        partner_auto_translate = p_user.get("auto_translate", True) if p_user else True
 
     async def _translate_text(text: str | None) -> str | None:
         """Translate text for partner if needed. Returns formatted or original."""
         if not text or not need_translate:
             return text
-        if not partner_premium:
+        if not partner_premium or not partner_auto_translate:
             # Send one-time notice to non-premium partner
             if (partner, uid) not in translate_notice_sent:
                 translate_notice_sent.add((partner, uid))
@@ -2185,6 +2202,14 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         current = u.get("search_range", "local")
         new_val = "global" if current == "local" else "local"
         await update_user(uid, search_range=new_val)
+    elif key == "auto_translate":
+        if not await is_premium(uid):
+            await callback.answer(t(lang, "settings_premium_only"), show_alert=True)
+            return
+        await update_user(uid, auto_translate=not u.get("auto_translate", True))
+    elif key == "translate_locked":
+        await callback.answer(t(lang, "settings_translate_locked"), show_alert=True)
+        return
     try:
         await callback.message.edit_reply_markup(reply_markup=await kb_settings(uid, lang))
     except Exception: pass

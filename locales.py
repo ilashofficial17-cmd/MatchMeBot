@@ -255,13 +255,14 @@ TEXTS = {
             "• Безлимит на Basic ИИ персонажей\n"
             "• VIP персонажи — 50 сообщений/день\n"
             "• VIP+ персонажи (Kink) — 50 сообщений/день\n"
+            "• 🌐 Автоперевод сообщений в чатах\n"
             "• Приоритет в поиске\n"
             "• Без рекламы\n\n"
             "💡 Совет: годовая подписка — самый выгодный вариант!"
         ),
         "premium_activated": "🎉 {tier} активирован!\n\n📦 Тариф: {label}\n📅 До {until}\n\n{benefits}",
         "premium_unknown_plan": "Неизвестный тариф",
-        "benefit_premium": "Безлимит Basic ИИ, VIP и VIP+ персонажи (50/день), приоритет, без рекламы!",
+        "benefit_premium": "Безлимит Basic ИИ, VIP и VIP+ персонажи (50/день), автоперевод, приоритет, без рекламы!",
         # Тексты — сброс профиля
         "reset_confirm": (
             "⚠️ Полный сброс профиля!\n\n"
@@ -431,6 +432,8 @@ TEXTS = {
         "settings_search_global": "Поиск: все языки",
         "translate_label": "🌐 Перевод",
         "translate_premium_notice": "🌐 Собеседник пишет на другом языке. Оформи Premium, чтобы видеть автоматический перевод!",
+        "settings_translate": "Автоперевод в чатах",
+        "settings_translate_locked": "🔒 Автоперевод доступен только с Premium",
         "settings_buy_premium": "💎 Купить Premium",
         "premium_active": "⭐ Premium активен",
         "settings_gender_any": "🔀 Все",
@@ -792,13 +795,14 @@ TEXTS = {
             "• Unlimited Basic AI characters\n"
             "• VIP characters — 50 messages/day\n"
             "• VIP+ characters (Kink) — 50 messages/day\n"
+            "• 🌐 Auto-translation in chats\n"
             "• Priority search\n"
             "• No ads\n\n"
             "💡 Tip: yearly plan is the best deal!"
         ),
         "premium_activated": "🎉 {tier} activated!\n\n📦 Plan: {label}\n📅 Until {until}\n\n{benefits}",
         "premium_unknown_plan": "Unknown plan",
-        "benefit_premium": "Unlimited Basic AI, VIP & VIP+ characters (50/day), priority, no ads!",
+        "benefit_premium": "Unlimited Basic AI, VIP & VIP+ characters (50/day), auto-translation, priority, no ads!",
         # Reset
         "reset_confirm": (
             "⚠️ Full profile reset!\n\n"
@@ -968,6 +972,8 @@ TEXTS = {
         "settings_search_global": "Search: all languages",
         "translate_label": "🌐 Translation",
         "translate_premium_notice": "🌐 Your partner writes in another language. Get Premium to see automatic translations!",
+        "settings_translate": "Auto-translate in chats",
+        "settings_translate_locked": "🔒 Auto-translate is Premium only",
         "settings_buy_premium": "💎 Buy Premium",
         "premium_active": "⭐ Premium active",
         "settings_gender_any": "🔀 Anyone",
@@ -1329,13 +1335,14 @@ TEXTS = {
             "• Personajes IA Básicos ilimitados\n"
             "• Personajes VIP — 50 mensajes/día\n"
             "• Personajes VIP+ (Kink) — 50 mensajes/día\n"
+            "• 🌐 Traducción automática en chats\n"
             "• Búsqueda prioritaria\n"
             "• Sin anuncios\n\n"
             "💡 Consejo: ¡el plan anual es la mejor opción!"
         ),
         "premium_activated": "🎉 ¡{tier} activado!\n\n📦 Plan: {label}\n📅 Hasta {until}\n\n{benefits}",
         "premium_unknown_plan": "Plan desconocido",
-        "benefit_premium": "IA Básica ilimitada, personajes VIP y VIP+ (50/día), prioridad, ¡sin anuncios!",
+        "benefit_premium": "IA Básica ilimitada, personajes VIP y VIP+ (50/día), traducción automática, prioridad, ¡sin anuncios!",
         # Restablecer perfil
         "reset_confirm": (
             "⚠️ ¡Restablecimiento completo del perfil!\n\n"
@@ -1505,6 +1512,8 @@ TEXTS = {
         "settings_search_global": "Búsqueda: todos los idiomas",
         "translate_label": "🌐 Traducción",
         "translate_premium_notice": "🌐 Tu compañero escribe en otro idioma. ¡Obtén Premium para ver traducciones automáticas!",
+        "settings_translate": "Traducción automática en chats",
+        "settings_translate_locked": "🔒 Traducción automática solo con Premium",
         "settings_buy_premium": "💎 Comprar Premium",
         "premium_active": "⭐ Premium activo",
         "settings_gender_any": "🔀 Cualquiera",
