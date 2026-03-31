@@ -113,7 +113,7 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
     is_premium = user_tier in ("premium", "plus")
     buttons = []
     # Блок 1 — Общение
-    buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_simple"), callback_data="aichar:power_soon")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_simple"), callback_data="noop")])
     buttons.append([
         InlineKeyboardButton(text=t(lang, "char_luna"), callback_data="aichar:luna"),
         InlineKeyboardButton(text=t(lang, "char_max_simple"), callback_data="aichar:max_simple"),
@@ -123,7 +123,7 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
         InlineKeyboardButton(text=t(lang, "char_alex"), callback_data="aichar:alex"),
     ])
     # Блок 2 — Флирт
-    buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_flirt"), callback_data="aichar:power_soon")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_flirt"), callback_data="noop")])
     buttons.append([
         InlineKeyboardButton(text=t(lang, "char_mia"), callback_data="aichar:mia"),
         InlineKeyboardButton(text=t(lang, "char_kai"), callback_data="aichar:kai"),
@@ -133,7 +133,7 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
         InlineKeyboardButton(text=t(lang, "char_leon"), callback_data="aichar:leon"),
     ])
     # Блок 3 — Kink (VIP+)
-    buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_kink"), callback_data="aichar:power_soon")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_kink"), callback_data="noop")])
     if is_premium:
         buttons.append([
             InlineKeyboardButton(text=t(lang, "char_lilit"), callback_data="aichar:lilit"),

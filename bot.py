@@ -1257,7 +1257,6 @@ async def premium_info(callback: types.CallbackQuery):
 async def buy_premium(callback: types.CallbackQuery):
     uid = callback.from_user.id
     plan_key = callback.data.split(":", 1)[1]
-    if plan_key == "info": return
     if plan_key not in PREMIUM_PLANS:
         lang = await get_lang(callback.from_user.id)
         await callback.answer(t(lang, "premium_unknown_plan"), show_alert=True)

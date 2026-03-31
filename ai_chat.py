@@ -1431,18 +1431,18 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         await state.clear()
         if user_tier == "premium":
             limit_msg = t(lang, "ai_limit_plus", limit=limit)
-            upsell_btn = "buy:1m"
-        else:
-            limit_msg = t(lang, "ai_limit_basic", limit=limit)
-            upsell_btn = "buy:1m"
-        await message.answer(
-            limit_msg,
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=t(lang, "ai_buy_sub"), callback_data=upsell_btn)],
+            buttons = [
                 [InlineKeyboardButton(text=t(lang, "btn_find_live"), callback_data="goto:find")],
                 [InlineKeyboardButton(text=t(lang, "btn_home"), callback_data="goto:menu")]
-            ])
-        )
+            ]
+        else:
+            limit_msg = t(lang, "ai_limit_basic", limit=limit)
+            buttons = [
+                [InlineKeyboardButton(text=t(lang, "ai_buy_sub"), callback_data="buy:1m")],
+                [InlineKeyboardButton(text=t(lang, "btn_find_live"), callback_data="goto:find")],
+                [InlineKeyboardButton(text=t(lang, "btn_home"), callback_data="goto:menu")]
+            ]
+        await message.answer(limit_msg, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
         return
     _last_ai_msg[uid] = datetime.now()
     await _bot.send_chat_action(uid, "typing")
