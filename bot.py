@@ -41,10 +41,10 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "590443268"))
 PRICE_MULTIPLIERS = {"ru": 1.0, "es": 1.3, "en": 2.0}
 
 PREMIUM_PLANS = {
-    "7d":  {"stars": 99,   "days": 7,   "label_key": "plan_label_7d",  "desc_key": "plan_desc_try",      "tier": "premium"},
-    "1m":  {"stars": 299,  "days": 30,  "label_key": "plan_label_1m",  "desc_key": "plan_desc_popular",  "tier": "premium"},
-    "3m":  {"stars": 599,  "days": 90,  "label_key": "plan_label_3m",  "desc_key": "plan_desc_discount", "tier": "premium"},
-    "1y":  {"stars": 2153, "days": 365, "label_key": "plan_label_1y",  "desc_key": "plan_desc_best",     "tier": "premium"},
+    "7d":  {"stars": 129,  "days": 7,   "label_key": "plan_label_7d",  "desc_key": "plan_desc_try",      "tier": "premium"},
+    "1m":  {"stars": 349,  "days": 30,  "label_key": "plan_label_1m",  "desc_key": "plan_desc_popular",  "tier": "premium"},
+    "3m":  {"stars": 749,  "days": 90,  "label_key": "plan_label_3m",  "desc_key": "plan_desc_discount", "tier": "premium"},
+    "1y":  {"stars": 1899, "days": 365, "label_key": "plan_label_1y",  "desc_key": "plan_desc_best",     "tier": "premium"},
 }
 
 
@@ -819,14 +819,125 @@ async def get_premium_badge(uid):
     if await is_premium(uid): return " ⭐"
     return ""
 
+# ====================== РЕКЛАМНАЯ СИСТЕМА ======================
+# Каждый слот: text_key (ключ в locales), url, langs (языки), modes (режимы юзера)
+# langs=None — все языки, modes=None — все режимы
+# modes=["kink","flirt"] — только 18+/флирт контент
+PARTNER_ADS = [
+    # --- Dzen VPN — только RU ---
+    {
+        "text_key": "ad_dzen_1",
+        "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
+        "btn_key": "btn_ad_connect",
+        "langs": ["ru"],
+        "modes": None,
+    },
+    {
+        "text_key": "ad_dzen_2",
+        "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
+        "btn_key": "btn_ad_connect",
+        "langs": ["ru"],
+        "modes": None,
+    },
+    {
+        "text_key": "ad_dzen_3",
+        "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
+        "btn_key": "btn_ad_connect",
+        "langs": ["ru"],
+        "modes": None,
+    },
+    # --- Buy VPN Global — только EN ---
+    {
+        "text_key": "ad_vpnglobal_1",
+        "url": "https://t.me/BuyVPN_Global_bot?start=_tgr_YDRuRzQwYzhi",
+        "btn_key": "btn_ad_get_vpn",
+        "langs": ["en"],
+        "modes": None,
+    },
+    {
+        "text_key": "ad_vpnglobal_2",
+        "url": "https://t.me/BuyVPN_Global_bot?start=_tgr_YDRuRzQwYzhi",
+        "btn_key": "btn_ad_get_vpn",
+        "langs": ["en"],
+        "modes": None,
+    },
+    # --- Playbox — только EN, только kink ---
+    {
+        "text_key": "ad_playbox_1",
+        "url": "https://t.me/playbox?start=_tgr_BStO_C8wYjBi",
+        "btn_key": "btn_ad_playbox",
+        "langs": ["en"],
+        "modes": ["kink"],
+    },
+    {
+        "text_key": "ad_playbox_2",
+        "url": "https://t.me/playbox?start=_tgr_BStO_C8wYjBi",
+        "btn_key": "btn_ad_playbox",
+        "langs": ["en"],
+        "modes": ["kink"],
+    },
+    # --- SMS PRO — только RU, все режимы ---
+    {
+        "text_key": "ad_smspro_1",
+        "url": "https://t.me/Virtnumbers_buyBot?start=_tgr_josfGNMwMGYy",
+        "btn_key": "btn_ad_smspro",
+        "langs": ["ru"],
+        "modes": None,
+    },
+    {
+        "text_key": "ad_smspro_2",
+        "url": "https://t.me/Virtnumbers_buyBot?start=_tgr_josfGNMwMGYy",
+        "btn_key": "btn_ad_smspro",
+        "langs": ["ru"],
+        "modes": None,
+    },
+    # --- BoundLess3D — все языки, только kink/flirt ---
+    {
+        "text_key": "ad_boundless_1",
+        "url": "https://t.me/Boundless3D_bot?start=_tgr_3hwFzf1kYjg6",
+        "btn_key": "btn_ad_boundless",
+        "langs": None,
+        "modes": ["kink", "flirt"],
+    },
+    {
+        "text_key": "ad_boundless_2",
+        "url": "https://t.me/Boundless3D_bot?start=_tgr_3hwFzf1kYjg6",
+        "btn_key": "btn_ad_boundless",
+        "langs": None,
+        "modes": ["kink", "flirt"],
+    },
+]
+
+
+def _filter_ads(lang: str, mode: str) -> list:
+    """Фильтрует рекламу по языку и режиму юзера."""
+    result = []
+    for ad in PARTNER_ADS:
+        if ad["langs"] is not None and lang not in ad["langs"]:
+            continue
+        if ad["modes"] is not None and mode not in ad["modes"]:
+            continue
+        result.append(ad)
+    return result
+
+
 async def send_ad_message(uid):
+    """Показывает таргетированную партнёрскую рекламу с ротацией."""
     try:
         lang = await get_lang(uid)
+        u = await get_user(uid)
+        mode = u.get("mode", "simple") if u else "simple"
+        chats = u.get("total_chats", 0) if u else 0
+        ads = _filter_ads(lang, mode)
+        if not ads:
+            return
+        ad = ads[chats % len(ads)]
         await bot.send_message(
             uid,
-            t(lang, "ad_message"),
+            t(lang, ad["text_key"]),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=f"⭐ Premium — {get_plan_price('1m', lang)} Stars", callback_data="buy:1m")]
+                [InlineKeyboardButton(text=t(lang, ad["btn_key"]), url=ad["url"])],
+                [InlineKeyboardButton(text=t(lang, "btn_ad_remove"), callback_data="buy:info")],
             ])
         )
     except Exception: pass
@@ -1050,6 +1161,13 @@ async def end_chat(uid, state, go_next=False):
             await do_find(uid, state)
 
 async def _send_upsell_after_chat(uid, partner):
+    """Умная система показа после чата:
+    Чат 1-2: ничего (даём привыкнуть)
+    Чат 3,6,9,...: upsell Premium
+    Чат 5: триал Premium (одноразово)
+    Чат 4,8,12,...: партнёрская реклама
+    Остальные: ничего
+    """
     await asyncio.sleep(3)
     for target_uid in (uid, partner):
         if target_uid in active_chats:
@@ -1058,6 +1176,9 @@ async def _send_upsell_after_chat(uid, partner):
             continue
         u = await get_user(target_uid)
         chats = u.get("total_chats", 0) if u else 0
+        # Первые 2 чата — ничего, даём привыкнуть
+        if chats <= 2:
+            continue
         # Триал Premium после 5-го чата
         if chats == 5 and u and not u.get("trial_used"):
             try:
@@ -1069,7 +1190,8 @@ async def _send_upsell_after_chat(uid, partner):
                     ])
                 )
             except Exception: pass
-        elif chats > 0 and chats % 3 == 0:
+        # Каждый 3-й чат — upsell Premium
+        elif chats % 3 == 0:
             try:
                 lang = await get_lang(target_uid)
                 await bot.send_message(target_uid,
@@ -1079,7 +1201,8 @@ async def _send_upsell_after_chat(uid, partner):
                     ])
                 )
             except Exception: pass
-        else:
+        # Каждый 4-й чат — партнёрская реклама
+        elif chats % 4 == 0:
             await send_ad_message(target_uid)
 
 
@@ -1097,8 +1220,19 @@ async def activate_trial(callback: types.CallbackQuery):
         return
     if await is_premium(uid):
         await callback.answer(t(lang, "channel_already_premium"), show_alert=True)
+        # Уже Premium — помечаем триал как использованный, не трогаем подписку
+        await update_user(uid, trial_used=True)
         return
-    until = datetime.now() + timedelta(hours=24)
+    base = datetime.now()
+    current_until = u.get("premium_until")
+    if current_until and current_until != "permanent":
+        try:
+            existing = datetime.fromisoformat(current_until)
+            if existing > base:
+                base = existing
+        except Exception:
+            pass
+    until = base + timedelta(hours=24)
     await update_user(uid, premium_until=until.isoformat(), premium_tier="premium", trial_used=True)
     try:
         await callback.message.edit_text(t(lang, "trial_activated", until=until.strftime('%d.%m.%Y %H:%M')))

@@ -305,7 +305,7 @@ TEXTS = {
         "ad_message": "📢 Здесь могла быть ваша реклама\n\n⭐ Купи Premium и убери рекламу навсегда!",
         # --- Реклама: нейтральная (все режимы) ---
         "ad_dzen_1": (
-            "🔓 YouTube, TikTok и другие сервисы без блокировок?\n\n"
+            "🔓 YouTube, TikTok, ChatGPT без блокировок?\n\n"
             "Dzen VPN — быстрый и стабильный.\n"
             "3 дня бесплатно при регистрации!"
         ),
@@ -325,7 +325,7 @@ TEXTS = {
         "ad_smspro_1": (
             "📱 Нужен номер для регистрации?\n\n"
             "SMS PRO — виртуальные номера для любого мессенджера.\n"
-            "Быстро, удобно и анонимно."
+            "8,000+ пользователей. Дешевле чем у конкурентов на 40%!"
         ),
         "ad_smspro_2": (
             "🔢 Виртуальный номер за минуту.\n\n"
@@ -337,12 +337,12 @@ TEXTS = {
         "ad_boundless_1": (
             "🔥 3D-контент без цензуры и ограничений.\n\n"
             "BoundLess3D — создавай и покупай VIP-подписку.\n"
-            "Попробуй прямо сейчас."
+            "Партнёрка 50%. Попробуй прямо сейчас."
         ),
         "ad_boundless_2": (
             "🎭 Хочешь больше? BoundLess3D — 3D для взрослых.\n\n"
             "Безлимитный доступ по подписке.\n"
-            "Присоединяйся прямо сейчас."
+            "Присоединяйся — 400+ пользователей уже внутри."
         ),
         "btn_ad_boundless": "🎬 Попробовать",
         "hardban": "🚫 Перманентный бан за нарушение правил.",
@@ -918,7 +918,7 @@ TEXTS = {
         "ad_message": "📢 Your ad could be here\n\n⭐ Buy Premium and remove ads forever!",
         # --- Ads: neutral (all modes) ---
         "ad_dzen_1": (
-            "🔓 YouTube, TikTok and more — no blocks?\n\n"
+            "🔓 YouTube, TikTok, ChatGPT — no blocks?\n\n"
             "Dzen VPN — fast and stable.\n"
             "3 days free when you sign up!"
         ),
@@ -938,36 +938,36 @@ TEXTS = {
         "ad_vpnglobal_1": (
             "🌍 Need a VPN that just works?\n\n"
             "Buy VPN Global — Proxy S5, instant setup.\n"
-            "Pay with Telegram Stars. Try it now."
+            "Pay with Telegram Stars. 3,000+ servers available now."
         ),
         "ad_vpnglobal_2": (
             "🔒 Stay private. Stay connected.\n\n"
             "VPN Global — fast proxies, no logs, pay with Stars.\n"
-            "Simple and reliable. Try it today."
+            "15,000+ users trust it. Try it today."
         ),
         "btn_ad_get_vpn": "🛒 Get VPN",
         # --- Ads: EN kink-only — Playbox ---
         "ad_playbox_1": (
             "🔥 Turn any image into a video — no limits.\n\n"
-            "Playbox AI: adult video generator.\n"
+            "Playbox AI: adult video generator used by 250K+ people.\n"
             "Create something unforgettable."
         ),
         "ad_playbox_2": (
             "⚡ AI-powered NSFW video creation.\n\n"
             "Playbox — bring your fantasies to life in seconds.\n"
-            "Tap to start."
+            "250K+ users. Tap to start."
         ),
         "btn_ad_playbox": "🎬 Try Playbox",
         # --- Ads: BoundLess3D — kink/flirt ---
         "ad_boundless_1": (
             "🔥 Uncensored 3D content — no limits.\n\n"
             "BoundLess3D — VIP subscription, unlimited access.\n"
-            "Try it now."
+            "50% affiliate. Try it now."
         ),
         "ad_boundless_2": (
             "🎭 Want more? BoundLess3D — adult 3D content.\n\n"
             "Unlimited access with subscription.\n"
-            "Join now."
+            "Join 400+ users already inside."
         ),
         "btn_ad_boundless": "🎬 Try it",
         "hardban": "🚫 Permanent ban for violating the rules.",
@@ -1543,7 +1543,7 @@ TEXTS = {
         "ad_message": "📢 Tu anuncio podría estar aquí\n\n⭐ ¡Compra Premium y elimina los anuncios para siempre!",
         # --- Anuncios: neutral (todos los modos) ---
         "ad_dzen_1": (
-            "🔓 ¿YouTube, TikTok y más sin bloqueos?\n\n"
+            "🔓 ¿YouTube, TikTok, ChatGPT sin bloqueos?\n\n"
             "Dzen VPN — rápido y estable.\n"
             "¡3 días gratis al registrarte!"
         ),
@@ -1563,12 +1563,12 @@ TEXTS = {
         "ad_boundless_1": (
             "🔥 Contenido 3D sin censura ni límites.\n\n"
             "BoundLess3D — suscripción VIP, acceso ilimitado.\n"
-            "Pruébalo ahora."
+            "50% de afiliado. Pruébalo ahora."
         ),
         "ad_boundless_2": (
             "🎭 ¿Quieres más? BoundLess3D — contenido 3D para adultos.\n\n"
             "Acceso ilimitado con suscripción.\n"
-            "Únete ahora."
+            "Únete a 400+ usuarios que ya están dentro."
         ),
         "btn_ad_boundless": "🎬 Probar",
         "hardban": "🚫 Ban permanente por violar las reglas.",
