@@ -850,8 +850,20 @@ PARTNER_ADS = [
     # {"text_key": "ad_ru_example", "url": "https://t.me/...", "btn_key": "btn_ad_try",
     #  "langs": ["ru"], "modes": None},
     # --- Только EN ---
-    # {"text_key": "ad_en_example", "url": "https://t.me/...", "btn_key": "btn_ad_try",
-    #  "langs": ["en"], "modes": None},
+    {
+        "text_key": "ad_vpnglobal_1",
+        "url": "https://t.me/BuyVPN_Global_bot?start=_tgr_YDRuRzQwYzhi",
+        "btn_key": "btn_ad_get_vpn",
+        "langs": ["en"],
+        "modes": None,
+    },
+    {
+        "text_key": "ad_vpnglobal_2",
+        "url": "https://t.me/BuyVPN_Global_bot?start=_tgr_YDRuRzQwYzhi",
+        "btn_key": "btn_ad_get_vpn",
+        "langs": ["en"],
+        "modes": None,
+    },
     # --- 18+ только kink/flirt ---
     # {"text_key": "ad_nsfw_example", "url": "https://t.me/...", "btn_key": "btn_ad_open",
     #  "langs": None, "modes": ["kink", "flirt"]},

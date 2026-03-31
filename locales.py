@@ -914,6 +914,18 @@ TEXTS = {
         ),
         "btn_ad_connect": "🔗 Connect",
         "btn_ad_remove": "⭐ Remove ads",
+        # --- Ads: EN-only — Buy VPN Global ---
+        "ad_vpnglobal_1": (
+            "🌍 Need a VPN that just works?\n\n"
+            "Buy VPN Global — Proxy S5, instant setup.\n"
+            "Pay with Telegram Stars. 3,000+ servers available now."
+        ),
+        "ad_vpnglobal_2": (
+            "🔒 Stay private. Stay connected.\n\n"
+            "VPN Global — fast proxies, no logs, pay with Stars.\n"
+            "15,000+ users trust it. Try it today."
+        ),
+        "btn_ad_get_vpn": "🛒 Get VPN",
         "hardban": "🚫 Permanent ban for violating the rules.",
         # AI chat
         "ai_menu": (
