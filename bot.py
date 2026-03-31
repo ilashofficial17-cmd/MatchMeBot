@@ -1097,8 +1097,19 @@ async def activate_trial(callback: types.CallbackQuery):
         return
     if await is_premium(uid):
         await callback.answer(t(lang, "channel_already_premium"), show_alert=True)
+        # Уже Premium — помечаем триал как использованный, не трогаем подписку
+        await update_user(uid, trial_used=True)
         return
-    until = datetime.now() + timedelta(hours=24)
+    base = datetime.now()
+    current_until = u.get("premium_until")
+    if current_until and current_until != "permanent":
+        try:
+            existing = datetime.fromisoformat(current_until)
+            if existing > base:
+                base = existing
+        except Exception:
+            pass
+    until = base + timedelta(hours=24)
     await update_user(uid, premium_until=until.isoformat(), premium_tier="premium", trial_used=True)
     try:
         await callback.message.edit_text(t(lang, "trial_activated", until=until.strftime('%d.%m.%Y %H:%M')))
