@@ -819,14 +819,23 @@ async def get_premium_badge(uid):
     if await is_premium(uid): return " ⭐"
     return ""
 
+PARTNER_AD_URL = "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi"
+PARTNER_AD_KEYS = ["ad_partner_1", "ad_partner_2", "ad_partner_3"]
+
+
 async def send_ad_message(uid):
+    """Показывает партнёрскую рекламу с ротацией креативов + кнопка убрать рекламу."""
     try:
         lang = await get_lang(uid)
+        u = await get_user(uid)
+        chats = u.get("total_chats", 0) if u else 0
+        ad_key = PARTNER_AD_KEYS[chats % len(PARTNER_AD_KEYS)]
         await bot.send_message(
             uid,
-            t(lang, "ad_message"),
+            t(lang, ad_key),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=f"⭐ Premium — {get_plan_price('1m', lang)} Stars", callback_data="buy:1m")]
+                [InlineKeyboardButton(text=t(lang, "btn_ad_connect"), url=PARTNER_AD_URL)],
+                [InlineKeyboardButton(text=t(lang, "btn_ad_remove"), callback_data="buy:info")],
             ])
         )
     except Exception: pass
@@ -1050,6 +1059,13 @@ async def end_chat(uid, state, go_next=False):
             await do_find(uid, state)
 
 async def _send_upsell_after_chat(uid, partner):
+    """Умная система показа после чата:
+    Чат 1-2: ничего (даём привыкнуть)
+    Чат 3,6,9,...: upsell Premium
+    Чат 5: триал Premium (одноразово)
+    Чат 4,8,12,...: партнёрская реклама
+    Остальные: ничего
+    """
     await asyncio.sleep(3)
     for target_uid in (uid, partner):
         if target_uid in active_chats:
@@ -1058,6 +1074,9 @@ async def _send_upsell_after_chat(uid, partner):
             continue
         u = await get_user(target_uid)
         chats = u.get("total_chats", 0) if u else 0
+        # Первые 2 чата — ничего, даём привыкнуть
+        if chats <= 2:
+            continue
         # Триал Premium после 5-го чата
         if chats == 5 and u and not u.get("trial_used"):
             try:
@@ -1069,7 +1088,8 @@ async def _send_upsell_after_chat(uid, partner):
                     ])
                 )
             except Exception: pass
-        elif chats > 0 and chats % 3 == 0:
+        # Каждый 3-й чат — upsell Premium
+        elif chats % 3 == 0:
             try:
                 lang = await get_lang(target_uid)
                 await bot.send_message(target_uid,
@@ -1079,7 +1099,8 @@ async def _send_upsell_after_chat(uid, partner):
                     ])
                 )
             except Exception: pass
-        else:
+        # Каждый 4-й чат — партнёрская реклама
+        elif chats % 4 == 0:
             await send_ad_message(target_uid)
 
 
