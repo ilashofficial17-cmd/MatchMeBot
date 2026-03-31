@@ -252,15 +252,16 @@ TEXTS = {
         "premium_info": (
             "📊 Premium подписка:\n\n"
             "⭐ Что входит:\n"
-            "• Безлимит на всех ИИ персонажей\n"
-            "• VIP персонажи (Флирт, Kink) открыты\n"
+            "• Безлимит на Basic ИИ персонажей\n"
+            "• VIP персонажи — 50 сообщений/день\n"
+            "• VIP+ персонажи (Kink) — 50 сообщений/день\n"
             "• Приоритет в поиске\n"
             "• Без рекламы\n\n"
             "💡 Совет: годовая подписка — самый выгодный вариант!"
         ),
         "premium_activated": "🎉 {tier} активирован!\n\n📦 Тариф: {label}\n📅 До {until}\n\n{benefits}",
         "premium_unknown_plan": "Неизвестный тариф",
-        "benefit_premium": "Безлимит ИИ, VIP персонажи, приоритет, без рекламы!",
+        "benefit_premium": "Безлимит Basic ИИ, VIP и VIP+ персонажи (50/день), приоритет, без рекламы!",
         # Тексты — сброс профиля
         "reset_confirm": (
             "⚠️ Полный сброс профиля!\n\n"
@@ -300,10 +301,9 @@ TEXTS = {
         # AI чат
         "ai_menu": (
             "🤖 ИИ чат\n\n"
-            "💬 Basic: 20 сообщений/день\n"
-            "🔥 VIP: 10 сообщений/день\n"
-            "🔥 VIP+: только по подписке\n"
-            "⭐ Подписка снимает все лимиты\n\n"
+            "💬 Basic: 20 сообщений/день (безлимит с Premium)\n"
+            "🔥 VIP: 10 сообщений/день (50/день с Premium)\n"
+            "🔥 VIP+: только по подписке (50/день)\n\n"
             "Выбери с кем хочешь поговорить:"
         ),
         "ai_select_char": "Выбери персонажа:",
@@ -785,15 +785,16 @@ TEXTS = {
         "premium_info": (
             "📊 Premium subscription:\n\n"
             "⭐ What's included:\n"
-            "• Unlimited all AI characters\n"
-            "• VIP characters (Flirt, Kink) unlocked\n"
+            "• Unlimited Basic AI characters\n"
+            "• VIP characters — 50 messages/day\n"
+            "• VIP+ characters (Kink) — 50 messages/day\n"
             "• Priority search\n"
             "• No ads\n\n"
             "💡 Tip: yearly plan is the best deal!"
         ),
         "premium_activated": "🎉 {tier} activated!\n\n📦 Plan: {label}\n📅 Until {until}\n\n{benefits}",
         "premium_unknown_plan": "Unknown plan",
-        "benefit_premium": "Unlimited AI, VIP characters, priority, no ads!",
+        "benefit_premium": "Unlimited Basic AI, VIP & VIP+ characters (50/day), priority, no ads!",
         # Reset
         "reset_confirm": (
             "⚠️ Full profile reset!\n\n"
@@ -833,10 +834,9 @@ TEXTS = {
         # AI chat
         "ai_menu": (
             "🤖 AI Chat\n\n"
-            "💬 Basic: 20 messages/day\n"
-            "🔥 VIP: 10 messages/day\n"
-            "🔥 VIP+: subscription only\n"
-            "⭐ Subscription removes all limits\n\n"
+            "💬 Basic: 20 messages/day (unlimited with Premium)\n"
+            "🔥 VIP: 10 messages/day (50/day with Premium)\n"
+            "🔥 VIP+: subscription only (50/day)\n\n"
             "Choose who you want to talk to:"
         ),
         "ai_select_char": "Choose a character:",
@@ -1318,15 +1318,16 @@ TEXTS = {
         "premium_info": (
             "📊 Suscripción Premium:\n\n"
             "⭐ Qué incluye:\n"
-            "• IA ilimitada en todos los personajes\n"
-            "• Personajes VIP (Coqueteo, Kink) desbloqueados\n"
+            "• Personajes IA Básicos ilimitados\n"
+            "• Personajes VIP — 50 mensajes/día\n"
+            "• Personajes VIP+ (Kink) — 50 mensajes/día\n"
             "• Búsqueda prioritaria\n"
             "• Sin anuncios\n\n"
             "💡 Consejo: ¡el plan anual es la mejor opción!"
         ),
         "premium_activated": "🎉 ¡{tier} activado!\n\n📦 Plan: {label}\n📅 Hasta {until}\n\n{benefits}",
         "premium_unknown_plan": "Plan desconocido",
-        "benefit_premium": "IA ilimitada, personajes VIP, prioridad, ¡sin anuncios!",
+        "benefit_premium": "IA Básica ilimitada, personajes VIP y VIP+ (50/día), prioridad, ¡sin anuncios!",
         # Restablecer perfil
         "reset_confirm": (
             "⚠️ ¡Restablecimiento completo del perfil!\n\n"
@@ -1366,10 +1367,9 @@ TEXTS = {
         # Chat IA
         "ai_menu": (
             "🤖 Chat IA\n\n"
-            "💬 Básico: 20 mensajes/día\n"
-            "🔥 VIP: 10 mensajes/día\n"
-            "🔥 VIP+: solo con suscripción\n"
-            "⭐ La suscripción elimina todos los límites\n\n"
+            "💬 Básico: 20 mensajes/día (ilimitado con Premium)\n"
+            "🔥 VIP: 10 mensajes/día (50/día con Premium)\n"
+            "🔥 VIP+: solo con suscripción (50/día)\n\n"
             "Elige con quién quieres hablar:"
         ),
         "ai_select_char": "Elige un personaje:",

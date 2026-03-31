@@ -17,8 +17,8 @@ logger = logging.getLogger("matchme")
 
 AI_LIMITS = {
     "basic":    {"free": 20,  "premium": None},
-    "vip":      {"free": 10,  "premium": None},
-    "vip_plus": {"free": 0,   "premium": None},
+    "vip":      {"free": 10,  "premium": 50},
+    "vip_plus": {"free": 0,   "premium": 50},
 }
 
 # ====================== БЛОК 1 — ОБЩЕНИЕ ======================
