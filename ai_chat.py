@@ -16,7 +16,7 @@ router = Router()
 logger = logging.getLogger("matchme")
 
 AI_LIMITS = {
-    "basic":    {"free": 20,  "premium": None},
+    "basic":    {"free": 20,  "premium": 100},
     "vip":      {"free": 10,  "premium": 50},
     "vip_plus": {"free": 0,   "premium": 50},
 }
@@ -1523,6 +1523,9 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     response = await ask_ai(char_id, session["history"][:-1], txt, lang, user=u,
                             msg_count=session["msg_count"] + 1, notes=notes)
     session["history"].append({"role": "assistant", "content": response})
+    # Sliding window: держим в памяти только последние 20 сообщений
+    if len(session["history"]) > 20:
+        session["history"] = session["history"][-20:]
     if _save_ai_message:
         await _save_ai_message(uid, char_id, "user", txt)
         await _save_ai_message(uid, char_id, "assistant", response)

@@ -156,6 +156,9 @@ async def init_db():
             ("ai_bonus", "INTEGER DEFAULT 0"),
             ("search_range", "TEXT DEFAULT 'local'"),
             ("auto_translate", "BOOLEAN DEFAULT TRUE"),
+            ("referred_by", "BIGINT DEFAULT NULL"),
+            ("referral_bonus_given", "BOOLEAN DEFAULT FALSE"),
+            ("trial_used", "BOOLEAN DEFAULT FALSE"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
@@ -489,6 +492,43 @@ async def check_channel_subscription(uid):
     except Exception:
         return False
 
+
+async def grant_referral_bonus(uid):
+    """Даёт 3 дня Premium пригласившему, когда реферал завершает 1-й чат."""
+    try:
+        u = await get_user(uid)
+        if not u or u.get("referral_bonus_given"):
+            return
+        referrer_id = u.get("referred_by")
+        if not referrer_id:
+            return
+        chats = u.get("total_chats", 0)
+        if chats < 1:
+            return
+        await update_user(uid, referral_bonus_given=True)
+        referrer = await get_user(referrer_id)
+        if not referrer:
+            return
+        base = datetime.now()
+        p_until = referrer.get("premium_until")
+        if p_until and p_until != "permanent":
+            try:
+                existing = datetime.fromisoformat(p_until)
+                if existing > base:
+                    base = existing
+            except Exception:
+                pass
+        until = base + timedelta(days=3)
+        await update_user(referrer_id, premium_until=until.isoformat(), premium_tier="premium")
+        ref_lang = (referrer.get("lang") or "ru")
+        try:
+            await bot.send_message(referrer_id,
+                t(ref_lang, "referral_bonus_received", until=until.strftime('%d.%m.%Y')))
+        except Exception:
+            pass
+    except Exception as e:
+        logger.error(f"grant_referral_bonus error: {e}")
+
 async def save_chat_to_db(uid1, uid2, chat_type="profile"):
     try:
         async with db_pool.acquire() as conn:
@@ -738,6 +778,7 @@ async def set_commands():
         BotCommand(command="ai", description="ИИ чат"),
         BotCommand(command="help", description="Помощь"),
         BotCommand(command="admin", description="Админ панель"),
+        BotCommand(command="referral", description="Пригласи друга"),
     ])
     # English commands
     await bot.set_my_commands([
@@ -753,6 +794,7 @@ async def set_commands():
         BotCommand(command="ai", description="AI chat"),
         BotCommand(command="help", description="Help"),
         BotCommand(command="admin", description="Admin panel"),
+        BotCommand(command="referral", description="Invite a friend"),
     ], language_code="en")
     # Spanish commands
     await bot.set_my_commands([
@@ -768,6 +810,7 @@ async def set_commands():
         BotCommand(command="ai", description="Chat IA"),
         BotCommand(command="help", description="Ayuda"),
         BotCommand(command="admin", description="Panel de admin"),
+        BotCommand(command="referral", description="Invitar amigo"),
     ], language_code="es")
 
 async def get_premium_badge(uid):
@@ -897,6 +940,8 @@ async def do_find(uid, state):
         pu = await get_user(partner)
         await increment_user(uid, total_chats=1)
         await increment_user(partner, total_chats=1)
+        asyncio.create_task(grant_referral_bonus(uid))
+        asyncio.create_task(grant_referral_bonus(partner))
         my_lang = (u.get("lang") or "ru") if u else "ru"
         p_lang = (pu.get("lang") or "ru") if pu else "ru"
         p_badge = await get_premium_badge(partner)
@@ -1013,7 +1058,18 @@ async def _send_upsell_after_chat(uid, partner):
             continue
         u = await get_user(target_uid)
         chats = u.get("total_chats", 0) if u else 0
-        if chats > 0 and chats % 3 == 0:
+        # Триал Premium после 5-го чата
+        if chats == 5 and u and not u.get("trial_used"):
+            try:
+                lang = await get_lang(target_uid)
+                await bot.send_message(target_uid,
+                    t(lang, "trial_offer"),
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text=t(lang, "btn_activate_trial"), callback_data="trial:activate")]
+                    ])
+                )
+            except Exception: pass
+        elif chats > 0 and chats % 3 == 0:
             try:
                 lang = await get_lang(target_uid)
                 await bot.send_message(target_uid,
@@ -1025,6 +1081,31 @@ async def _send_upsell_after_chat(uid, partner):
             except Exception: pass
         else:
             await send_ad_message(target_uid)
+
+
+# ====================== ТРИАЛ PREMIUM ======================
+@dp.callback_query(F.data == "trial:activate", StateFilter("*"))
+async def activate_trial(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    lang = await get_lang(uid)
+    u = await get_user(uid)
+    if not u:
+        await callback.answer()
+        return
+    if u.get("trial_used"):
+        await callback.answer(t(lang, "trial_already_used"), show_alert=True)
+        return
+    if await is_premium(uid):
+        await callback.answer(t(lang, "channel_already_premium"), show_alert=True)
+        return
+    until = datetime.now() + timedelta(hours=24)
+    await update_user(uid, premium_until=until.isoformat(), premium_tier="premium", trial_used=True)
+    try:
+        await callback.message.edit_text(t(lang, "trial_activated", until=until.strftime('%d.%m.%Y %H:%M')))
+    except Exception: pass
+    await callback.answer()
+
+
 # ====================== MUTUAL MATCH ======================
 @dp.callback_query(F.data.startswith("mutual:"), ~F.data.func(lambda d: d == "mutual:decline"), StateFilter("*"))
 async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
@@ -1124,6 +1205,19 @@ async def cmd_start(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     await cleanup(uid, state)
     await ensure_user(uid)
+
+    # Обработка реферальной ссылки /start ref_<uid>
+    args = message.text.split(maxsplit=1)
+    if len(args) > 1 and args[1].startswith("ref_"):
+        try:
+            referrer_id = int(args[1][4:])
+            if referrer_id != uid:
+                u_check = await get_user(uid)
+                if u_check and not u_check.get("referred_by"):
+                    await update_user(uid, referred_by=referrer_id)
+        except (ValueError, TypeError):
+            pass
+
     u = await get_user(uid)
     lang = (u.get("lang") or "ru") if u else "ru"
 
@@ -1295,6 +1389,23 @@ async def cmd_stats(message: types.Message, state: FSMContext):
         days=days_in_bot,
         premium=premium_text
     ))
+
+# ====================== РЕФЕРАЛЬНАЯ ПРОГРАММА ======================
+@dp.message(Command("referral"), StateFilter("*"))
+async def cmd_referral(message: types.Message, state: FSMContext):
+    if await needs_onboarding(message, state): return
+    uid = message.from_user.id
+    lang = await get_lang(uid)
+    ref_link = f"https://t.me/MyMatchMeBot?start=ref_{uid}"
+    # Считаем сколько рефералов привёл
+    count = 0
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT COUNT(*) as cnt FROM users WHERE referred_by=$1 AND referral_bonus_given=TRUE", uid)
+            count = row["cnt"] if row else 0
+    await message.answer(t(lang, "referral_info", link=ref_link, count=count))
+
 
 # ====================== PREMIUM ======================
 @dp.message(Command("premium"), StateFilter("*"))
@@ -1502,6 +1613,8 @@ async def anon_search(message: types.Message, state: FSMContext):
         await save_chat_to_db(uid, partner, "anon")
         await increment_user(uid, total_chats=1)
         await increment_user(partner, total_chats=1)
+        asyncio.create_task(grant_referral_bonus(uid))
+        asyncio.create_task(grant_referral_bonus(partner))
         p_lang = await get_lang(partner)
         await bot.send_message(uid, t(lang, "connected"), reply_markup=kb_chat(lang))
         await bot.send_message(partner, t(p_lang, "connected"), reply_markup=kb_chat(p_lang))

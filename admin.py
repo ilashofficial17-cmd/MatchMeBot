@@ -19,11 +19,29 @@ MODE_NAMES = {"simple": "Общение 💬", "flirt": "Флирт 💋", "kink
 router = Router()
 logger = logging.getLogger("matchme")
 
-REMINDER_TEMPLATES = [
-    "🔥 Сейчас онлайн {n} человек — самое время для поиска!",
-    "💬 Давно не заходил? У нас новые пользователи ждут общения!",
-    "🤖 Попробуй AI собеседника — {char} ждёт тебя!",
-]
+REMINDER_TEMPLATES = {
+    "ru": [
+        "🔥 Сейчас онлайн {n} человек — самое время для поиска!",
+        "💬 Давно не заходил? У нас новые пользователи ждут общения!",
+        "🤖 Попробуй AI собеседника — {char} ждёт тебя!",
+        "👋 Давно тебя не было! В MatchMe сейчас {n} человек онлайн. Заходи пообщаться!",
+        "💬 {char} скучает по тебе! Зайди продолжить разговор.",
+    ],
+    "en": [
+        "🔥 {n} people are online now — perfect time to find someone!",
+        "💬 Haven't been here in a while? New users are waiting!",
+        "🤖 Try an AI companion — {char} is waiting for you!",
+        "👋 We miss you! {n} people are online on MatchMe right now. Come chat!",
+        "💬 {char} misses you! Come back to continue the conversation.",
+    ],
+    "es": [
+        "🔥 ¡{n} personas en línea ahora — el momento perfecto para buscar!",
+        "💬 ¿Hace tiempo que no vienes? ¡Nuevos usuarios te esperan!",
+        "🤖 Prueba un compañero IA — ¡{char} te espera!",
+        "👋 ¡Te extrañamos! Hay {n} personas en línea en MatchMe. ¡Ven a chatear!",
+        "💬 ¡{char} te extraña! Vuelve a continuar la conversación.",
+    ],
+}
 
 # ====================== Инжектируемые зависимости ======================
 _bot = None
@@ -702,7 +720,8 @@ async def reminder_task():
                                 uid
                             )
                     else:
-                        template = random.choice(REMINDER_TEMPLATES)
+                        templates = REMINDER_TEMPLATES.get(u_lang, REMINDER_TEMPLATES["ru"])
+                        template = random.choice(templates)
                         text = template.format(n=max(online_count, 3), char=u_char_name)
                         await _bot.send_message(uid, text, reply_markup=kb_main(u_lang))
                         async with _db_pool.acquire() as conn:

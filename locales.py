@@ -302,7 +302,7 @@ TEXTS = {
         # AI чат
         "ai_menu": (
             "🤖 ИИ чат\n\n"
-            "💬 Basic: 20 сообщений/день (безлимит с Premium)\n"
+            "💬 Basic: 20 сообщений/день (100/день с Premium)\n"
             "🔥 VIP: 10 сообщений/день (50/день с Premium)\n"
             "🔥 VIP+: только по подписке (50/день)\n\n"
             "Выбери с кем хочешь поговорить:"
@@ -319,7 +319,7 @@ TEXTS = {
         "ai_ended": "✅ Чат с ИИ завершён.",
         "ai_select_from_buttons": "👆 Выбери персонажа из кнопок выше.",
         "ai_limit_plus": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\nСброс через 24 часа. Пока можешь пообщаться с живым собеседником!",
-        "ai_limit_basic": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\n⭐ Купи Premium — безлимит на ИИ и VIP персонажи!",
+        "ai_limit_basic": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\n⭐ Купи Premium — 100 сообщений/день + VIP персонажи!",
         "ai_remaining": "_💬 Осталось {left} сообщений_",
         "ai_unavailable": "😔 ИИ временно недоступен.",
         "ai_no_funds": "💳 ИИ временно недоступен — нет средств на балансе.",
@@ -542,6 +542,32 @@ TEXTS = {
             "Отвечай дружелюбно и непринуждённо. "
             "Никогда не раскрывай, что ты ИИ. Пиши только на русском."
         ),
+        # Реферальная программа
+        "referral_info": (
+            "🎁 Пригласи друга — получи 3 дня Premium!\n\n"
+            "Твоя ссылка:\n{link}\n\n"
+            "Когда друг начнёт первый чат — ты получишь бонус автоматически.\n\n"
+            "👥 Приглашено: {count}"
+        ),
+        "referral_bonus_received": (
+            "🎉 Твой друг начал общаться в MatchMe!\n\n"
+            "⭐ +3 дня Premium до {until}"
+        ),
+        # Триал Premium
+        "trial_offer": (
+            "🎁 Тебе понравилось? У тебя уже 5 чатов!\n\n"
+            "Попробуй Premium бесплатно на 24 часа:\n"
+            "• Приоритетный поиск\n"
+            "• VIP AI-персонажи\n"
+            "• Автоперевод\n"
+            "• Без рекламы"
+        ),
+        "btn_activate_trial": "⭐ Попробовать Premium бесплатно",
+        "trial_activated": "🎉 Premium активирован на 24 часа!\nДо {until}",
+        "trial_already_used": "Ты уже использовал пробный период!",
+        # Retention
+        "retention_miss_you": "👋 Давно тебя не было! В MatchMe сейчас {count} человек онлайн. Заходи пообщаться!",
+        "retention_ai_miss": "💬 {name} скучает по тебе! Зайди продолжить разговор.",
     },
 
     "en": {
@@ -842,7 +868,7 @@ TEXTS = {
         # AI chat
         "ai_menu": (
             "🤖 AI Chat\n\n"
-            "💬 Basic: 20 messages/day (unlimited with Premium)\n"
+            "💬 Basic: 20 messages/day (100/day with Premium)\n"
             "🔥 VIP: 10 messages/day (50/day with Premium)\n"
             "🔥 VIP+: subscription only (50/day)\n\n"
             "Choose who you want to talk to:"
@@ -859,7 +885,7 @@ TEXTS = {
         "ai_ended": "✅ AI chat ended.",
         "ai_select_from_buttons": "👆 Choose a character from the buttons above.",
         "ai_limit_plus": "⏰ Limit reached ({limit} messages/day).\n\nResets in 24 hours. Meanwhile, chat with a real person!",
-        "ai_limit_basic": "⏰ Limit reached ({limit} messages/day).\n\n⭐ Buy Premium — unlimited AI and VIP characters!",
+        "ai_limit_basic": "⏰ Limit reached ({limit} messages/day).\n\n⭐ Buy Premium — 100 messages/day + VIP characters!",
         "ai_remaining": "_💬 {left} messages left_",
         "ai_unavailable": "😔 AI is temporarily unavailable.",
         "ai_no_funds": "💳 AI temporarily unavailable — no balance.",
@@ -1082,6 +1108,32 @@ TEXTS = {
             "Reply casually and warmly. "
             "Never reveal you are an AI. Write only in English."
         ),
+        # Referral
+        "referral_info": (
+            "🎁 Invite a friend — get 3 days of Premium!\n\n"
+            "Your link:\n{link}\n\n"
+            "When your friend starts their first chat — you get the bonus automatically.\n\n"
+            "👥 Invited: {count}"
+        ),
+        "referral_bonus_received": (
+            "🎉 Your friend started chatting on MatchMe!\n\n"
+            "⭐ +3 days Premium until {until}"
+        ),
+        # Trial Premium
+        "trial_offer": (
+            "🎁 Enjoying it? You've had 5 chats already!\n\n"
+            "Try Premium free for 24 hours:\n"
+            "• Priority search\n"
+            "• VIP AI characters\n"
+            "• Auto-translate\n"
+            "• No ads"
+        ),
+        "btn_activate_trial": "⭐ Try Premium for free",
+        "trial_activated": "🎉 Premium activated for 24 hours!\nUntil {until}",
+        "trial_already_used": "You've already used the free trial!",
+        # Retention
+        "retention_miss_you": "👋 We miss you! {count} people are online on MatchMe right now. Come chat!",
+        "retention_ai_miss": "💬 {name} misses you! Come back to continue the conversation.",
     },
 
     "es": {
@@ -1382,7 +1434,7 @@ TEXTS = {
         # Chat IA
         "ai_menu": (
             "🤖 Chat IA\n\n"
-            "💬 Básico: 20 mensajes/día (ilimitado con Premium)\n"
+            "💬 Básico: 20 mensajes/día (100/día con Premium)\n"
             "🔥 VIP: 10 mensajes/día (50/día con Premium)\n"
             "🔥 VIP+: solo con suscripción (50/día)\n\n"
             "Elige con quién quieres hablar:"
@@ -1399,7 +1451,7 @@ TEXTS = {
         "ai_ended": "✅ Chat IA terminado.",
         "ai_select_from_buttons": "👆 Elige un personaje con los botones de arriba.",
         "ai_limit_plus": "⏰ Límite alcanzado ({limit} mensajes/día).\n\nSe reinicia en 24 horas. ¡Mientras tanto, chatea con una persona real!",
-        "ai_limit_basic": "⏰ Límite alcanzado ({limit} mensajes/día).\n\n⭐ ¡Compra Premium — IA ilimitada y personajes VIP!",
+        "ai_limit_basic": "⏰ Límite alcanzado ({limit} mensajes/día).\n\n⭐ ¡Compra Premium — 100 mensajes/día + personajes VIP!",
         "ai_remaining": "_💬 Te quedan {left} mensajes_",
         "ai_unavailable": "😔 La IA no está disponible temporalmente.",
         "ai_no_funds": "💳 IA no disponible temporalmente — sin saldo.",
@@ -1622,6 +1674,32 @@ TEXTS = {
             "Responde de forma amigable y natural. "
             "Nunca reveles que eres una IA. Escribe solo en español."
         ),
+        # Referral
+        "referral_info": (
+            "🎁 ¡Invita a un amigo y obtén 3 días de Premium!\n\n"
+            "Tu enlace:\n{link}\n\n"
+            "Cuando tu amigo inicie su primer chat, recibirás el bono automáticamente.\n\n"
+            "👥 Invitados: {count}"
+        ),
+        "referral_bonus_received": (
+            "🎉 ¡Tu amigo empezó a chatear en MatchMe!\n\n"
+            "⭐ +3 días Premium hasta {until}"
+        ),
+        # Trial Premium
+        "trial_offer": (
+            "🎁 ¿Te gusta? ¡Ya llevas 5 chats!\n\n"
+            "Prueba Premium gratis por 24 horas:\n"
+            "• Búsqueda prioritaria\n"
+            "• Personajes IA VIP\n"
+            "• Traducción automática\n"
+            "• Sin anuncios"
+        ),
+        "btn_activate_trial": "⭐ Probar Premium gratis",
+        "trial_activated": "🎉 ¡Premium activado por 24 horas!\nHasta {until}",
+        "trial_already_used": "¡Ya usaste el periodo de prueba!",
+        # Retention
+        "retention_miss_you": "👋 ¡Te extrañamos! Hay {count} personas en línea en MatchMe. ¡Ven a chatear!",
+        "retention_ai_miss": "💬 ¡{name} te extraña! Vuelve a continuar la conversación.",
     },
 }
 
