@@ -38,12 +38,21 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "590443268"))
 
+PRICE_MULTIPLIERS = {"ru": 1.0, "es": 1.3, "en": 2.0}
+
 PREMIUM_PLANS = {
     "7d":  {"stars": 99,   "days": 7,   "label_key": "plan_label_7d",  "desc_key": "plan_desc_try",      "tier": "premium"},
     "1m":  {"stars": 299,  "days": 30,  "label_key": "plan_label_1m",  "desc_key": "plan_desc_popular",  "tier": "premium"},
     "3m":  {"stars": 599,  "days": 90,  "label_key": "plan_label_3m",  "desc_key": "plan_desc_discount", "tier": "premium"},
-    "1y":  {"stars": 1799, "days": 365, "label_key": "plan_label_1y",  "desc_key": "plan_desc_best",     "tier": "premium"},
+    "1y":  {"stars": 2153, "days": 365, "label_key": "plan_label_1y",  "desc_key": "plan_desc_best",     "tier": "premium"},
 }
+
+
+def get_plan_price(plan_key: str, lang: str) -> int:
+    """Возвращает цену плана в Stars с учётом региона."""
+    base = PREMIUM_PLANS[plan_key]["stars"]
+    mult = PRICE_MULTIPLIERS.get(lang, 2.0)
+    return int(base * mult)
 
 
 def get_chat_topics(lang: str) -> list:
@@ -718,7 +727,7 @@ async def send_ad_message(uid):
             uid,
             t(lang, "ad_message"),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=t(lang, "prem_1m"), callback_data="buy:1m")]
+                [InlineKeyboardButton(text=f"⭐ Premium — {get_plan_price('1m', lang)} Stars", callback_data="buy:1m")]
             ])
         )
     except Exception: pass
@@ -1245,7 +1254,8 @@ async def cmd_premium(message: types.Message, state: FSMContext):
                 status_text = t(lang, "premium_status_until", tier="Premium", until=until.strftime('%d.%m.%Y'))
             except Exception:
                 status_text = t(lang, "premium_status_eternal", tier="Premium")
-    await message.answer(t(lang, "premium_title", status=status_text), reply_markup=kb_premium(lang))
+    prices = {k: get_plan_price(k, lang) for k in PREMIUM_PLANS}
+    await message.answer(t(lang, "premium_title", status=status_text), reply_markup=kb_premium(lang, plan_prices=prices))
 
 @dp.callback_query(F.data == "buy:info", StateFilter("*"))
 async def premium_info(callback: types.CallbackQuery):
@@ -1265,10 +1275,7 @@ async def buy_premium(callback: types.CallbackQuery):
     lang = await get_lang(uid)
     label = t(lang, plan["label_key"])
     desc = t(lang, plan["desc_key"])
-    stars = plan["stars"]
-    # x2 price for non-Russian languages
-    if lang != "ru":
-        stars *= 2
+    stars = get_plan_price(plan_key, lang)
     await callback.answer()
     await bot.send_invoice(
         chat_id=uid,

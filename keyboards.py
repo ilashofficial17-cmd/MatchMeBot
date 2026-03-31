@@ -238,12 +238,20 @@ def kb_user_actions(target_uid, is_shadow=False, lang="ru"):
     ])
 
 
-def kb_premium(lang="ru"):
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "prem_header"), callback_data="noop")],
-        [InlineKeyboardButton(text=t(lang, "prem_7d"), callback_data="buy:7d")],
-        [InlineKeyboardButton(text=t(lang, "prem_1m"), callback_data="buy:1m")],
-        [InlineKeyboardButton(text=t(lang, "prem_3m"), callback_data="buy:3m")],
-        [InlineKeyboardButton(text=t(lang, "prem_1y"), callback_data="buy:1y")],
-        [InlineKeyboardButton(text=t(lang, "prem_compare"), callback_data="buy:info")],
-    ])
+def kb_premium(lang="ru", plan_prices: dict | None = None):
+    """plan_prices: {"7d": 99, "1m": 299, ...} — цены с учётом региона."""
+    buttons = [[InlineKeyboardButton(text=t(lang, "prem_header"), callback_data="noop")]]
+    plan_labels = {"7d": "plan_label_7d", "1m": "plan_label_1m", "3m": "plan_label_3m", "1y": "plan_label_1y"}
+    for key in ("7d", "1m", "3m", "1y"):
+        label = t(lang, plan_labels[key])
+        if plan_prices and key in plan_prices:
+            price = plan_prices[key]
+            buttons.append([InlineKeyboardButton(
+                text=f"⭐ {label} — {price} Stars", callback_data=f"buy:{key}"
+            )])
+        else:
+            buttons.append([InlineKeyboardButton(
+                text=t(lang, f"prem_{key}"), callback_data=f"buy:{key}"
+            )])
+    buttons.append([InlineKeyboardButton(text=t(lang, "prem_compare"), callback_data="buy:info")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

@@ -520,7 +520,7 @@ TEXTS = {
         "plan_desc_try":     "Попробовать",
         "plan_desc_popular": "Популярный",
         "plan_desc_discount": "Скидка 33%",
-        "plan_desc_best":    "Лучшая цена — скидка 50%",
+        "plan_desc_best":    "Лучшая цена — скидка 40%",
         "invoice_desc": "{tier} на {label}. {desc}",
         # AI-персонажи: системные промпты (используются get_ai_answer в будущем)
         "ai_char_system_violetta": (
@@ -1051,7 +1051,7 @@ TEXTS = {
         "plan_desc_try":     "Try it",
         "plan_desc_popular": "Popular",
         "plan_desc_discount": "33% off",
-        "plan_desc_best":    "Best value — 50% off",
+        "plan_desc_best":    "Best value — 40% off",
         "invoice_desc": "{tier} for {label}. {desc}",
         # AI characters: system prompts (used by get_ai_answer in the future)
         "ai_char_system_violetta": (
@@ -1582,7 +1582,7 @@ TEXTS = {
         "plan_desc_try":     "Pruébalo",
         "plan_desc_popular": "Popular",
         "plan_desc_discount": "33% de descuento",
-        "plan_desc_best":    "Mejor precio — 50% de descuento",
+        "plan_desc_best":    "Mejor precio — 40% de descuento",
         "invoice_desc": "{tier} por {label}. {desc}",
         # Personajes IA: prompts de sistema (usados por get_ai_answer en el futuro)
         "ai_char_system_violetta": (
