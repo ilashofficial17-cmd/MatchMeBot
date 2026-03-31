@@ -166,9 +166,7 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
 def kb_ai_chat(lang="ru"):
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text=t(lang, "btn_change_char")), KeyboardButton(text=t(lang, "btn_end_ai_chat"))],
-        [KeyboardButton(text=t(lang, "btn_erase_memory"))],
-        [KeyboardButton(text=t(lang, "btn_find_live"))],
-        [KeyboardButton(text=t(lang, "btn_home"))],
+        [KeyboardButton(text=t(lang, "btn_erase_memory")), KeyboardButton(text=t(lang, "btn_find_live"))],
     ], resize_keyboard=True)
 
 
