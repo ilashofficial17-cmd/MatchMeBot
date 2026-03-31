@@ -118,33 +118,21 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
         InlineKeyboardButton(text=t(lang, "char_luna"), callback_data="aichar:luna"),
         InlineKeyboardButton(text=t(lang, "char_max_simple"), callback_data="aichar:max_simple"),
     ])
-    if is_premium:
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_aurora"), callback_data="aichar:aurora"),
-            InlineKeyboardButton(text=t(lang, "char_alex"), callback_data="aichar:alex"),
-        ])
-    else:
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_aurora_locked"), callback_data="aichar:vip_locked"),
-            InlineKeyboardButton(text=t(lang, "char_alex_locked"), callback_data="aichar:vip_locked"),
-        ])
+    buttons.append([
+        InlineKeyboardButton(text=t(lang, "char_aurora"), callback_data="aichar:aurora"),
+        InlineKeyboardButton(text=t(lang, "char_alex"), callback_data="aichar:alex"),
+    ])
     # Блок 2 — Флирт
     buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_flirt"), callback_data="aichar:power_soon")])
     buttons.append([
         InlineKeyboardButton(text=t(lang, "char_mia"), callback_data="aichar:mia"),
         InlineKeyboardButton(text=t(lang, "char_kai"), callback_data="aichar:kai"),
     ])
-    if is_premium:
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_diana"), callback_data="aichar:diana"),
-            InlineKeyboardButton(text=t(lang, "char_leon"), callback_data="aichar:leon"),
-        ])
-    else:
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_diana_locked"), callback_data="aichar:vip_locked"),
-            InlineKeyboardButton(text=t(lang, "char_leon_locked"), callback_data="aichar:vip_locked"),
-        ])
-    # Блок 3 — Kink (все VIP)
+    buttons.append([
+        InlineKeyboardButton(text=t(lang, "char_diana"), callback_data="aichar:diana"),
+        InlineKeyboardButton(text=t(lang, "char_leon"), callback_data="aichar:leon"),
+    ])
+    # Блок 3 — Kink (VIP+)
     buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_kink"), callback_data="aichar:power_soon")])
     if is_premium:
         buttons.append([
@@ -160,16 +148,17 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
         ])
     else:
         buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_lilit_locked"), callback_data="aichar:vip_locked"),
-            InlineKeyboardButton(text=t(lang, "char_eva_locked"), callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text=t(lang, "char_lilit_locked"), callback_data="aichar:vip_plus_locked"),
+            InlineKeyboardButton(text=t(lang, "char_eva_locked"), callback_data="aichar:vip_plus_locked"),
         ])
         buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_damir_locked"), callback_data="aichar:vip_locked"),
-            InlineKeyboardButton(text=t(lang, "char_ars_locked"), callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text=t(lang, "char_damir_locked"), callback_data="aichar:vip_plus_locked"),
+            InlineKeyboardButton(text=t(lang, "char_ars_locked"), callback_data="aichar:vip_plus_locked"),
         ])
         buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_master_locked"), callback_data="aichar:vip_locked"),
+            InlineKeyboardButton(text=t(lang, "char_master_locked"), callback_data="aichar:vip_plus_locked"),
         ])
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_ai_info"), callback_data="aichar:info")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

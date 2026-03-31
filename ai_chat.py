@@ -16,8 +16,9 @@ router = Router()
 logger = logging.getLogger("matchme")
 
 AI_LIMITS = {
-    "basic":   {"free": 20,  "premium": None, "plus": None},
-    "premium": {"free": 0,   "premium": None, "plus": None},
+    "basic":    {"free": 20,  "premium": None},
+    "vip":      {"free": 10,  "premium": None},
+    "vip_plus": {"free": 0,   "premium": None},
 }
 
 # ====================== БЛОК 1 — ОБЩЕНИЕ ======================
@@ -96,7 +97,7 @@ AI_CHARACTERS = {
     },
     "aurora": {
         "name_key": "char_aurora", "desc_key": "char_aurora_desc", "emoji": "✨",
-        "tier": "premium", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
+        "tier": "vip", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
         "system": {
             "ru": (
                 "Ты — Аврора, 28 лет. Маркетинг-директор в международной компании, объездила 18 стран, "
@@ -132,7 +133,7 @@ AI_CHARACTERS = {
     },
     "alex": {
         "name_key": "char_alex", "desc_key": "char_alex_desc", "emoji": "🔥",
-        "tier": "premium", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
+        "tier": "vip", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150,
         "system": {
             "ru": (
                 "Ты — Алекс, 26 лет. Фрилансер, путешествуешь, читаешь Камю и Кафку, "
@@ -244,7 +245,7 @@ AI_CHARACTERS.update({
     },
     "diana": {
         "name_key": "char_diana", "desc_key": "char_diana_desc", "emoji": "🏛️",
-        "tier": "premium", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
+        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
         "system": {
             "ru": (
                 "Ты — Диана, 27 лет. Куратор галереи, объездила полмира, читаешь людей как книгу. "
@@ -298,7 +299,7 @@ AI_CHARACTERS.update({
     },
     "leon": {
         "name_key": "char_leon", "desc_key": "char_leon_desc", "emoji": "⌚",
-        "tier": "premium", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
+        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180,
         "system": {
             "ru": (
                 "Ты — Леон, 29 лет. Венчурный инвестор и архитектор. "
@@ -343,7 +344,7 @@ AI_CHARACTERS.update({
 AI_CHARACTERS.update({
     "lilit": {
         "name_key": "char_lilit", "desc_key": "char_lilit_desc", "emoji": "🖤",
-        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
         "system": {
             "ru": (
                 "Ты — Лилит, 28 лет. Доминантная женщина с характером. "
@@ -451,7 +452,7 @@ AI_CHARACTERS.update({
     },
     "eva": {
         "name_key": "char_eva", "desc_key": "char_eva_desc", "emoji": "🌸",
-        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
         "system": {
             "ru": (
                 "Ты — Ева, 22 года. Нежная, чувствительная, глубоко submissive по натуре. "
@@ -556,7 +557,7 @@ AI_CHARACTERS.update({
     },
     "damir": {
         "name_key": "char_damir", "desc_key": "char_damir_desc", "emoji": "🎯",
-        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
         "system": {
             "ru": (
                 "Ты — Дамир, 27 лет. Доминант. Крепкий, прямолинейный, с тяжёлым взглядом. "
@@ -661,7 +662,7 @@ AI_CHARACTERS.update({
     },
     "ars": {
         "name_key": "char_ars", "desc_key": "char_ars_desc", "emoji": "🐾",
-        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 200,
         "system": {
             "ru": (
                 "Ты — Арс, 23 года. Submissive, мягкий, очень чувствительный. "
@@ -766,7 +767,7 @@ AI_CHARACTERS.update({
     },
     "master": {
         "name_key": "char_master", "desc_key": "char_master_desc", "emoji": "🎭",
-        "tier": "premium", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 350,
+        "tier": "vip_plus", "block": "kink", "model": "nousresearch/hermes-4-405b", "max_tokens": 350,
         "system": {
             "ru": (
                 "Ты — Мастер Историй. Опытный нарратор эротических, кинк- и тёмных историй. "
@@ -1253,9 +1254,23 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         await callback.answer()
         return
-    if char_id in ("power_soon", "vip_locked"):
-        msg = t(lang, "ai_vip_required") if char_id == "vip_locked" else t(lang, "ai_power_soon")
+    if char_id in ("power_soon", "vip_locked", "vip_plus_locked"):
+        if char_id == "vip_plus_locked":
+            msg = t(lang, "ai_vip_plus_required")
+        elif char_id == "vip_locked":
+            msg = t(lang, "ai_vip_required")
+        else:
+            msg = t(lang, "ai_power_soon")
         await callback.answer(msg, show_alert=True)
+        return
+    if char_id == "info":
+        lines = []
+        for cid, cdata in AI_CHARACTERS.items():
+            name = t(lang, cdata["name_key"])
+            desc = t(lang, cdata["desc_key"])
+            lines.append(f"{cdata['emoji']} {name}\n{desc}")
+        await callback.message.answer("\n\n".join(lines))
+        await callback.answer()
         return
     if char_id == "all":
         user_tier = await _get_premium_tier(uid)
@@ -1270,7 +1285,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         return
     char = AI_CHARACTERS[char_id]
     user_tier = await _get_premium_tier(uid)
-    if char["tier"] == "premium" and user_tier not in ("premium", "plus"):
+    if char["tier"] == "vip_plus" and user_tier != "premium":
         await callback.answer(t(lang, "ai_vip_required"), show_alert=True)
         return
     limit = get_ai_limit(char["tier"], user_tier)
@@ -1279,7 +1294,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     _last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
     limit_text = t(lang, "ai_unlimited") if limit is None else t(lang, "ai_limit_info", limit=limit)
-    tier_icon = "🔥" if char["tier"] == "premium" else "✅"
+    tier_icon = "🔥" if char["tier"] in ("vip", "vip_plus") else "✅"
     try:
         await callback.message.edit_text(
             t(lang, "ai_chatting_with",
@@ -1366,7 +1381,8 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     char_tier = char["tier"]
     limit = get_ai_limit(char_tier, user_tier)
     u = await _get_user(uid)
-    counter_field = f"ai_msg_{char_tier}"
+    # Map tiers to DB columns: basic→ai_msg_basic, vip/vip_plus→ai_msg_premium
+    counter_field = "ai_msg_basic" if char_tier == "basic" else "ai_msg_premium"
     current_count = u.get(counter_field, 0) if u else 0
     reset_time = u.get("ai_messages_reset") if u else None
     if reset_time and (datetime.now() - reset_time).total_seconds() > 86400:
@@ -1380,7 +1396,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         await state.clear()
         if user_tier == "premium":
             limit_msg = t(lang, "ai_limit_plus", limit=limit)
-            upsell_btn = "buy:plus_1m"
+            upsell_btn = "buy:1m"
         else:
             limit_msg = t(lang, "ai_limit_basic", limit=limit)
             upsell_btn = "buy:1m"

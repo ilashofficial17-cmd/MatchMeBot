@@ -298,16 +298,17 @@ TEXTS = {
         # AI чат
         "ai_menu": (
             "🤖 ИИ чат\n\n"
-            "Все персонажи доступны бесплатно!\n"
             "💬 Basic: 20 сообщений/день\n"
-            "🔥 VIP: доступны с подпиской\n"
-            "⭐ Подписка снимает лимиты\n\n"
+            "🔥 VIP: 10 сообщений/день\n"
+            "🔥 VIP+: только по подписке\n"
+            "⭐ Подписка снимает все лимиты\n\n"
             "Выбери с кем хочешь поговорить:"
         ),
         "ai_select_char": "Выбери персонажа:",
         "ai_char_not_found": "Персонаж не найден.",
         "ai_power_soon": "🔧 В разработке! Следи за обновлениями.",
         "ai_vip_required": "🔒 Этот персонаж доступен только с VIP подпиской.",
+        "ai_vip_plus_required": "🔒 Этот VIP+ персонаж доступен только с Premium подпиской.",
         "ai_chat_active": "💬 Чат с ИИ активен",
         "ai_unlimited": "♾ Безлимит",
         "ai_limit_info": "💬 Лимит: {limit} сообщений/день",
@@ -375,23 +376,24 @@ TEXTS = {
         "char_diana_locked": "🔒 Диана — VIP",
         "char_leon_locked": "🔒 Леон — VIP",
         # AI персонажи — Блок 3: Kink (все VIP)
-        "char_lilit": "🖤 Лилит — VIP",
+        "char_lilit": "🖤 Лилит — VIP+",
         "char_lilit_desc": "Доминант-девушка — контроль и страсть",
-        "char_eva": "🌸 Ева — VIP",
+        "char_eva": "🌸 Ева — VIP+",
         "char_eva_desc": "Сабмиссив-девушка — нежная и послушная",
-        "char_damir": "🎯 Дамир — VIP",
+        "char_damir": "🎯 Дамир — VIP+",
         "char_damir_desc": "Доминант-парень — уверенный и властный",
-        "char_ars": "🐾 Арс — VIP",
+        "char_ars": "🐾 Арс — VIP+",
         "char_ars_desc": "Сабмиссив-парень — мягкий и покорный",
-        "char_master": "🎭 Мастер историй — VIP",
+        "char_master": "🎭 Мастер историй — VIP+",
         "char_master_desc": "Генератор сценариев — любой сюжет по твоему желанию",
-        "char_lilit_locked": "🔒 Лилит — VIP",
-        "char_eva_locked": "🔒 Ева — VIP",
-        "char_damir_locked": "🔒 Дамир — VIP",
-        "char_ars_locked": "🔒 Арс — VIP",
-        "char_master_locked": "🔒 Мастер историй — VIP",
+        "char_lilit_locked": "🔒 Лилит — VIP+",
+        "char_eva_locked": "🔒 Ева — VIP+",
+        "char_damir_locked": "🔒 Дамир — VIP+",
+        "char_ars_locked": "🔒 Арс — VIP+",
+        "char_master_locked": "🔒 Мастер историй — VIP+",
         "char_power_soon": "🧠 Мощная нейронка (скоро)",
-        "char_vip_locked": "🔒 Только для VIP",
+        "char_vip_locked": "🔒 Только для VIP+",
+        "btn_ai_info": "📋 Описание персонажей",
         # Заголовки блоков ИИ
         "ai_block_simple": "💬 Общение",
         "ai_block_flirt": "💋 Флирт",
@@ -826,16 +828,17 @@ TEXTS = {
         # AI chat
         "ai_menu": (
             "🤖 AI Chat\n\n"
-            "All characters are free!\n"
             "💬 Basic: 20 messages/day\n"
-            "🔥 VIP: available with subscription\n"
-            "⭐ Subscription removes limits\n\n"
+            "🔥 VIP: 10 messages/day\n"
+            "🔥 VIP+: subscription only\n"
+            "⭐ Subscription removes all limits\n\n"
             "Choose who you want to talk to:"
         ),
         "ai_select_char": "Choose a character:",
         "ai_char_not_found": "Character not found.",
         "ai_power_soon": "🔧 Coming soon! Stay tuned.",
         "ai_vip_required": "🔒 This character is available with VIP subscription only.",
+        "ai_vip_plus_required": "🔒 This VIP+ character is available with Premium subscription only.",
         "ai_chat_active": "💬 AI chat active",
         "ai_unlimited": "♾ Unlimited",
         "ai_limit_info": "💬 Limit: {limit} messages/day",
@@ -903,23 +906,24 @@ TEXTS = {
         "char_diana_locked": "🔒 Diana — VIP",
         "char_leon_locked": "🔒 Leon — VIP",
         # AI characters — Block 3: Kink (all VIP)
-        "char_lilit": "🖤 Lilit — VIP",
+        "char_lilit": "🖤 Lilit — VIP+",
         "char_lilit_desc": "Dominant girl — control and passion",
-        "char_eva": "🌸 Eva — VIP",
+        "char_eva": "🌸 Eva — VIP+",
         "char_eva_desc": "Submissive girl — tender and obedient",
-        "char_damir": "🎯 Damir — VIP",
+        "char_damir": "🎯 Damir — VIP+",
         "char_damir_desc": "Dominant guy — confident and commanding",
-        "char_ars": "🐾 Ars — VIP",
+        "char_ars": "🐾 Ars — VIP+",
         "char_ars_desc": "Submissive guy — soft and yielding",
-        "char_master": "🎭 Story Master — VIP",
+        "char_master": "🎭 Story Master — VIP+",
         "char_master_desc": "Scenario generator — any story on your request",
-        "char_lilit_locked": "🔒 Lilit — VIP",
-        "char_eva_locked": "🔒 Eva — VIP",
-        "char_damir_locked": "🔒 Damir — VIP",
-        "char_ars_locked": "🔒 Ars — VIP",
-        "char_master_locked": "🔒 Story Master — VIP",
+        "char_lilit_locked": "🔒 Lilit — VIP+",
+        "char_eva_locked": "🔒 Eva — VIP+",
+        "char_damir_locked": "🔒 Damir — VIP+",
+        "char_ars_locked": "🔒 Ars — VIP+",
+        "char_master_locked": "🔒 Story Master — VIP+",
         "char_power_soon": "🧠 Powerful AI (soon)",
-        "char_vip_locked": "🔒 VIP only",
+        "char_vip_locked": "🔒 VIP+ only",
+        "btn_ai_info": "📋 Character descriptions",
         # AI block headers
         "ai_block_simple": "💬 Chat",
         "ai_block_flirt": "💋 Flirt",
@@ -1354,16 +1358,17 @@ TEXTS = {
         # Chat IA
         "ai_menu": (
             "🤖 Chat IA\n\n"
-            "¡Todos los personajes son gratis!\n"
             "💬 Básico: 20 mensajes/día\n"
-            "🔥 VIP: disponible con suscripción\n"
-            "⭐ La suscripción elimina los límites\n\n"
+            "🔥 VIP: 10 mensajes/día\n"
+            "🔥 VIP+: solo con suscripción\n"
+            "⭐ La suscripción elimina todos los límites\n\n"
             "Elige con quién quieres hablar:"
         ),
         "ai_select_char": "Elige un personaje:",
         "ai_char_not_found": "Personaje no encontrado.",
         "ai_power_soon": "🔧 ¡Próximamente! Mantente al tanto.",
         "ai_vip_required": "🔒 Este personaje está disponible solo con suscripción VIP.",
+        "ai_vip_plus_required": "🔒 Este personaje VIP+ está disponible solo con suscripción Premium.",
         "ai_chat_active": "💬 Chat IA activo",
         "ai_unlimited": "♾ Ilimitado",
         "ai_limit_info": "💬 Límite: {limit} mensajes/día",
@@ -1431,23 +1436,24 @@ TEXTS = {
         "char_diana_locked": "🔒 Diana — VIP",
         "char_leon_locked": "🔒 León — VIP",
         # Personajes IA — Bloque 3: Kink (todos VIP)
-        "char_lilit": "🖤 Lilit — VIP",
+        "char_lilit": "🖤 Lilit — VIP+",
         "char_lilit_desc": "Chica dominante — control y pasión",
-        "char_eva": "🌸 Eva — VIP",
+        "char_eva": "🌸 Eva — VIP+",
         "char_eva_desc": "Chica sumisa — tierna y obediente",
-        "char_damir": "🎯 Damir — VIP",
+        "char_damir": "🎯 Damir — VIP+",
         "char_damir_desc": "Chico dominante — seguro y poderoso",
-        "char_ars": "🐾 Ars — VIP",
+        "char_ars": "🐾 Ars — VIP+",
         "char_ars_desc": "Chico sumiso — suave y dócil",
-        "char_master": "🎭 Maestro de historias — VIP",
+        "char_master": "🎭 Maestro de historias — VIP+",
         "char_master_desc": "Generador de escenarios — cualquier historia a tu petición",
-        "char_lilit_locked": "🔒 Lilit — VIP",
-        "char_eva_locked": "🔒 Eva — VIP",
-        "char_damir_locked": "🔒 Damir — VIP",
-        "char_ars_locked": "🔒 Ars — VIP",
-        "char_master_locked": "🔒 Maestro de historias — VIP",
+        "char_lilit_locked": "🔒 Lilit — VIP+",
+        "char_eva_locked": "🔒 Eva — VIP+",
+        "char_damir_locked": "🔒 Damir — VIP+",
+        "char_ars_locked": "🔒 Ars — VIP+",
+        "char_master_locked": "🔒 Maestro de historias — VIP+",
         "char_power_soon": "🧠 IA potente (pronto)",
-        "char_vip_locked": "🔒 Solo VIP",
+        "char_vip_locked": "🔒 Solo VIP+",
+        "btn_ai_info": "📋 Descripción de personajes",
         # Encabezados de bloques IA
         "ai_block_simple": "💬 Charla",
         "ai_block_flirt": "💋 Coqueteo",
