@@ -246,23 +246,28 @@ TEXTS = {
         "stats_no_premium": "💎 Premium: Нет",
         "not_registered": "Сначала зарегистрируйся через /start!",
         # Тексты — premium
-        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 Что входит:\n• Безлимит на всех ИИ персонажей\n• VIP персонажи открыты\n• 🌐 Автоперевод в чатах\n• Приоритет в поиске\n• Без рекламы\n\nВыбери тариф:",
+        "premium_title": (
+            "⭐ MatchMe Premium\n\n"
+            "{status}"
+            "Общайся без границ. Находи людей быстрее.\n"
+            "Открой VIP-персонажей, автоперевод и поиск без очереди.\n\n"
+            "Выбери тариф:"
+        ),
         "premium_status_eternal": "✅ Сейчас: {tier} (вечный)\n\n",
         "premium_status_until": "✅ Сейчас: {tier} до {until}\n\n",
         "premium_info": (
-            "📊 Premium подписка:\n\n"
-            "⭐ Что входит:\n"
-            "• Безлимит на Basic ИИ персонажей\n"
-            "• VIP персонажи — 50 сообщений/день\n"
-            "• VIP+ персонажи (Kink) — 50 сообщений/день\n"
-            "• 🌐 Автоперевод сообщений в чатах\n"
-            "• Приоритет в поиске\n"
-            "• Без рекламы\n\n"
-            "💡 Совет: годовая подписка — самый выгодный вариант!"
+            "⭐ Что входит в Premium:\n\n"
+            "🤖 Basic ИИ — 100 сообщений/день\n"
+            "🔥 VIP персонажи — 50 сообщений/день\n"
+            "🔥 VIP+ персонажи (18+) — 50 сообщений/день\n"
+            "🌐 Автоперевод в чатах\n"
+            "🚀 Приоритет в поиске\n"
+            "🔇 Без рекламы\n"
+            "⭐ Бейдж Premium в профиле"
         ),
         "premium_activated": "🎉 {tier} активирован!\n\n📦 Тариф: {label}\n📅 До {until}\n\n{benefits}",
         "premium_unknown_plan": "Неизвестный тариф",
-        "benefit_premium": "Безлимит Basic ИИ, VIP и VIP+ персонажи (50/день), автоперевод, приоритет, без рекламы!",
+        "benefit_premium": "Basic ИИ (100/день), VIP и VIP+ персонажи (50/день), автоперевод, приоритет, без рекламы!",
         # Тексты — сброс профиля
         "reset_confirm": (
             "⚠️ Полный сброс профиля!\n\n"
@@ -298,6 +303,48 @@ TEXTS = {
         ),
         "upsell": "⭐ Тебе нравится MatchMe?\nPremium = приоритет в поиске + больше AI + без рекламы!",
         "ad_message": "📢 Здесь могла быть ваша реклама\n\n⭐ Купи Premium и убери рекламу навсегда!",
+        # --- Реклама: нейтральная (все режимы) ---
+        "ad_dzen_1": (
+            "🔓 YouTube, TikTok и другие сервисы без блокировок?\n\n"
+            "Dzen VPN — быстрый и стабильный.\n"
+            "3 дня бесплатно при регистрации!"
+        ),
+        "ad_dzen_2": (
+            "🛡 Твоя анонимность — твоё дело.\n\n"
+            "Dzen VPN защищает данные и открывает доступ к любым сервисам.\n"
+            "Без привязки карты. Отмена в любой момент."
+        ),
+        "ad_dzen_3": (
+            "⚡ Интернет без ограничений — это реально.\n\n"
+            "Dzen VPN: безлимит на все устройства.\n"
+            "Попробуй бесплатно — 3 дня на тест!"
+        ),
+        "btn_ad_connect": "🔗 Подключиться",
+        "btn_ad_remove": "⭐ Убрать рекламу",
+        # --- Реклама: SMS PRO — только RU ---
+        "ad_smspro_1": (
+            "📱 Нужен номер для регистрации?\n\n"
+            "SMS PRO — виртуальные номера для любого мессенджера.\n"
+            "Быстро, удобно и анонимно."
+        ),
+        "ad_smspro_2": (
+            "🔢 Виртуальный номер за минуту.\n\n"
+            "Telegram, WhatsApp, любой сервис — без палева.\n"
+            "SMS PRO: быстро, дёшево, анонимно."
+        ),
+        "btn_ad_smspro": "📲 Получить номер",
+        # --- Реклама: BoundLess3D — kink/flirt ---
+        "ad_boundless_1": (
+            "🔥 3D-контент без цензуры и ограничений.\n\n"
+            "BoundLess3D — создавай и покупай VIP-подписку.\n"
+            "Попробуй прямо сейчас."
+        ),
+        "ad_boundless_2": (
+            "🎭 Хочешь больше? BoundLess3D — 3D для взрослых.\n\n"
+            "Безлимитный доступ по подписке.\n"
+            "Присоединяйся прямо сейчас."
+        ),
+        "btn_ad_boundless": "🎬 Попробовать",
         "hardban": "🚫 Перманентный бан за нарушение правил.",
         # AI чат
         "ai_menu": (
@@ -404,11 +451,11 @@ TEXTS = {
         "ai_block_kink": "🔥 Kink",
         # Premium кнопки
         "prem_header": "── Premium ──",
-        "prem_compare": "❓ Что входит",
-        "prem_7d": "⭐ 7 дней — 99 Stars",
-        "prem_1m": "⭐ 1 месяц — 299 Stars",
-        "prem_3m": "⭐ 3 месяца — 599 Stars",
-        "prem_1y": "⭐ 1 год — 1799 Stars",
+        "prem_compare": "❓ Подробнее о Premium",
+        "prem_7d": "7 дней — 129 ⭐",
+        "prem_1m": "🔥 1 месяц — 349 ⭐",
+        "prem_3m": "💎 3 месяца — 749 ⭐ (-28%)",
+        "prem_1y": "👑 1 год — 1899 ⭐ (-55%)",
         "btn_continue": "❤️ Хочу продолжить общение",
         "btn_find_new": "🔍 Найти нового",
         "btn_to_menu": "🏠 В меню",
@@ -526,10 +573,10 @@ TEXTS = {
         "plan_label_1m":    "1 месяц",
         "plan_label_3m":    "3 месяца",
         "plan_label_1y":    "1 год",
-        "plan_desc_try":     "Попробовать",
-        "plan_desc_popular": "Популярный",
-        "plan_desc_discount": "Скидка 33%",
-        "plan_desc_best":    "Лучшая цена — скидка 40%",
+        "plan_desc_try":     "Попробуй Premium",
+        "plan_desc_popular": "Самый популярный",
+        "plan_desc_discount": "Выгода 28% — экономия каждый месяц",
+        "plan_desc_best":    "Максимальная выгода 55% — всего ~158 ⭐/мес",
         "invoice_desc": "{tier} на {label}. {desc}",
         # AI-персонажи: системные промпты (используются get_ai_answer в будущем)
         "ai_char_system_violetta": (
@@ -812,23 +859,28 @@ TEXTS = {
         "stats_no_premium": "💎 Premium: None",
         "not_registered": "Register first via /start!",
         # Premium
-        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 What's included:\n• Unlimited all AI characters\n• VIP characters unlocked\n• 🌐 Auto-translate in chats\n• Priority search\n• No ads\n\nChoose a plan:",
+        "premium_title": (
+            "⭐ MatchMe Premium\n\n"
+            "{status}"
+            "Chat without limits. Find people faster.\n"
+            "Unlock VIP characters, auto-translate and skip the queue.\n\n"
+            "Choose a plan:"
+        ),
         "premium_status_eternal": "✅ Current: {tier} (lifetime)\n\n",
         "premium_status_until": "✅ Current: {tier} until {until}\n\n",
         "premium_info": (
-            "📊 Premium subscription:\n\n"
-            "⭐ What's included:\n"
-            "• Unlimited Basic AI characters\n"
-            "• VIP characters — 50 messages/day\n"
-            "• VIP+ characters (Kink) — 50 messages/day\n"
-            "• 🌐 Auto-translation in chats\n"
-            "• Priority search\n"
-            "• No ads\n\n"
-            "💡 Tip: yearly plan is the best deal!"
+            "⭐ What's included in Premium:\n\n"
+            "🤖 Basic AI — 100 messages/day\n"
+            "🔥 VIP characters — 50 messages/day\n"
+            "🔥 VIP+ characters (18+) — 50 messages/day\n"
+            "🌐 Auto-translate in chats\n"
+            "🚀 Priority search\n"
+            "🔇 No ads\n"
+            "⭐ Premium badge on profile"
         ),
         "premium_activated": "🎉 {tier} activated!\n\n📦 Plan: {label}\n📅 Until {until}\n\n{benefits}",
         "premium_unknown_plan": "Unknown plan",
-        "benefit_premium": "Unlimited Basic AI, VIP & VIP+ characters (50/day), auto-translation, priority, no ads!",
+        "benefit_premium": "Basic AI (100/day), VIP & VIP+ characters (50/day), auto-translate, priority, no ads!",
         # Reset
         "reset_confirm": (
             "⚠️ Full profile reset!\n\n"
@@ -864,6 +916,60 @@ TEXTS = {
         ),
         "upsell": "⭐ Enjoying MatchMe?\nPremium = priority search + more AI + no ads!",
         "ad_message": "📢 Your ad could be here\n\n⭐ Buy Premium and remove ads forever!",
+        # --- Ads: neutral (all modes) ---
+        "ad_dzen_1": (
+            "🔓 YouTube, TikTok and more — no blocks?\n\n"
+            "Dzen VPN — fast and stable.\n"
+            "3 days free when you sign up!"
+        ),
+        "ad_dzen_2": (
+            "🛡 Your privacy is your business.\n\n"
+            "Dzen VPN protects your data and unlocks any service.\n"
+            "No card required. Cancel anytime."
+        ),
+        "ad_dzen_3": (
+            "⚡ Internet without limits — it's real.\n\n"
+            "Dzen VPN: unlimited on all devices.\n"
+            "Try free — 3 days to test!"
+        ),
+        "btn_ad_connect": "🔗 Connect",
+        "btn_ad_remove": "⭐ Remove ads",
+        # --- Ads: EN-only — Buy VPN Global ---
+        "ad_vpnglobal_1": (
+            "🌍 Need a VPN that just works?\n\n"
+            "Buy VPN Global — Proxy S5, instant setup.\n"
+            "Pay with Telegram Stars. Try it now."
+        ),
+        "ad_vpnglobal_2": (
+            "🔒 Stay private. Stay connected.\n\n"
+            "VPN Global — fast proxies, no logs, pay with Stars.\n"
+            "Simple and reliable. Try it today."
+        ),
+        "btn_ad_get_vpn": "🛒 Get VPN",
+        # --- Ads: EN kink-only — Playbox ---
+        "ad_playbox_1": (
+            "🔥 Turn any image into a video — no limits.\n\n"
+            "Playbox AI: adult video generator.\n"
+            "Create something unforgettable."
+        ),
+        "ad_playbox_2": (
+            "⚡ AI-powered NSFW video creation.\n\n"
+            "Playbox — bring your fantasies to life in seconds.\n"
+            "Tap to start."
+        ),
+        "btn_ad_playbox": "🎬 Try Playbox",
+        # --- Ads: BoundLess3D — kink/flirt ---
+        "ad_boundless_1": (
+            "🔥 Uncensored 3D content — no limits.\n\n"
+            "BoundLess3D — VIP subscription, unlimited access.\n"
+            "Try it now."
+        ),
+        "ad_boundless_2": (
+            "🎭 Want more? BoundLess3D — adult 3D content.\n\n"
+            "Unlimited access with subscription.\n"
+            "Join now."
+        ),
+        "btn_ad_boundless": "🎬 Try it",
         "hardban": "🚫 Permanent ban for violating the rules.",
         # AI chat
         "ai_menu": (
@@ -970,11 +1076,11 @@ TEXTS = {
         "ai_block_kink": "🔥 Kink",
         # Premium buttons
         "prem_header": "── Premium ──",
-        "prem_compare": "❓ What's included",
-        "prem_7d": "⭐ 7 days — 198 Stars",
-        "prem_1m": "⭐ 1 month — 598 Stars",
-        "prem_3m": "⭐ 3 months — 1198 Stars",
-        "prem_1y": "⭐ 1 year — 3598 Stars",
+        "prem_compare": "❓ More about Premium",
+        "prem_7d": "7 days — 258 ⭐",
+        "prem_1m": "🔥 1 month — 698 ⭐",
+        "prem_3m": "💎 3 months — 1498 ⭐ (-28%)",
+        "prem_1y": "👑 1 year — 3798 ⭐ (-55%)",
         "btn_continue": "❤️ Want to keep chatting",
         "btn_find_new": "🔍 Find someone new",
         "btn_to_menu": "🏠 To menu",
@@ -1092,10 +1198,10 @@ TEXTS = {
         "plan_label_1m":    "1 month",
         "plan_label_3m":    "3 months",
         "plan_label_1y":    "1 year",
-        "plan_desc_try":     "Try it",
-        "plan_desc_popular": "Popular",
-        "plan_desc_discount": "33% off",
-        "plan_desc_best":    "Best value — 40% off",
+        "plan_desc_try":     "Try Premium",
+        "plan_desc_popular": "Most popular",
+        "plan_desc_discount": "Save 28% — better value every month",
+        "plan_desc_best":    "Best deal — 55% off, only ~158 ⭐/mo",
         "invoice_desc": "{tier} for {label}. {desc}",
         # AI characters: system prompts (used by get_ai_answer in the future)
         "ai_char_system_violetta": (
@@ -1378,23 +1484,28 @@ TEXTS = {
         "stats_no_premium": "💎 Premium: Ninguno",
         "not_registered": "¡Regístrate primero via /start!",
         # Premium
-        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 Qué incluye:\n• IA ilimitada en todos los personajes\n• Personajes VIP desbloqueados\n• 🌐 Traducción automática en chats\n• Búsqueda prioritaria\n• Sin anuncios\n\nElige un plan:",
+        "premium_title": (
+            "⭐ MatchMe Premium\n\n"
+            "{status}"
+            "Chatea sin límites. Encuentra personas más rápido.\n"
+            "Desbloquea personajes VIP, traducción automática y búsqueda prioritaria.\n\n"
+            "Elige un plan:"
+        ),
         "premium_status_eternal": "✅ Actual: {tier} (de por vida)\n\n",
         "premium_status_until": "✅ Actual: {tier} hasta {until}\n\n",
         "premium_info": (
-            "📊 Suscripción Premium:\n\n"
-            "⭐ Qué incluye:\n"
-            "• Personajes IA Básicos ilimitados\n"
-            "• Personajes VIP — 50 mensajes/día\n"
-            "• Personajes VIP+ (Kink) — 50 mensajes/día\n"
-            "• 🌐 Traducción automática en chats\n"
-            "• Búsqueda prioritaria\n"
-            "• Sin anuncios\n\n"
-            "💡 Consejo: ¡el plan anual es la mejor opción!"
+            "⭐ Qué incluye Premium:\n\n"
+            "🤖 IA Básica — 100 mensajes/día\n"
+            "🔥 Personajes VIP — 50 mensajes/día\n"
+            "🔥 Personajes VIP+ (18+) — 50 mensajes/día\n"
+            "🌐 Traducción automática en chats\n"
+            "🚀 Búsqueda prioritaria\n"
+            "🔇 Sin anuncios\n"
+            "⭐ Insignia Premium en perfil"
         ),
         "premium_activated": "🎉 ¡{tier} activado!\n\n📦 Plan: {label}\n📅 Hasta {until}\n\n{benefits}",
         "premium_unknown_plan": "Plan desconocido",
-        "benefit_premium": "IA Básica ilimitada, personajes VIP y VIP+ (50/día), traducción automática, prioridad, ¡sin anuncios!",
+        "benefit_premium": "IA Básica (100/día), personajes VIP y VIP+ (50/día), traducción automática, prioridad, ¡sin anuncios!",
         # Restablecer perfil
         "reset_confirm": (
             "⚠️ ¡Restablecimiento completo del perfil!\n\n"
@@ -1430,6 +1541,36 @@ TEXTS = {
         ),
         "upsell": "⭐ ¿Disfrutas MatchMe?\n¡Premium = búsqueda prioritaria + más IA + sin anuncios!",
         "ad_message": "📢 Tu anuncio podría estar aquí\n\n⭐ ¡Compra Premium y elimina los anuncios para siempre!",
+        # --- Anuncios: neutral (todos los modos) ---
+        "ad_dzen_1": (
+            "🔓 ¿YouTube, TikTok y más sin bloqueos?\n\n"
+            "Dzen VPN — rápido y estable.\n"
+            "¡3 días gratis al registrarte!"
+        ),
+        "ad_dzen_2": (
+            "🛡 Tu privacidad es tu asunto.\n\n"
+            "Dzen VPN protege tus datos y desbloquea cualquier servicio.\n"
+            "Sin tarjeta. Cancela cuando quieras."
+        ),
+        "ad_dzen_3": (
+            "⚡ Internet sin límites — es real.\n\n"
+            "Dzen VPN: ilimitado en todos los dispositivos.\n"
+            "¡Prueba gratis — 3 días de prueba!"
+        ),
+        "btn_ad_connect": "🔗 Conectar",
+        "btn_ad_remove": "⭐ Quitar anuncios",
+        # --- Anuncios: BoundLess3D — kink/flirt ---
+        "ad_boundless_1": (
+            "🔥 Contenido 3D sin censura ni límites.\n\n"
+            "BoundLess3D — suscripción VIP, acceso ilimitado.\n"
+            "Pruébalo ahora."
+        ),
+        "ad_boundless_2": (
+            "🎭 ¿Quieres más? BoundLess3D — contenido 3D para adultos.\n\n"
+            "Acceso ilimitado con suscripción.\n"
+            "Únete ahora."
+        ),
+        "btn_ad_boundless": "🎬 Probar",
         "hardban": "🚫 Ban permanente por violar las reglas.",
         # Chat IA
         "ai_menu": (
@@ -1536,11 +1677,11 @@ TEXTS = {
         "ai_block_kink": "🔥 Kink",
         # Botones Premium
         "prem_header": "── Premium ──",
-        "prem_compare": "❓ Qué incluye",
-        "prem_7d": "⭐ 7 días — 198 Stars",
-        "prem_1m": "⭐ 1 mes — 598 Stars",
-        "prem_3m": "⭐ 3 meses — 1198 Stars",
-        "prem_1y": "⭐ 1 año — 3598 Stars",
+        "prem_compare": "❓ Más sobre Premium",
+        "prem_7d": "7 días — 168 ⭐",
+        "prem_1m": "🔥 1 mes — 454 ⭐",
+        "prem_3m": "💎 3 meses — 974 ⭐ (-28%)",
+        "prem_1y": "👑 1 año — 2469 ⭐ (-55%)",
         "btn_continue": "❤️ Quiero seguir chateando",
         "btn_find_new": "🔍 Buscar a alguien nuevo",
         "btn_to_menu": "🏠 Al menú",
@@ -1658,10 +1799,10 @@ TEXTS = {
         "plan_label_1m":    "1 mes",
         "plan_label_3m":    "3 meses",
         "plan_label_1y":    "1 año",
-        "plan_desc_try":     "Pruébalo",
-        "plan_desc_popular": "Popular",
-        "plan_desc_discount": "33% de descuento",
-        "plan_desc_best":    "Mejor precio — 40% de descuento",
+        "plan_desc_try":     "Prueba Premium",
+        "plan_desc_popular": "El más popular",
+        "plan_desc_discount": "Ahorra 28% — mejor valor cada mes",
+        "plan_desc_best":    "Mejor oferta — 55% de descuento, solo ~158 ⭐/mes",
         "invoice_desc": "{tier} por {label}. {desc}",
         # Personajes IA: prompts de sistema (usados por get_ai_answer en el futuro)
         "ai_char_system_violetta": (
