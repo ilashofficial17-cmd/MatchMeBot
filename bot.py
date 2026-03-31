@@ -876,6 +876,21 @@ PARTNER_ADS = [
         "langs": ["en"],
         "modes": ["kink"],
     },
+    # --- SMS PRO — только RU, все режимы ---
+    {
+        "text_key": "ad_smspro_1",
+        "url": "https://t.me/Virtnumbers_buyBot?start=_tgr_josfGNMwMGYy",
+        "btn_key": "btn_ad_smspro",
+        "langs": ["ru"],
+        "modes": None,
+    },
+    {
+        "text_key": "ad_smspro_2",
+        "url": "https://t.me/Virtnumbers_buyBot?start=_tgr_josfGNMwMGYy",
+        "btn_key": "btn_ad_smspro",
+        "langs": ["ru"],
+        "modes": None,
+    },
 ]
 
 
