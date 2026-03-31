@@ -111,23 +111,55 @@ def kb_channel_bonus(lang="ru"):
 
 def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
     buttons = []
+    # ── БЛОК 1: Общение ──
     if mode in ["simple", "any"]:
+        buttons.append([InlineKeyboardButton(text="── 💬 Общение ──", callback_data="noop")])
         buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_danil"), callback_data="aichar:danil"),
-            InlineKeyboardButton(text=t(lang, "char_polina"), callback_data="aichar:polina"),
+            InlineKeyboardButton(text=t(lang, "char_luna"), callback_data="aichar:luna"),
+            InlineKeyboardButton(text=t(lang, "char_max_simple"), callback_data="aichar:max_simple"),
         ])
+        buttons.append([
+            InlineKeyboardButton(text=t(lang, "char_aurora"), callback_data="aichar:aurora"),
+            InlineKeyboardButton(text=t(lang, "char_alex"), callback_data="aichar:alex"),
+        ])
+    # ── БЛОК 2: Флирт ──
     if mode in ["flirt", "any"]:
+        buttons.append([InlineKeyboardButton(text="── 💋 Флирт ──", callback_data="noop")])
         buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_max"), callback_data="aichar:max"),
-            InlineKeyboardButton(text=t(lang, "char_violetta"), callback_data="aichar:violetta"),
+            InlineKeyboardButton(text=t(lang, "char_mia"), callback_data="aichar:mia"),
+            InlineKeyboardButton(text=t(lang, "char_kai"), callback_data="aichar:kai"),
         ])
+        buttons.append([
+            InlineKeyboardButton(text=t(lang, "char_diana"), callback_data="aichar:diana"),
+            InlineKeyboardButton(text=t(lang, "char_leon"), callback_data="aichar:leon"),
+        ])
+    # ── БЛОК 3: Kink (только premium) ──
     if mode in ["kink", "any"]:
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_alisa"), callback_data="aichar:alisa"),
-            InlineKeyboardButton(text=t(lang, "char_dmitri"), callback_data="aichar:dmitri"),
-        ])
-        buttons.append([InlineKeyboardButton(text=t(lang, "char_rolemaster"), callback_data="aichar:rolemaster")])
-    buttons.append([InlineKeyboardButton(text=t(lang, "char_power_soon"), callback_data="aichar:power_soon")])
+        buttons.append([InlineKeyboardButton(text="── 🔥 Kink VIP ──", callback_data="noop")])
+        if user_tier in ("premium", "plus"):
+            buttons.append([
+                InlineKeyboardButton(text=t(lang, "char_lilit"), callback_data="aichar:lilit"),
+                InlineKeyboardButton(text=t(lang, "char_eva"), callback_data="aichar:eva"),
+            ])
+            buttons.append([
+                InlineKeyboardButton(text=t(lang, "char_damir"), callback_data="aichar:damir"),
+                InlineKeyboardButton(text=t(lang, "char_ars"), callback_data="aichar:ars"),
+            ])
+            buttons.append([
+                InlineKeyboardButton(text=t(lang, "char_master"), callback_data="aichar:master"),
+            ])
+        else:
+            buttons.append([
+                InlineKeyboardButton(text="🔒 " + t(lang, "char_lilit"), callback_data="aichar:vip_locked"),
+                InlineKeyboardButton(text="🔒 " + t(lang, "char_eva"), callback_data="aichar:vip_locked"),
+            ])
+            buttons.append([
+                InlineKeyboardButton(text="🔒 " + t(lang, "char_damir"), callback_data="aichar:vip_locked"),
+                InlineKeyboardButton(text="🔒 " + t(lang, "char_ars"), callback_data="aichar:vip_locked"),
+            ])
+            buttons.append([
+                InlineKeyboardButton(text="🔒 " + t(lang, "char_master"), callback_data="aichar:vip_locked"),
+            ])
     if mode != "any":
         buttons.append([InlineKeyboardButton(text=t(lang, "char_all"), callback_data="aichar:all")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])
