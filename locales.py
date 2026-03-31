@@ -246,7 +246,7 @@ TEXTS = {
         "stats_no_premium": "💎 Premium: Нет",
         "not_registered": "Сначала зарегистрируйся через /start!",
         # Тексты — premium
-        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 Что входит:\n• Безлимит на всех ИИ персонажей\n• VIP персонажи открыты\n• Приоритет в поиске\n• Без рекламы\n\nВыбери тариф:",
+        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 Что входит:\n• Безлимит на всех ИИ персонажей\n• VIP персонажи открыты\n• 🌐 Автоперевод в чатах\n• Приоритет в поиске\n• Без рекламы\n\nВыбери тариф:",
         "premium_status_eternal": "✅ Сейчас: {tier} (вечный)\n\n",
         "premium_status_until": "✅ Сейчас: {tier} до {until}\n\n",
         "premium_info": (
@@ -786,7 +786,7 @@ TEXTS = {
         "stats_no_premium": "💎 Premium: None",
         "not_registered": "Register first via /start!",
         # Premium
-        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 What's included:\n• Unlimited all AI characters\n• VIP characters unlocked\n• Priority search\n• No ads\n\nChoose a plan:",
+        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 What's included:\n• Unlimited all AI characters\n• VIP characters unlocked\n• 🌐 Auto-translate in chats\n• Priority search\n• No ads\n\nChoose a plan:",
         "premium_status_eternal": "✅ Current: {tier} (lifetime)\n\n",
         "premium_status_until": "✅ Current: {tier} until {until}\n\n",
         "premium_info": (
@@ -1326,7 +1326,7 @@ TEXTS = {
         "stats_no_premium": "💎 Premium: Ninguno",
         "not_registered": "¡Regístrate primero via /start!",
         # Premium
-        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 Qué incluye:\n• IA ilimitada en todos los personajes\n• Personajes VIP desbloqueados\n• Búsqueda prioritaria\n• Sin anuncios\n\nElige un plan:",
+        "premium_title": "⭐ MatchMe Premium\n\n{status}📊 Qué incluye:\n• IA ilimitada en todos los personajes\n• Personajes VIP desbloqueados\n• 🌐 Traducción automática en chats\n• Búsqueda prioritaria\n• Sin anuncios\n\nElige un plan:",
         "premium_status_eternal": "✅ Actual: {tier} (de por vida)\n\n",
         "premium_status_until": "✅ Actual: {tier} hasta {until}\n\n",
         "premium_info": (
