@@ -153,6 +153,7 @@ async def init_db():
             ("premium_tier", "TEXT DEFAULT NULL"),
             ("ai_pro_until", "TEXT DEFAULT NULL"),
             ("ai_bonus", "INTEGER DEFAULT 0"),
+            ("search_range", "TEXT DEFAULT 'local'"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
@@ -618,6 +619,13 @@ async def kb_settings(uid, lang="ru"):
         callback_data="set:show_premium"
     )])
 
+    search_range = u.get("search_range", "local")
+    sr_icon = "🌍" if search_range == "global" else "🏠"
+    sr_label = t(lang, f"settings_search_{search_range}")
+    buttons.append([InlineKeyboardButton(
+        text=f"{sr_icon} {sr_label}", callback_data="set:search_range"
+    )])
+
     if user_premium:
         p_until = u.get("premium_until", "")
         if p_until == "permanent" or uid == ADMIN_ID:
@@ -782,6 +790,7 @@ async def do_find(uid, state):
     search_gender = u.get("search_gender", "any")
     search_age_min = u.get("search_age_min", 16) or 16
     search_age_max = u.get("search_age_max", 99) or 99
+    my_search_range = u.get("search_range", "local")
 
     # Собираем кандидатов ВНЕ лока (await-запросы к БД)
     # Общение — всегда изолировано, кросс-режим только Флирт↔Kink
@@ -812,9 +821,11 @@ async def do_find(uid, state):
                         continue
                 except Exception:
                     pass
-            # Language isolation: users only match within same language
+            # Language filter: skip if both users are on "local" and languages differ
             p_lang_val = pu.get("lang") or "ru"
-            if my_lang != p_lang_val: continue
+            p_search_range = pu.get("search_range", "local")
+            if my_lang != p_lang_val and my_search_range == "local" and p_search_range == "local":
+                continue
             # Shadow ban: теневые юзеры матчатся только между собой
             p_shadow = pu.get("shadow_ban", False)
             if my_shadow != p_shadow: continue
@@ -2132,6 +2143,10 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         await update_user(uid, accept_cross_mode=not u.get("accept_cross_mode", False))
     elif key == "show_premium":
         await update_user(uid, show_premium=not u.get("show_premium", True))
+    elif key == "search_range":
+        current = u.get("search_range", "local")
+        new_val = "global" if current == "local" else "local"
+        await update_user(uid, search_range=new_val)
     try:
         await callback.message.edit_reply_markup(reply_markup=await kb_settings(uid, lang))
     except Exception: pass
