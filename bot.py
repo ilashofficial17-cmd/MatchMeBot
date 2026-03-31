@@ -585,6 +585,14 @@ def _all(key):
     """All language variants for a locale key — for F.text.in_() filters."""
     return {TEXTS[lang][key] for lang in TEXTS if key in TEXTS[lang]}
 
+# Приветствие на выборе языка — всегда на всех 3 языках сразу
+_LANG_WELCOME = (
+    "👋 Привет! Я MatchMe — анонимный чат для общения, флирта и знакомств.\n\n"
+    "👋 Hi! I'm MatchMe — anonymous chat for socializing, flirting and meeting people.\n\n"
+    "👋 ¡Hola! Soy MatchMe — chat anónimo para socializar, flirtear y conocer gente.\n\n"
+    "🌐 Выбери язык / Choose language / Elige idioma 👇"
+)
+
 async def unavailable(message: types.Message, lang: str, reason_key: str):
     await message.answer(t(lang, "unavailable", reason=t(lang, reason_key)))
 
@@ -595,7 +603,7 @@ async def needs_onboarding(message: types.Message, state: FSMContext) -> bool:
     u = await get_user(uid)
     if not u or not u.get("lang"):
         await state.set_state(LangSelect.choosing)
-        await message.answer(t("ru", "welcome"), reply_markup=kb_lang())
+        await message.answer(_LANG_WELCOME, reply_markup=kb_lang())
         return True
     return False
 
@@ -1010,18 +1018,18 @@ async def cmd_start(message: types.Message, state: FSMContext):
             await message.answer(t(lang, "banned_until", until=until.strftime('%H:%M %d.%m.%Y')))
         return
 
-    # Шаг 0: Выбор языка (самый первый шаг)
+    # Шаг 0: Выбор языка — всегда первый, если не выбран
     if not u or not u.get("lang"):
         await state.set_state(LangSelect.choosing)
-        await message.answer(t("ru", "welcome"), reply_markup=kb_lang())
+        await message.answer(_LANG_WELCOME, reply_markup=kb_lang())
         return
 
-    # Шаг 1: Политика конфиденциальности
+    # Шаг 1: Политика конфиденциальности (на выбранном языке)
     if not u.get("accepted_privacy"):
         await message.answer(t(lang, "privacy"), reply_markup=kb_privacy(lang))
         return
 
-    # Шаг 2: Правила
+    # Шаг 2: Правила (на выбранном языке)
     if not u.get("accepted_rules"):
         await state.set_state(Rules.waiting)
         await message.answer(t(lang, "rules"), reply_markup=kb_rules(lang))
