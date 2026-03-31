@@ -238,15 +238,26 @@ def kb_user_actions(target_uid, is_shadow=False, lang="ru"):
 
 
 def kb_premium(lang="ru", plan_prices: dict | None = None):
-    """plan_prices: {"7d": 99, "1m": 299, ...} — цены с учётом региона."""
-    buttons = [[InlineKeyboardButton(text=t(lang, "prem_header"), callback_data="noop")]]
+    """plan_prices: {"7d": 129, "1m": 349, ...} — цены с учётом региона."""
+    buttons = []
     plan_labels = {"7d": "plan_label_7d", "1m": "plan_label_1m", "3m": "plan_label_3m", "1y": "plan_label_1y"}
+    plan_badges = {"7d": "", "1m": "🔥 ", "3m": "💎 ", "1y": "👑 "}
+    plan_discounts = {
+        "7d": "",
+        "1m": "",
+        "3m": {"ru": " (-28%)", "en": " (-28%)", "es": " (-28%)"},
+        "1y": {"ru": " (-55%)", "en": " (-55%)", "es": " (-55%)"},
+    }
     for key in ("7d", "1m", "3m", "1y"):
         label = t(lang, plan_labels[key])
+        badge = plan_badges[key]
+        discount = plan_discounts[key]
+        discount_text = discount.get(lang, discount.get("ru", "")) if isinstance(discount, dict) else discount
         if plan_prices and key in plan_prices:
             price = plan_prices[key]
             buttons.append([InlineKeyboardButton(
-                text=f"⭐ {label} — {price} Stars", callback_data=f"buy:{key}"
+                text=f"{badge}{label} — {price} ⭐{discount_text}",
+                callback_data=f"buy:{key}"
             )])
         else:
             buttons.append([InlineKeyboardButton(
