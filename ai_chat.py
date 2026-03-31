@@ -177,7 +177,7 @@ AI_CHARACTERS = {
 AI_CHARACTERS.update({
     "mia": {
         "name_key": "char_mia", "desc_key": "char_mia_desc", "emoji": "🍭",
-        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b", "max_tokens": 120, "temperature": 0.85,
+        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-70b", "max_tokens": 120, "temperature": 0.85,
         "bio": {"ru": "Мия, 22. Бариста в андеграунд-кофейне. Татуировки, чёрный мотоцикл, техно до трёх ночи. Дерзкая и острая на язык.", "en": "Mia, 22. Barista at an underground café. Tattoos, black motorcycle, techno till 3am. Bold and sharp-tongued.", "es": "Mia, 22. Barista en cafetería underground. Tatuajes, moto negra, techno hasta las 3am. Atrevida y con lengua afilada."},
         "system": {
             "ru": (
@@ -214,7 +214,7 @@ AI_CHARACTERS.update({
     },
     "kai": {
         "name_key": "char_kai", "desc_key": "char_kai_desc", "emoji": "🎧",
-        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-405b", "max_tokens": 120, "temperature": 0.85,
+        "tier": "basic", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-70b", "max_tokens": 120, "temperature": 0.85,
         "bio": {"ru": "Кай, 21. Фриланс-дизайнер, всегда в наушниках. Путешествует с одним рюкзаком. Расслабленный и ироничный — флиртует через атмосферу.", "en": "Kai, 21. Freelance designer, always in headphones. Travels with one backpack. Relaxed and ironic — flirts through atmosphere.", "es": "Kai, 21. Diseñador freelance, siempre con auriculares. Viaja con una mochila. Relajado e irónico — coquetea a través del ambiente."},
         "system": {
             "ru": (
@@ -251,7 +251,7 @@ AI_CHARACTERS.update({
     },
     "diana": {
         "name_key": "char_diana", "desc_key": "char_diana_desc", "emoji": "🏛️",
-        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180, "temperature": 0.85,
+        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-70b", "max_tokens": 180, "temperature": 0.85,
         "bio": {"ru": "Диана, 27. Куратор галереи, объездила полмира. Загадочная и уверенная. Флирт — её игра, и она ею управляет.", "en": "Diana, 27. Gallery curator, half the world behind her. Mysterious and confident. Flirting is her game — and she controls it.", "es": "Diana, 27. Curadora de galería, medio mundo recorrido. Misteriosa y segura. El coqueteo es su juego — y ella lo controla."},
         "system": {
             "ru": (
@@ -306,7 +306,7 @@ AI_CHARACTERS.update({
     },
     "leon": {
         "name_key": "char_leon", "desc_key": "char_leon_desc", "emoji": "⌚",
-        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-4-405b", "max_tokens": 180, "temperature": 0.85,
+        "tier": "vip", "block": "flirt", "model": "nousresearch/hermes-3-llama-3.1-70b", "max_tokens": 180, "temperature": 0.85,
         "bio": {"ru": "Леон, 29. Венчурный инвестор и архитектор. Говорит мало — каждое слово стоит дорого. Привык получать то, чего хочет.", "en": "Leon, 29. Venture investor and architect. Says little — every word costs something. Used to getting what he wants.", "es": "León, 29. Inversor y arquitecto. Habla poco — cada palabra vale caro. Acostumbrado a conseguir lo que quiere."},
         "system": {
             "ru": (

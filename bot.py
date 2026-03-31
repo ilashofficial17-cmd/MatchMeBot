@@ -44,7 +44,6 @@ PREMIUM_PLANS = {
     "7d":  {"stars": 129,  "days": 7,   "label_key": "plan_label_7d",  "desc_key": "plan_desc_try",      "tier": "premium"},
     "1m":  {"stars": 349,  "days": 30,  "label_key": "plan_label_1m",  "desc_key": "plan_desc_popular",  "tier": "premium"},
     "3m":  {"stars": 749,  "days": 90,  "label_key": "plan_label_3m",  "desc_key": "plan_desc_discount", "tier": "premium"},
-    "1y":  {"stars": 1899, "days": 365, "label_key": "plan_label_1y",  "desc_key": "plan_desc_best",     "tier": "premium"},
 }
 
 

@@ -240,15 +240,14 @@ def kb_user_actions(target_uid, is_shadow=False, lang="ru"):
 def kb_premium(lang="ru", plan_prices: dict | None = None):
     """plan_prices: {"7d": 129, "1m": 349, ...} — цены с учётом региона."""
     buttons = []
-    plan_labels = {"7d": "plan_label_7d", "1m": "plan_label_1m", "3m": "plan_label_3m", "1y": "plan_label_1y"}
-    plan_badges = {"7d": "", "1m": "🔥 ", "3m": "💎 ", "1y": "👑 "}
+    plan_labels = {"7d": "plan_label_7d", "1m": "plan_label_1m", "3m": "plan_label_3m"}
+    plan_badges = {"7d": "", "1m": "🔥 ", "3m": "💎 "}
     plan_discounts = {
         "7d": "",
         "1m": "",
         "3m": {"ru": " (-28%)", "en": " (-28%)", "es": " (-28%)"},
-        "1y": {"ru": " (-55%)", "en": " (-55%)", "es": " (-55%)"},
     }
-    for key in ("7d", "1m", "3m", "1y"):
+    for key in ("7d", "1m", "3m"):
         label = t(lang, plan_labels[key])
         badge = plan_badges[key]
         discount = plan_discounts[key]
