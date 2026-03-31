@@ -94,6 +94,8 @@ TEXTS = {
         # Кнопки — AI чат
         "btn_change_char": "🔄 Сменить персонажа",
         "btn_end_ai_chat": "❌ Завершить чат",
+        "btn_erase_memory": "🧹 Стереть память",
+        "memory_erased": "🧹 Память стёрта. Персонаж забыл всё о вас. Начинаем заново!",
         "btn_find_live": "🔍 Найти живого собеседника",
         # Названия режимов и пола (для отображения)
         "mode_simple": "Просто общение 💬",
@@ -625,6 +627,8 @@ TEXTS = {
         # Buttons — AI chat
         "btn_change_char": "🔄 Change character",
         "btn_end_ai_chat": "❌ End chat",
+        "btn_erase_memory": "🧹 Erase memory",
+        "memory_erased": "🧹 Memory erased. The character forgot everything about you. Starting fresh!",
         "btn_find_live": "🔍 Find a real person",
         # Mode and gender display names
         "mode_simple": "Just chatting 💬",
@@ -1156,6 +1160,8 @@ TEXTS = {
         # Botones — chat IA
         "btn_change_char": "🔄 Cambiar personaje",
         "btn_end_ai_chat": "❌ Terminar chat",
+        "btn_erase_memory": "🧹 Borrar memoria",
+        "memory_erased": "🧹 Memoria borrada. El personaje olvidó todo sobre ti. ¡Empezamos de nuevo!",
         "btn_find_live": "🔍 Buscar persona real",
         # Nombres de modos y géneros (para mostrar)
         "mode_simple": "Solo charlar 💬",

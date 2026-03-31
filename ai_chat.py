@@ -923,16 +923,19 @@ _show_settings = None
 _get_ai_history = None
 _save_ai_message = None
 _clear_ai_history = None
+_get_ai_notes = None
+_save_ai_notes = None
 
 
 def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
          active_chats, get_user, ensure_user, get_premium_tier, update_user,
          cmd_find, show_settings, get_ai_history=None, save_ai_message=None,
-         clear_ai_history=None):
+         clear_ai_history=None, get_ai_notes=None, save_ai_notes=None):
     global _bot, _ai_sessions, _last_ai_msg, _pairing_lock, _get_all_queues
     global _active_chats, _get_user, _ensure_user, _get_premium_tier
     global _update_user, _cmd_find, _show_settings
     global _get_ai_history, _save_ai_message, _clear_ai_history
+    global _get_ai_notes, _save_ai_notes
     _bot = bot
     _ai_sessions = ai_sessions
     _last_ai_msg = last_ai_msg
@@ -948,6 +951,8 @@ def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
     _get_ai_history = get_ai_history
     _save_ai_message = save_ai_message
     _clear_ai_history = clear_ai_history
+    _get_ai_notes = get_ai_notes
+    _save_ai_notes = save_ai_notes
 
 
 async def _lang(uid: int) -> str:
@@ -1033,6 +1038,38 @@ _RETRY_HINT = {
     "en": "Stay in character. Reply short, human-like, in English only.",
     "es": "Mantén el personaje. Responde breve, como humano, solo en español.",
 }
+
+_SUMMARY_PROMPT = {
+    "ru": (
+        "Проанализируй последние сообщения и извлеки ключевые факты о собеседнике: "
+        "имя, возраст, интересы, предпочтения, важные детали из разговора. "
+        "Ответь ТОЛЬКО списком фактов, кратко, максимум 3-5 пунктов. Без вступлений."
+    ),
+    "en": (
+        "Analyze the recent messages and extract key facts about the user: "
+        "name, age, interests, preferences, important details from the conversation. "
+        "Reply ONLY with a list of facts, brief, max 3-5 points. No introductions."
+    ),
+    "es": (
+        "Analiza los mensajes recientes y extrae datos clave sobre el usuario: "
+        "nombre, edad, intereses, preferencias, detalles importantes de la conversación. "
+        "Responde SOLO con una lista de hechos, breve, máximo 3-5 puntos. Sin introducciones."
+    ),
+}
+
+
+async def _generate_summary(uid: int, char_id: str, history: list, lang: str):
+    """Фоновая задача: генерирует summary ключевых фактов о юзере."""
+    try:
+        prompt = _SUMMARY_PROMPT.get(lang, _SUMMARY_PROMPT["ru"])
+        recent = history[-20:]
+        result = await get_ai_chat_response(prompt, recent, "openai/gpt-4o-mini", max_tokens=150)
+        if result and _save_ai_notes:
+            await _save_ai_notes(uid, char_id, result.strip()[:500])
+            logger.info(f"_generate_summary: saved notes for uid={uid} char={char_id}")
+    except Exception as e:
+        logger.error(f"_generate_summary error: {e}")
+
 
 # Защитный блок — добавляется ко всем персонажам автоматически
 # Блок эскалации — добавляется к flirt и kink персонажам автоматически
@@ -1176,7 +1213,8 @@ def _validate_response(text: str, lang: str) -> tuple[bool, str]:
 
 
 async def ask_ai(character_id: str, history: list, user_message: str,
-                 lang: str = "ru", user: dict = None, msg_count: int = 0) -> str:
+                 lang: str = "ru", user: dict = None, msg_count: int = 0,
+                 notes: str = "") -> str:
     """
     Отправляет сообщение персонажу через OpenRouter.
     При плохом ответе делает до 2 ретраев, потом возвращает ai_error.
@@ -1191,6 +1229,11 @@ async def ask_ai(character_id: str, history: list, user_message: str,
 
     base_system = char["system"].get(lang) or char["system"].get("ru", "")
     base_system += _user_context(user, lang)
+    if notes:
+        notes_header = {"ru": "Что ты помнишь об этом человеке из прошлых разговоров",
+                        "en": "What you remember about this person from past conversations",
+                        "es": "Lo que recuerdas de esta persona de conversaciones pasadas"}
+        base_system += f"\n\n[{notes_header.get(lang, notes_header['ru'])}: {notes}]"
     block = char.get("block", "")
     if block in _ESCALATION_BLOCK:
         base_system += _ESCALATION_BLOCK[block].get(lang, _ESCALATION_BLOCK[block]["ru"])
@@ -1340,8 +1383,14 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     except Exception: pass
     await callback.message.answer(t(lang, "ai_chat_active"), reply_markup=kb_ai_chat(lang))
     u = await _get_user(uid)
-    if not db_history:
-        greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u)
+    if db_history:
+        # Показываем последнее сообщение персонажа чтобы юзер видел где остановились
+        last_assistant = next((m for m in reversed(db_history) if m["role"] == "assistant"), None)
+        if last_assistant:
+            await callback.message.answer(f"{char['emoji']} {last_assistant['content']}")
+    else:
+        notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
+        greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u, notes=notes)
         if greeting:
             _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
             if _save_ai_message:
@@ -1405,6 +1454,27 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         await state.clear()
         await message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         return
+    if txt == t(lang, "btn_erase_memory"):
+        session = _ai_sessions.get(uid)
+        if session:
+            char_id = session["character"]
+            char = AI_CHARACTERS[char_id]
+            if _clear_ai_history:
+                await _clear_ai_history(uid, char_id)
+            if _save_ai_notes:
+                await _save_ai_notes(uid, char_id, "")
+            session["history"] = []
+            session["msg_count"] = 0
+            await message.answer(t(lang, "memory_erased"))
+            # Генерируем новое приветствие
+            u = await _get_user(uid)
+            greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u)
+            if greeting:
+                session["history"].append({"role": "assistant", "content": greeting})
+                if _save_ai_message:
+                    await _save_ai_message(uid, char_id, "assistant", greeting)
+                await message.answer(f"{char['emoji']} {greeting}")
+        return
     if uid not in _ai_sessions:
         await state.clear()
         await message.answer(t(lang, "ai_session_lost"), reply_markup=kb_main(lang))
@@ -1447,13 +1517,19 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     _last_ai_msg[uid] = datetime.now()
     await _bot.send_chat_action(uid, "typing")
     await _update_user(uid, last_seen=datetime.now())
+    # Загружаем заметки для инжекта в промпт
+    notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
     session["history"].append({"role": "user", "content": txt})
-    response = await ask_ai(char_id, session["history"][:-1], txt, lang, user=u, msg_count=session["msg_count"] + 1)
+    response = await ask_ai(char_id, session["history"][:-1], txt, lang, user=u,
+                            msg_count=session["msg_count"] + 1, notes=notes)
     session["history"].append({"role": "assistant", "content": response})
     if _save_ai_message:
         await _save_ai_message(uid, char_id, "user", txt)
         await _save_ai_message(uid, char_id, "assistant", response)
     session["msg_count"] += 1
+    # Каждые 10 сообщений — фоновый summary ключевых фактов
+    if session["msg_count"] % 10 == 0:
+        asyncio.create_task(_generate_summary(uid, char_id, session["history"], lang))
     new_count = current_count + 1
     if limit is not None and new_count > limit and ai_bonus > 0:
         await _update_user(uid, **{counter_field: new_count, "ai_bonus": ai_bonus - 1})
@@ -1533,8 +1609,13 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=kb_ai_chat(lang)
     )
     u = await _get_user(uid)
-    if not db_history:
-        greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u)
+    if db_history:
+        last_assistant = next((m for m in reversed(db_history) if m["role"] == "assistant"), None)
+        if last_assistant:
+            await callback.message.answer(f"{char['emoji']} {last_assistant['content']}")
+    else:
+        notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
+        greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u, notes=notes)
         if greeting:
             _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
             if _save_ai_message:

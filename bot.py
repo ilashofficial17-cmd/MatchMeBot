@@ -219,6 +219,16 @@ async def init_db():
             )
         except Exception: pass
 
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_notes (
+                uid BIGINT NOT NULL,
+                character_id TEXT NOT NULL,
+                notes TEXT DEFAULT '',
+                updated_at TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (uid, character_id)
+            )
+        """)
+
         await conn.execute(
             """INSERT INTO users (uid, premium_until, show_premium, accepted_privacy, accepted_rules)
                VALUES ($1, 'permanent', TRUE, TRUE, TRUE)
@@ -406,6 +416,31 @@ async def clear_ai_history(uid: int, character_id: str = None):
             )
         else:
             await conn.execute("DELETE FROM ai_history WHERE uid=$1", uid)
+
+
+async def get_ai_notes(uid: int, character_id: str) -> str:
+    """Возвращает заметки о пользователе для персонажа."""
+    if not db_pool:
+        return ""
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT notes FROM ai_notes WHERE uid=$1 AND character_id=$2",
+            uid, character_id
+        )
+    return (row["notes"] if row else "") or ""
+
+
+async def save_ai_notes(uid: int, character_id: str, notes: str):
+    """Сохраняет/обновляет заметки о пользователе для персонажа."""
+    if not db_pool:
+        return
+    async with db_pool.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO ai_notes (uid, character_id, notes, updated_at)
+            VALUES ($1, $2, $3, NOW())
+            ON CONFLICT (uid, character_id)
+            DO UPDATE SET notes = $3, updated_at = NOW()
+        """, uid, character_id, notes[:500])
 
 
 async def get_premium_tier(uid):
@@ -2158,6 +2193,8 @@ async def main():
         get_ai_history=get_ai_history,
         save_ai_message=save_ai_message,
         clear_ai_history=clear_ai_history,
+        get_ai_notes=get_ai_notes,
+        save_ai_notes=save_ai_notes,
     )
     admin_module.init(
         bot=bot,
