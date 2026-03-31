@@ -16,7 +16,7 @@ from aiogram.types import (
 )
 import asyncpg
 import moderation
-from ai_utils import get_ai_answer  # подготовка для AI-персонажей на OpenRouter
+from ai_utils import get_ai_answer, translate_message  # подготовка для AI-персонажей на OpenRouter
 from states import (Reg, Chat, LangSelect, Rules, Complaint, EditProfile,
                     AdminState, ResetProfile, AIChat)
 from locales import t, LANG_BUTTONS, TEXTS
@@ -72,6 +72,7 @@ waiting_flirt_premium = set()
 waiting_kink_premium = set()
 last_msg_time = {}
 msg_count = {}
+translate_notice_sent = set()  # (uid, partner) — one-time translation upsell per chat
 pairing_lock = asyncio.Lock()
 chat_logs = {}
 ai_sessions = {}
@@ -953,6 +954,8 @@ async def end_chat(uid, state, go_next=False):
     if partner:
         await remove_chat_from_db(uid, partner)
         clear_chat_log(uid, partner)
+        translate_notice_sent.discard((uid, partner))
+        translate_notice_sent.discard((partner, uid))
 
         # Сообщение о завершении + кнопка mutual match
         my_lang = await get_lang(uid)
@@ -1781,15 +1784,50 @@ async def relay(message: types.Message, state: FSMContext):
         return
     msg_count[uid].append(now)
     last_msg_time[uid] = last_msg_time[partner] = now
+    # --- Translation for cross-language chats ---
+    p_lang = await get_lang(partner)
+    need_translate = lang != p_lang
+    partner_premium = await is_premium(partner) if need_translate else False
+
+    async def _translate_text(text: str | None) -> str | None:
+        """Translate text for partner if needed. Returns formatted or original."""
+        if not text or not need_translate:
+            return text
+        if not partner_premium:
+            # Send one-time notice to non-premium partner
+            if (partner, uid) not in translate_notice_sent:
+                translate_notice_sent.add((partner, uid))
+                try:
+                    await bot.send_message(partner, t(p_lang, "translate_premium_notice"))
+                except Exception:
+                    pass
+            return text
+        translated = await translate_message(text, lang, p_lang)
+        if translated and translated.strip() != text.strip():
+            return f"{translated}\n\n💬 {text}"
+        return text
+
     try:
-        if message.text: await bot.send_message(partner, message.text)
-        elif message.sticker: await bot.send_sticker(partner, message.sticker.file_id)
-        elif message.photo: await bot.send_photo(partner, message.photo[-1].file_id, caption=message.caption)
-        elif message.voice: await bot.send_voice(partner, message.voice.file_id)
-        elif message.video: await bot.send_video(partner, message.video.file_id, caption=message.caption)
-        elif message.video_note: await bot.send_video_note(partner, message.video_note.file_id)
-        elif message.document: await bot.send_document(partner, message.document.file_id, caption=message.caption)
-        elif message.audio: await bot.send_audio(partner, message.audio.file_id)
+        if message.text:
+            relay_text = await _translate_text(message.text)
+            await bot.send_message(partner, relay_text)
+        elif message.sticker:
+            await bot.send_sticker(partner, message.sticker.file_id)
+        elif message.photo:
+            cap = await _translate_text(message.caption)
+            await bot.send_photo(partner, message.photo[-1].file_id, caption=cap)
+        elif message.voice:
+            await bot.send_voice(partner, message.voice.file_id)
+        elif message.video:
+            cap = await _translate_text(message.caption)
+            await bot.send_video(partner, message.video.file_id, caption=cap)
+        elif message.video_note:
+            await bot.send_video_note(partner, message.video_note.file_id)
+        elif message.document:
+            cap = await _translate_text(message.caption)
+            await bot.send_document(partner, message.document.file_id, caption=cap)
+        elif message.audio:
+            await bot.send_audio(partner, message.audio.file_id)
     except Exception as e:
         logger.warning(f"Relay failed {uid}->{partner}: {e}")
 

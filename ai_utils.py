@@ -119,3 +119,27 @@ async def get_ai_chat_response(
     except Exception as e:
         logger.error(f"OpenRouter chat exception: {e}")
         return None
+
+
+_LANG_NAMES = {"ru": "Russian", "en": "English", "es": "Spanish"}
+
+
+async def translate_message(text: str, from_lang: str, to_lang: str) -> str | None:
+    """
+    Translate a chat message using OpenRouter gpt-4o-mini.
+    Returns translated text or None on failure.
+    """
+    if from_lang == to_lang:
+        return text
+    target = _LANG_NAMES.get(to_lang, "English")
+    system = (
+        f"You are a translator. Translate the user's message into {target}. "
+        "Output ONLY the translation, nothing else. Keep emojis and formatting. "
+        "If the message is already in the target language, return it as-is."
+    )
+    return await get_ai_answer(
+        prompt=text,
+        system_prompt=system,
+        model_name="openai/gpt-4o-mini",
+        max_tokens=400,
+    )
