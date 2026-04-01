@@ -12,7 +12,7 @@ from keyboards import kb_main, kb_ai_characters, kb_ai_chat, kb_cancel_search
 from locales import t, TEXTS
 import base64
 import io
-from ai_utils import get_ai_chat_response, describe_image
+from ai_utils import get_ai_chat_response, describe_image, transcribe_voice
 
 router = Router()
 logger = logging.getLogger("matchme")
@@ -1693,6 +1693,41 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
             await message.answer(f"{emoji} {photo_fallbacks.get(lang, photo_fallbacks['en'])}")
             return
 
+    # Обработка голосовых — транскрипция через Gemini Flash
+    if (message.voice or message.audio) and not txt:
+        if uid not in _ai_sessions:
+            await state.clear()
+            await message.answer(t(lang, "ai_session_lost"), reply_markup=kb_main(lang))
+            return
+        await _bot.send_chat_action(uid, "typing")
+        try:
+            file_id = message.voice.file_id if message.voice else message.audio.file_id
+            file_info = await _bot.get_file(file_id)
+            audio_bytes = await _bot.download_file(file_info.file_path)
+            if isinstance(audio_bytes, io.BytesIO):
+                audio_data = audio_bytes.read()
+            else:
+                audio_data = audio_bytes
+            audio_b64 = base64.b64encode(audio_data).decode()
+            transcription = await transcribe_voice(audio_b64, lang)
+        except Exception as e:
+            logger.warning(f"Voice transcription failed uid={uid}: {e}")
+            transcription = None
+        if transcription:
+            voice_labels = {"ru": "голосовое сообщение", "en": "voice message", "es": "mensaje de voz"}
+            label = voice_labels.get(lang, voice_labels["en"])
+            txt = f"[{label}: «{transcription}»]"
+        else:
+            voice_fallbacks = {
+                "ru": "Не расслышал(а) 😅 Напиши текстом?",
+                "en": "Couldn't hear that 😅 Could you type it?",
+                "es": "No pude escuchar 😅 ¿Puedes escribirlo?",
+            }
+            char_id = _ai_sessions[uid]["character"]
+            emoji = AI_CHARACTERS[char_id]["emoji"]
+            await message.answer(f"{emoji} {voice_fallbacks.get(lang, voice_fallbacks['en'])}")
+            return
+
     if uid not in _ai_sessions:
         await state.clear()
         await message.answer(t(lang, "ai_session_lost"), reply_markup=kb_main(lang))
@@ -1700,7 +1735,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     session = _ai_sessions[uid]
     char_id = session["character"]
     char = AI_CHARACTERS[char_id]
-    # Игнорируем пустые сообщения (стикеры, голосовые и т.д. без текста/фото)
+    # Игнорируем пустые сообщения (стикеры, видеокружки и т.д.)
     if not txt.strip():
         return
     user_tier = await _get_premium_tier(uid)

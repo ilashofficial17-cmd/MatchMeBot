@@ -168,6 +168,59 @@ async def describe_image(image_base64: str, lang: str = "ru") -> str | None:
         return None
 
 
+async def transcribe_voice(audio_base64: str, lang: str = "ru") -> str | None:
+    """
+    Transcribe a voice message using Gemini Flash via OpenRouter.
+    Accepts base64-encoded OGG audio. Returns transcribed text.
+    """
+    if not OPEN_ROUTER_KEY:
+        return None
+    lang_hints = {
+        "ru": "Транскрибируй это голосовое сообщение. Выведи ТОЛЬКО текст того что сказано, ничего больше. Язык: русский.",
+        "en": "Transcribe this voice message. Output ONLY the spoken text, nothing else. Language: English.",
+        "es": "Transcribe este mensaje de voz. Devuelve SOLO el texto hablado, nada más. Idioma: español.",
+    }
+    headers = {
+        "Authorization": f"Bearer {OPEN_ROUTER_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://t.me/MatchMeBot",
+    }
+    payload = {
+        "model": "google/gemini-flash-1.5",
+        "max_tokens": 500,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:audio/ogg;base64,{audio_base64}"},
+                },
+                {
+                    "type": "text",
+                    "text": lang_hints.get(lang, lang_hints["en"]),
+                },
+            ],
+        }],
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                OPEN_ROUTER_URL,
+                json=payload,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=20),
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return data["choices"][0]["message"]["content"]
+                body = await resp.text()
+                logger.error(f"OpenRouter voice transcription {resp.status}: {body[:300]}")
+                return None
+    except Exception as e:
+        logger.error(f"OpenRouter voice transcription exception: {e}")
+        return None
+
+
 _LANG_NAMES = {"ru": "Russian", "en": "English", "es": "Spanish"}
 
 
