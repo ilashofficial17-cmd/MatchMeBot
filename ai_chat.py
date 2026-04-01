@@ -938,18 +938,19 @@ _clear_ai_history = None
 _get_ai_notes = None
 _save_ai_notes = None
 _db_pool = None
+_send_ad_message = None
 
 
 def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
          active_chats, get_user, ensure_user, get_premium_tier, update_user,
          cmd_find, show_settings, get_ai_history=None, save_ai_message=None,
          clear_ai_history=None, get_ai_notes=None, save_ai_notes=None,
-         db_pool=None):
+         db_pool=None, send_ad_message=None):
     global _bot, _ai_sessions, _last_ai_msg, _pairing_lock, _get_all_queues
     global _active_chats, _get_user, _ensure_user, _get_premium_tier
     global _update_user, _cmd_find, _show_settings
     global _get_ai_history, _save_ai_message, _clear_ai_history
-    global _get_ai_notes, _save_ai_notes, _db_pool
+    global _get_ai_notes, _save_ai_notes, _db_pool, _send_ad_message
     _bot = bot
     _ai_sessions = ai_sessions
     _last_ai_msg = last_ai_msg
@@ -968,6 +969,7 @@ def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
     _get_ai_notes = get_ai_notes
     _save_ai_notes = save_ai_notes
     _db_pool = db_pool
+    _send_ad_message = send_ad_message
 
 
 async def _get_char_media(char_id: str) -> dict | None:
@@ -1775,6 +1777,11 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
                     )
                 except Exception as e:
                     logger.warning(f"auto send_paid_media failed uid={uid}: {e}")
+
+    # Реклама в AI-чатах — каждое 10-е сообщение для не-премиум
+    if cur_msg > 0 and cur_msg % 10 == 0 and _send_ad_message:
+        if user_tier not in ("premium", "premium_plus"):
+            await _send_ad_message(uid)
 
 
 # ====================== GOTO CALLBACKS ======================

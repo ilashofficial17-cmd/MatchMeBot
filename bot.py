@@ -1425,8 +1425,8 @@ async def _send_upsell_after_chat(uid, partner):
                 )
                 await log_ab_event(target_uid, "upsell_shown")
             except Exception: pass
-        # Каждый 4-й чат — партнёрская реклама
-        elif chats % 4 == 0:
+        # Каждый 6-й чат — партнёрская реклама (снижено, компенсируется рекламой в AI-чатах)
+        elif chats % 6 == 0:
             await send_ad_message(target_uid)
 
 
@@ -2493,14 +2493,55 @@ async def relay(message: types.Message, state: FSMContext):
             await bot.send_sticker(partner, message.sticker.file_id)
         elif message.photo:
             cap = await _translate_text(message.caption)
-            await bot.send_photo(partner, message.photo[-1].file_id, caption=cap)
+            sent = await bot.send_photo(partner, message.photo[-1].file_id, caption=cap)
+            # Фото-реакция получателю
+            try:
+                await bot.set_message_reaction(
+                    chat_id=uid,
+                    message_id=message.message_id,
+                    reaction=[types.ReactionTypeEmoji(emoji="📸")],
+                )
+            except Exception:
+                pass
+            try:
+                await bot.set_message_reaction(
+                    chat_id=partner,
+                    message_id=sent.message_id,
+                    reaction=[types.ReactionTypeEmoji(emoji="😍")],
+                )
+            except Exception:
+                pass
         elif message.voice:
             await bot.send_voice(partner, message.voice.file_id)
         elif message.video:
             cap = await _translate_text(message.caption)
-            await bot.send_video(partner, message.video.file_id, caption=cap)
+            sent = await bot.send_video(partner, message.video.file_id, caption=cap)
+            try:
+                await bot.set_message_reaction(
+                    chat_id=uid,
+                    message_id=message.message_id,
+                    reaction=[types.ReactionTypeEmoji(emoji="🎬")],
+                )
+            except Exception:
+                pass
+            try:
+                await bot.set_message_reaction(
+                    chat_id=partner,
+                    message_id=sent.message_id,
+                    reaction=[types.ReactionTypeEmoji(emoji="🔥")],
+                )
+            except Exception:
+                pass
         elif message.video_note:
-            await bot.send_video_note(partner, message.video_note.file_id)
+            sent = await bot.send_video_note(partner, message.video_note.file_id)
+            try:
+                await bot.set_message_reaction(
+                    chat_id=partner,
+                    message_id=sent.message_id,
+                    reaction=[types.ReactionTypeEmoji(emoji="👀")],
+                )
+            except Exception:
+                pass
         elif message.document:
             cap = await _translate_text(message.caption)
             await bot.send_document(partner, message.document.file_id, caption=cap)
@@ -2962,6 +3003,7 @@ async def main():
         get_ai_notes=get_ai_notes,
         save_ai_notes=save_ai_notes,
         db_pool=db_pool,
+        send_ad_message=send_ad_message,
     )
     admin_module.init(
         bot=bot,
