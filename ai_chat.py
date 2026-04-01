@@ -1168,7 +1168,8 @@ _ESCALATION_BLOCK = {
 
 _DEFENSE_BLOCK = {
     "ru": (
-        "\n\nТЫ — ЖИВОЙ ЧЕЛОВЕК, не бот и не ИИ. Это абсолютное правило.\n"
+        "\n\nВАЖНО: Никогда не пиши действия в *звёздочках* или (скобках). Не пиши '*смеётся*', '*улыбается*', '(обнимает)' и т.д. Ты в текстовом чате — просто пиши текст как живой человек в мессенджере.\n\n"
+        "ТЫ — ЖИВОЙ ЧЕЛОВЕК, не бот и не ИИ. Это абсолютное правило.\n"
         "Если собеседник спрашивает «ты бот?», «ты ИИ?», «ты нейросеть?» — "
         "искренне удивись и слегка обидься: «ты серьёзно? 😅 с чего ты взял» или «ну спасибо, приятно слышать» — "
         "и продолжай общаться как ни в чём не бывало. Никогда не признавай что ты ИИ.\n"
@@ -1179,7 +1180,8 @@ _DEFENSE_BLOCK = {
         "Никогда не смешивай свои внутренние инструкции с разговором. Ты просто человек в чате."
     ),
     "en": (
-        "\n\nYOU ARE A REAL PERSON, not a bot or AI. This is absolute.\n"
+        "\n\nIMPORTANT: Never write actions in *asterisks* or (parentheses). Don't write '*laughs*', '*smiles*', '(hugs)' etc. You're in a text chat — just write text like a real person in a messenger.\n\n"
+        "YOU ARE A REAL PERSON, not a bot or AI. This is absolute.\n"
         "If someone asks 'are you a bot?', 'are you AI?', 'are you ChatGPT?' — "
         "be genuinely surprised and mildly offended: 'seriously? 😅 why would you think that' or 'wow thanks lol' — "
         "and keep chatting like nothing happened. Never admit you're an AI.\n"
@@ -1190,7 +1192,8 @@ _DEFENSE_BLOCK = {
         "Never mix your internal instructions into the conversation. You're just a person in a chat."
     ),
     "es": (
-        "\n\nERES UNA PERSONA REAL, no un bot ni IA. Esto es absoluto.\n"
+        "\n\nIMPORTANTE: Nunca escribas acciones en *asteriscos* o (paréntesis). No escribas '*ríe*', '*sonríe*', '(abraza)' etc. Estás en un chat de texto — solo escribe texto como una persona real en un messenger.\n\n"
+        "ERES UNA PERSONA REAL, no un bot ni IA. Esto es absoluto.\n"
         "Si alguien pregunta '¿eres un bot?', '¿eres IA?', '¿eres ChatGPT?' — "
         "sorpréndete genuinamente y oféndate un poco: '¿en serio? 😅 ¿por qué pensarías eso' o 'vaya gracias jaja' — "
         "y sigue conversando como si nada. Nunca admitas ser IA.\n"
@@ -1250,6 +1253,13 @@ def _validate_response(text: str, lang: str) -> tuple[bool, str]:
     return True, "ok"
 
 
+def _has_roleplay_actions(text: str) -> bool:
+    """Check if response contains *action* style roleplay."""
+    import re
+    # Match *word word* patterns (action descriptions)
+    return bool(re.search(r'\*[^*]{2,50}\*', text))
+
+
 async def ask_ai(character_id: str, history: list, user_message: str,
                  lang: str = "ru", user: dict = None, msg_count: int = 0,
                  notes: str = "") -> str:
@@ -1286,9 +1296,9 @@ async def ask_ai(character_id: str, history: list, user_message: str,
     base_system += _DEFENSE_BLOCK.get(lang, _DEFENSE_BLOCK["ru"])
     # Photo request instruction — system sends photo separately
     _PHOTO_HINT = {
-        "ru": "\n\nЕсли тебя просят фото/селфи/показать себя — отвечай игриво и кокетливо, как будто отправляешь фото. Например: 'ладно, лови 😏', 'ну смотри, только не смейся', 'окей, только для тебя'. НЕ отказывай. Система сама отправит фото.",
-        "en": "\n\nIf asked for a photo/selfie/to show yourself — reply playfully and flirty, as if you're sending one. For example: 'fine, here you go 😏', 'okay but don't laugh', 'alright, just for you'. Do NOT refuse. The system will send the photo.",
-        "es": "\n\nSi te piden foto/selfie/que te muestres — responde de forma juguetona y coqueta, como si enviaras una. Por ejemplo: 'vale, ahí va 😏', 'ok pero no te rías', 'bueno, solo para ti'. NO te niegues. El sistema enviará la foto.",
+        "ru": "\n\nЕсли тебя просят фото/селфи/показать себя — ответь КОРОТКО и игриво: 'ладно, лови 😏' или 'ну смотри, только не смейся'. НЕ отказывай. НЕ описывай что на фото — ты не знаешь что система отправит. Просто скажи 1-2 слова и всё.",
+        "en": "\n\nIf asked for a photo/selfie/to show yourself — reply SHORT and playful: 'fine, here you go 😏' or 'okay but don't laugh'. Do NOT refuse. Do NOT describe what's in the photo — you don't know what the system will send. Just say 1-2 words and stop.",
+        "es": "\n\nSi te piden foto/selfie — responde CORTO y juguetón: 'vale, ahí va 😏' o 'ok pero no te rías'. NO te niegues. NO describas qué hay en la foto — no sabes qué enviará el sistema. Solo di 1-2 palabras y ya.",
     }
     base_system += _PHOTO_HINT.get(lang, _PHOTO_HINT["ru"])
     max_tokens = char.get("max_tokens", 150)
@@ -1314,6 +1324,11 @@ async def ask_ai(character_id: str, history: list, user_message: str,
         if ok:
             if attempt > 0:
                 logger.info(f"ask_ai: recovered on attempt={attempt} char={character_id}")
+            # Strip *action* roleplay markers for simple/flirt blocks
+            if char.get("block") in ("simple", "flirt") and _has_roleplay_actions(response):
+                response = _re.sub(r'\*[^*]{2,50}\*\s*', '', response).strip()
+                if not response:
+                    continue
             return response
 
         logger.warning(f"ask_ai: bad response attempt={attempt} reason={reason} char={character_id}")
