@@ -1708,22 +1708,6 @@ async def successful_payment(message: types.Message):
     uid = message.from_user.id
     payload = message.successful_payment.invoice_payload
 
-    # Photo unlock payment
-    if payload.startswith("photo_"):
-        char_id = payload.replace("photo_", "")
-        lang = await get_lang(uid)
-        async with db_pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT photo_file_id FROM ai_character_media WHERE character_id=$1",
-                char_id
-            )
-        if row and row["photo_file_id"]:
-            await bot.send_photo(uid, row["photo_file_id"],
-                caption=t(lang, "photo_unlocked"))
-        else:
-            await message.answer(t(lang, "photo_unlocked"))
-        return
-
     plan_key = payload.replace("premium_", "")
     plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1m"])
     u = await get_user(uid)

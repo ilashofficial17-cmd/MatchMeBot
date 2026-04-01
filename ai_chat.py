@@ -5,7 +5,7 @@ from datetime import datetime
 from aiogram import Router, types, F
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputPaidMediaPhoto
 
 from states import AIChat, Chat, Reg
 from keyboards import kb_main, kb_ai_characters, kb_ai_chat, kb_cancel_search
@@ -1596,20 +1596,20 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         if 0 < left <= 3:
             remaining = f"\n\n{t(lang, 'ai_remaining', left=left)}"
     await message.answer(f"{char['emoji']} {response}{remaining}")
-    # If user asked for a photo — send photo with spoiler + unlock button
+    # If user asked for a photo — send paid media (Telegram handles blur + payment)
     if _is_photo_request(txt, lang):
         media = await _get_char_media(char_id)
         if media:
             photo_id = media.get("photo_file_id") or media.get("blurred_file_id")
             if photo_id:
-                unlock_kb = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(
-                        text=f"🔓 {t(lang, 'unlock_photo')} — {PHOTO_UNLOCK_STARS} ⭐",
-                        callback_data=f"unlock_photo:{char_id}"
-                    )]
-                ])
-                await _bot.send_photo(uid, photo_id, has_spoiler=True,
-                    caption=t(lang, "blurred_photo_hint"), reply_markup=unlock_kb)
+                try:
+                    await _bot.send_paid_media(
+                        chat_id=uid,
+                        star_count=PHOTO_UNLOCK_STARS,
+                        media=[InputPaidMediaPhoto(media=photo_id)],
+                    )
+                except Exception as e:
+                    logger.warning(f"send_paid_media failed uid={uid}: {e}")
 
 
 # ====================== GOTO CALLBACKS ======================
@@ -1644,29 +1644,6 @@ async def goto_action(callback: types.CallbackQuery, state: FSMContext):
         await state.clear()
         await callback.message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
     await callback.answer()
-
-
-# ====================== UNLOCK PHOTO (Telegram Stars) ======================
-@router.callback_query(F.data.startswith("unlock_photo:"), StateFilter("*"))
-async def unlock_photo(callback: types.CallbackQuery, state: FSMContext):
-    uid = callback.from_user.id
-    lang = await _lang(uid)
-    char_id = callback.data.split(":", 1)[1]
-    if char_id not in AI_CHARACTERS:
-        await callback.answer(t(lang, "ai_char_not_found"), show_alert=True)
-        return
-    char = AI_CHARACTERS[char_id]
-    char_name = t(lang, char["name_key"])
-    await callback.answer()
-    await _bot.send_invoice(
-        chat_id=uid,
-        title=t(lang, "unlock_photo_title", name=char_name),
-        description=t(lang, "unlock_photo_desc", name=char_name),
-        payload=f"photo_{char_id}",
-        provider_token="",
-        currency="XTR",
-        prices=[types.LabeledPrice(label=f"Photo {char_name}", amount=PHOTO_UNLOCK_STARS)],
-    )
 
 
 # ====================== AI QUICK START (from search) ======================
