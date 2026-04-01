@@ -1051,6 +1051,21 @@ PARTNER_ADS = [
         "langs": ["en", "es"],
         "modes": None,
     },
+    # --- Детектор совместимости — RU + EN, simple/flirt ---
+    {
+        "text_key": "ad_sovmest_1",
+        "url": "https://t.me/Sovmestdetect_bot?start=_tgr_srusCgVlOWEy",
+        "btn_key": "btn_ad_sovmest",
+        "langs": ["ru", "en"],
+        "modes": ["simple", "flirt"],
+    },
+    {
+        "text_key": "ad_sovmest_2",
+        "url": "https://t.me/Sovmestdetect_bot?start=_tgr_srusCgVlOWEy",
+        "btn_key": "btn_ad_sovmest",
+        "langs": ["ru", "en"],
+        "modes": ["simple", "flirt"],
+    },
 ]
 
 

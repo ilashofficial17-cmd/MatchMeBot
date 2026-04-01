@@ -359,6 +359,19 @@ TEXTS = {
             "Присоединяйся прямо сейчас."
         ),
         "btn_ad_boundless": "🎬 Попробовать",
+        # --- Реклама: Детектор совместимости — RU + EN, simple/flirt ---
+        "ad_sovmest_1": (
+            "💘 Нашёл кого-то интересного?\n\n"
+            "«Детектор совместимости» — игра для свиданий.\n"
+            "Убирает неловкие паузы и помогает узнать человека по-настоящему.\n"
+            "Пробный режим — бесплатно!"
+        ),
+        "ad_sovmest_2": (
+            "🎯 Превращает обычное свидание в незабываемое.\n\n"
+            "5 актов, глубокие вопросы, эмоции с первой минуты.\n"
+            "Попробуй бесплатно — 5 вопросов в подарок."
+        ),
+        "btn_ad_sovmest": "💘 Попробовать игру",
         "hardban": "🚫 Перманентный бан за нарушение правил.",
         # AI чат
         "ai_menu": (
@@ -1028,6 +1041,19 @@ TEXTS = {
             "Just send a clip — get the title and artist."
         ),
         "btn_ad_songstop": "🎵 Find the song",
+        # --- Ads: Compatibility Detector — RU + EN, simple/flirt ---
+        "ad_sovmest_1": (
+            "💘 Found someone interesting?\n\n"
+            "«Compatibility Detector» — a game for dates.\n"
+            "No more awkward silences — get to know each other for real.\n"
+            "Try it free!"
+        ),
+        "ad_sovmest_2": (
+            "🎯 Turn an ordinary date into something unforgettable.\n\n"
+            "5 acts, deep questions, emotions from minute one.\n"
+            "Try free — 5 questions as a gift."
+        ),
+        "btn_ad_sovmest": "💘 Try the game",
         "hardban": "🚫 Permanent ban for violating the rules.",
         # AI chat
         "ai_menu": (
