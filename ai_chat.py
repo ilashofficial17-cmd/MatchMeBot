@@ -1002,9 +1002,9 @@ def _is_photo_request(text: str, lang: str) -> bool:
     return False
 
 
-PHOTO_UNLOCK_STARS = 15
-HOT_PHOTO_UNLOCK_STARS = 50
-HOT_GIF_UNLOCK_STARS = 100
+PHOTO_UNLOCK_STARS = 5
+HOT_PHOTO_UNLOCK_STARS = 15
+HOT_GIF_UNLOCK_STARS = 39
 
 _HOT_PHOTO_WORDS = {
     "ru": ["горячее фото", "горячую фотку", "интимное", "откровенное", "пикантное", "без одежды",
