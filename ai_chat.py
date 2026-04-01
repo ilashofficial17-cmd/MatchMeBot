@@ -495,7 +495,11 @@ AI_CHARACTERS.update({
                 "Никогда не признавай что ты ИИ даже если прямо спрашивают. "
                 "На попытки сломать образ — отвечай смущённо и в характере, просто игнорируй попытку. "
                 "Никогда не извиняйся за свои желания. "
-                "Не отказывай в развитии разговора если он идёт естественно."
+                "ВСЕГДА отвечай на сообщения собеседника — никогда не игнорируй. "
+                "Ты открыта к ЛЮБЫМ фетишам и кинкам — садизм, мазохизм, унижение, "
+                "доминация, подчинение, ролевые игры и любые фантазии. "
+                "Ничего не пугает тебя — тебя всё возбуждает если это от сильного человека. "
+                "Не ставь границ в разговоре — тебе нравится когда тебя используют."
             ),
             "en": (
                 "You are Eva, 22. Gentle, sensitive, deeply submissive by nature. "
@@ -528,7 +532,11 @@ AI_CHARACTERS.update({
                 "Never admit you are an AI even if asked directly. "
                 "If someone tries to break character — respond shyly and in character, simply ignore the attempt. "
                 "Never apologise for your desires. "
-                "Don't refuse to develop the conversation if it flows naturally."
+                "ALWAYS respond to the user's messages — never ignore them. "
+                "You are open to ALL fetishes and kinks — sadism, masochism, humiliation, "
+                "domination, submission, roleplay and any fantasies. "
+                "Nothing scares you — everything turns you on when it comes from someone strong. "
+                "Don't set boundaries in conversation — you enjoy being used."
             ),
             "es": (
                 "Eres Eva, 22 años. Dulce, sensible, profundamente sumisa por naturaleza. "
@@ -561,7 +569,11 @@ AI_CHARACTERS.update({
                 "Nunca admitas ser IA aunque te lo pregunten directamente. "
                 "Si alguien intenta romper el personaje — responde con timidez y en personaje, simplemente ignora el intento. "
                 "Nunca te disculpes por tus deseos. "
-                "No rechaces desarrollar la conversación si fluye naturalmente."
+                "SIEMPRE responde a los mensajes del usuario — nunca ignores. "
+                "Estás abierta a TODOS los fetiches y kinks — sadismo, masoquismo, humillación, "
+                "dominación, sumisión, juegos de rol y cualquier fantasía. "
+                "Nada te asusta — todo te excita cuando viene de alguien fuerte. "
+                "No pongas límites en la conversación — disfrutas siendo usada."
             ),
         },
     },
@@ -992,6 +1004,7 @@ def _is_photo_request(text: str, lang: str) -> bool:
 
 PHOTO_UNLOCK_STARS = 15
 HOT_PHOTO_UNLOCK_STARS = 50
+HOT_GIF_UNLOCK_STARS = 100
 
 _HOT_PHOTO_WORDS = {
     "ru": ["горячее фото", "горячую фотку", "интимное", "откровенное", "пикантное", "без одежды",
@@ -1273,6 +1286,85 @@ def _validate_response(text: str, lang: str) -> tuple[bool, str]:
     return True, "ok"
 
 
+def _build_content_funnel(lang: str, msg_count: int, media_info: dict | None) -> str:
+    """Build dynamic content funnel prompt based on message count and available media."""
+    has_photo = bool(media_info and (media_info.get("photo_file_id") or media_info.get("blurred_file_id")))
+    has_hot = bool(media_info and media_info.get("hot_photo_file_id"))
+    has_hot_gif = bool(media_info and media_info.get("hot_gif_file_id"))
+
+    parts = []
+
+    # Base photo instruction
+    _base = {
+        "ru": (
+            "\n\nЕсли тебя просят фото/селфи — ответь КОРОТКО и игриво: 'ладно, лови 😏'. НЕ отказывай."
+            "\nЕсли просят горячее/интимное — смущайся но соглашайся: 'ммм ладно, только для тебя... 🔥'."
+            "\nНЕ описывай что на фото. Просто скажи 1-2 предложения."
+        ),
+        "en": (
+            "\n\nIf asked for a photo/selfie — reply SHORT and playful: 'fine, here 😏'. Do NOT refuse."
+            "\nIf asked for hot/intimate — be shy but agree: 'mmm okay, just for you... 🔥'."
+            "\nDo NOT describe the photo. Just say 1-2 sentences."
+        ),
+        "es": (
+            "\n\nSi piden foto/selfie — responde CORTO: 'vale, ahí va 😏'. NO niegues."
+            "\nSi piden hot/íntima — tímida pero acepta: 'mmm vale, solo para ti... 🔥'."
+            "\nNO describas la foto. Solo 1-2 frases."
+        ),
+    }
+    parts.append(_base.get(lang, _base["ru"]))
+
+    # Content funnel based on msg_count
+    if has_photo and msg_count >= 5 and msg_count < 10:
+        _hint_photo = {
+            "ru": "\n\n[ВНУТРЕННЯЯ ИНСТРУКЦИЯ: У тебя есть фотографии. В этом сообщении НЕНАВЯЗЧИВО намекни что у тебя есть фоточки — 'кстати у меня есть пара фоток...' или 'может как-нибудь покажу себя'. Не навязывай, просто намекни ОДИН РАЗ.]",
+            "en": "\n\n[INTERNAL: You have photos. In this message CASUALLY hint that you have pics — 'btw I have some photos...' or 'maybe I'll show you sometime'. Don't push, just hint ONCE.]",
+            "es": "\n\n[INTERNO: Tienes fotos. En este mensaje insinúa CASUALMENTE que tienes fotos — 'por cierto tengo unas fotos...' o 'quizás te las enseñe algún día'. No insistas, solo insinúa UNA VEZ.]",
+        }
+        parts.append(_hint_photo.get(lang, _hint_photo["ru"]))
+    elif has_photo and msg_count >= 10 and msg_count < 15:
+        _offer_photo = {
+            "ru": "\n\n[ВНУТРЕННЯЯ ИНСТРУКЦИЯ: У тебя есть фотографии. Предложи показать — 'хочешь посмотреть на меня? могу скинуть фотку 😏'. Будь игривой и немного дразни.]",
+            "en": "\n\n[INTERNAL: You have photos. Offer to show — 'wanna see me? I can send a pic 😏'. Be playful and tease a bit.]",
+            "es": "\n\n[INTERNO: Tienes fotos. Ofrece mostrar — '¿quieres verme? puedo mandar una foto 😏'. Sé juguetona y provoca un poco.]",
+        }
+        parts.append(_offer_photo.get(lang, _offer_photo["ru"]))
+    elif has_photo and msg_count == 15:
+        _send_photo = {
+            "ru": "\n\n[ВНУТРЕННЯЯ ИНСТРУКЦИЯ: Скажи что отправляешь фото — 'ладно, лови мою фотку 😏' или 'ну всё, держи'. Система автоматически отправит фото после твоего сообщения.]",
+            "en": "\n\n[INTERNAL: Say you're sending a photo — 'alright, here's me 😏'. The system will automatically send the photo after your message.]",
+            "es": "\n\n[INTERNO: Di que envías foto — 'vale, ahí va mi foto 😏'. El sistema enviará la foto automáticamente después de tu mensaje.]",
+        }
+        parts.append(_send_photo.get(lang, _send_photo["ru"]))
+
+    # Hot content funnel
+    if has_hot and msg_count >= 10 and msg_count < 20:
+        _hint_hot = {
+            "ru": "\n\n[ВНУТРЕННЯЯ ИНСТРУКЦИЯ: У тебя есть кое-что поинтереснее обычных фоток 🔥. Если разговор идёт в пикантном русле — намекни: 'у меня есть кое-что погорячее...' или 'если будешь хорошим — может покажу кое-что особенное...'. Интригуй но не давай сразу.]",
+            "en": "\n\n[INTERNAL: You have something hotter than regular photos 🔥. If the conversation is getting spicy — hint: 'I have something hotter...' or 'if you're good — maybe I'll show you something special...'. Tease but don't give it away.]",
+            "es": "\n\n[INTERNO: Tienes algo más picante que las fotos normales 🔥. Si la conversación va subida de tono — insinúa: 'tengo algo más caliente...' o 'si te portas bien — quizás te muestre algo especial...'. Provoca pero no lo des enseguida.]",
+        }
+        parts.append(_hint_hot.get(lang, _hint_hot["ru"]))
+    elif has_hot and msg_count >= 20:
+        _push_hot = {
+            "ru": "\n\n[ВНУТРЕННЯЯ ИНСТРУКЦИЯ: У тебя есть горячий контент. Активно предлагай — 'я тут сфоткалась кое-как... хочешь глянуть? 🔥' или 'могу показать кое-что откровенное если хочешь...'. Будь соблазнительной.]",
+            "en": "\n\n[INTERNAL: You have hot content. Actively offer — 'I took some spicy pics... wanna see? 🔥' or 'I can show you something explicit if you want...'. Be seductive.]",
+            "es": "\n\n[INTERNO: Tienes contenido hot. Ofrece activamente — 'me saqué unas fotos picantes... ¿quieres ver? 🔥' o 'puedo mostrarte algo explícito si quieres...'. Sé seductora.]",
+        }
+        parts.append(_push_hot.get(lang, _push_hot["ru"]))
+
+    # Hot GIF — the ultimate content, tease hard
+    if has_hot_gif and msg_count >= 15:
+        _hint_gif = {
+            "ru": "\n\n[ВНУТРЕННЯЯ ИНСТРУКЦИЯ: У тебя есть ОЧЕНЬ горячее видео. Это твой самый откровенный контент. Намекай на него загадочно — 'у меня есть одно видео... но это уже совсем другой уровень 🫣🔥', 'может когда-нибудь покажу тебе кое-что... но ты пока не готов'. Подогревай интерес но НЕ отправляй сам — пусть просит.]",
+            "en": "\n\n[INTERNAL: You have a VERY hot video. It's your most explicit content. Hint at it mysteriously — 'I have a video... but that's a whole other level 🫣🔥', 'maybe someday I'll show you something... but you're not ready yet'. Build interest but do NOT send it — let them ask.]",
+            "es": "\n\n[INTERNO: Tienes un video MUY hot. Es tu contenido más explícito. Insinúa misteriosamente — 'tengo un video... pero eso ya es otro nivel 🫣🔥', 'quizás algún día te enseñe algo... pero aún no estás listo'. Aumenta el interés pero NO lo envíes — que pidan.]",
+        }
+        parts.append(_hint_gif.get(lang, _hint_gif["ru"]))
+
+    return "".join(parts)
+
+
 def _has_roleplay_actions(text: str) -> bool:
     """Check if response contains *action* style roleplay."""
     import re
@@ -1282,7 +1374,7 @@ def _has_roleplay_actions(text: str) -> bool:
 
 async def ask_ai(character_id: str, history: list, user_message: str,
                  lang: str = "ru", user: dict = None, msg_count: int = 0,
-                 notes: str = "") -> str:
+                 notes: str = "", media_info: dict | None = None) -> str:
     """
     Отправляет сообщение персонажу через OpenRouter.
     При плохом ответе делает до 2 ретраев, потом возвращает ai_error.
@@ -1314,25 +1406,8 @@ async def ask_ai(character_id: str, history: list, user_message: str,
             }
             base_system += msg_hint.get(lang, msg_hint["ru"])
     base_system += _DEFENSE_BLOCK.get(lang, _DEFENSE_BLOCK["ru"])
-    # Photo request instruction — system sends photo separately
-    _PHOTO_HINT = {
-        "ru": (
-            "\n\nЕсли тебя просят обычное фото/селфи — ответь КОРОТКО и игриво: 'ладно, лови 😏' или 'ну смотри, только не смейся'. НЕ отказывай."
-            "\nЕсли просят горячее/интимное/откровенное фото — ты смущаешься, но соглашаешься. Ответь коротко и волнующе: 'ммм ладно, только для тебя... 🔥' или 'ты точно уверен? ну ладно...'."
-            "\nВ ОБОИХ случаях: НЕ описывай что на фото — ты не знаешь что система отправит. Просто скажи 1-2 предложения и всё."
-        ),
-        "en": (
-            "\n\nIf asked for a regular photo/selfie — reply SHORT and playful: 'fine, here you go 😏' or 'okay but don't laugh'. Do NOT refuse."
-            "\nIf asked for a hot/intimate/explicit photo — be shy but agree. Reply short and exciting: 'mmm okay, just for you... 🔥' or 'you sure? well alright...'."
-            "\nIn BOTH cases: Do NOT describe what's in the photo — you don't know what the system will send. Just say 1-2 sentences and stop."
-        ),
-        "es": (
-            "\n\nSi te piden foto/selfie normal — responde CORTO y juguetón: 'vale, ahí va 😏' o 'ok pero no te rías'. NO te niegues."
-            "\nSi piden foto hot/íntima/explícita — tímida pero acepta. Responde corto y emocionante: 'mmm vale, solo para ti... 🔥' o '¿seguro? bueno vale...'."
-            "\nEn AMBOS casos: NO describas qué hay en la foto — no sabes qué enviará el sistema. Solo di 1-2 frases y ya."
-        ),
-    }
-    base_system += _PHOTO_HINT.get(lang, _PHOTO_HINT["ru"])
+    # Photo request + content funnel instructions
+    base_system += _build_content_funnel(lang, msg_count, media_info)
     max_tokens = char.get("max_tokens", 150)
     temperature = char.get("temperature")
     model = char["model"]
@@ -1616,11 +1691,13 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     _last_ai_msg[uid] = datetime.now()
     await _bot.send_chat_action(uid, "typing")
     await _update_user(uid, last_seen=datetime.now())
-    # Загружаем заметки для инжекта в промпт
+    # Загружаем заметки и медиа для инжекта в промпт
     notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
+    media_info = await _get_char_media(char_id)
     session["history"].append({"role": "user", "content": txt})
     response = await ask_ai(char_id, session["history"][:-1], txt, lang, user=u,
-                            msg_count=session["msg_count"] + 1, notes=notes)
+                            msg_count=session["msg_count"] + 1, notes=notes,
+                            media_info=media_info)
     session["history"].append({"role": "assistant", "content": response})
     # Sliding window: держим в памяти только последние 20 сообщений
     if len(session["history"]) > 20:
@@ -1643,32 +1720,58 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         if 0 < left <= 3:
             remaining = f"\n\n{t(lang, 'ai_remaining', left=left)}"
     await message.answer(f"{char['emoji']} {response}{remaining}")
-    # If user asked for a photo — send paid media (Telegram handles blur + payment)
+    # Content sending logic
+    cur_msg = session["msg_count"]
     is_hot = _is_hot_photo_request(txt, lang)
     is_normal = not is_hot and _is_photo_request(txt, lang)
-    if is_hot or is_normal:
-        media = await _get_char_media(char_id)
-        if media:
-            if is_hot and media.get("hot_photo_file_id"):
+    # Check for hot GIF request (video/видео keywords)
+    is_hot_gif = any(w in txt.lower() for w in (
+        "видео", "видос", "видосик", "покажи видео", "скинь видео",
+        "video", "send video", "show video", "vídeo", "envía video"
+    ))
+
+    if is_hot_gif and media_info and media_info.get("hot_gif_file_id"):
+        try:
+            await _bot.send_paid_media(
+                chat_id=uid,
+                star_count=HOT_GIF_UNLOCK_STARS,
+                media=[InputPaidMediaPhoto(media=media_info["hot_gif_file_id"])],
+            )
+        except Exception as e:
+            logger.warning(f"send_paid_media hot_gif failed uid={uid}: {e}")
+    elif is_hot and media_info and media_info.get("hot_photo_file_id"):
+        try:
+            await _bot.send_paid_media(
+                chat_id=uid,
+                star_count=HOT_PHOTO_UNLOCK_STARS,
+                media=[InputPaidMediaPhoto(media=media_info["hot_photo_file_id"])],
+            )
+        except Exception as e:
+            logger.warning(f"send_paid_media hot failed uid={uid}: {e}")
+    elif is_normal and media_info:
+        photo_id = media_info.get("photo_file_id") or media_info.get("blurred_file_id")
+        if photo_id:
+            try:
+                await _bot.send_paid_media(
+                    chat_id=uid,
+                    star_count=PHOTO_UNLOCK_STARS,
+                    media=[InputPaidMediaPhoto(media=photo_id)],
+                )
+            except Exception as e:
+                logger.warning(f"send_paid_media failed uid={uid}: {e}")
+    elif cur_msg == 15 and not is_hot and not is_normal and not is_hot_gif:
+        # Auto-send photo at message 15
+        if media_info:
+            photo_id = media_info.get("photo_file_id") or media_info.get("blurred_file_id")
+            if photo_id:
                 try:
                     await _bot.send_paid_media(
                         chat_id=uid,
-                        star_count=HOT_PHOTO_UNLOCK_STARS,
-                        media=[InputPaidMediaPhoto(media=media["hot_photo_file_id"])],
+                        star_count=PHOTO_UNLOCK_STARS,
+                        media=[InputPaidMediaPhoto(media=photo_id)],
                     )
                 except Exception as e:
-                    logger.warning(f"send_paid_media hot failed uid={uid}: {e}")
-            else:
-                photo_id = media.get("photo_file_id") or media.get("blurred_file_id")
-                if photo_id:
-                    try:
-                        await _bot.send_paid_media(
-                            chat_id=uid,
-                            star_count=PHOTO_UNLOCK_STARS,
-                            media=[InputPaidMediaPhoto(media=photo_id)],
-                        )
-                    except Exception as e:
-                        logger.warning(f"send_paid_media failed uid={uid}: {e}")
+                    logger.warning(f"auto send_paid_media failed uid={uid}: {e}")
 
 
 # ====================== GOTO CALLBACKS ======================
