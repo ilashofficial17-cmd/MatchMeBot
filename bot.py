@@ -3120,8 +3120,10 @@ async def ad_click_handler(callback: types.CallbackQuery):
     ad = ads[idx]
     # Логируем клик
     await _log_ad_event(uid, ad["text_key"], "click", source)
-    # Отправляем ссылку
-    await callback.answer(url=ad["url"])
+    # Отправляем ссылку (callback.answer(url=) работает только для игр,
+    # поэтому отправляем ссылку сообщением)
+    await callback.answer()
+    await bot.send_message(uid, ad["url"], disable_web_page_preview=False)
 
 
 # ====================== ЗАПУСК ======================

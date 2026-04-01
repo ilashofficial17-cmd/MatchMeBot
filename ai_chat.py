@@ -6,7 +6,7 @@ from datetime import datetime
 from aiogram import Router, types, F
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputPaidMediaPhoto
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputPaidMediaPhoto, InputPaidMediaVideo
 
 from states import AIChat, Chat, Reg
 from keyboards import kb_main, kb_ai_characters, kb_ai_chat, kb_cancel_search
@@ -1861,7 +1861,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
             await _bot.send_paid_media(
                 chat_id=uid,
                 star_count=HOT_GIF_UNLOCK_STARS,
-                media=[InputPaidMediaPhoto(media=media_info["hot_gif_file_id"])],
+                media=[InputPaidMediaVideo(media=media_info["hot_gif_file_id"])],
             )
         except Exception as e:
             logger.warning(f"send_paid_media hot_gif failed uid={uid}: {e}")

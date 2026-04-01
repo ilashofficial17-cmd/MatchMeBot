@@ -605,42 +605,43 @@ async def marketing_handler(callback: types.CallbackQuery):
     elif action == "cohorts":
         async with _db_pool.acquire() as conn:
             # Когорты за последние 4 недели
+            from datetime import timedelta
             text = "📊 Когортный анализ LTV\n\n"
             for weeks_ago in range(4):
-                start = f"NOW() - INTERVAL '{(weeks_ago + 1) * 7} days'"
-                end = f"NOW() - INTERVAL '{weeks_ago * 7} days'"
-                cohort_size = await conn.fetchval(f"""
+                start_iv = timedelta(days=(weeks_ago + 1) * 7)
+                end_iv = timedelta(days=weeks_ago * 7)
+                cohort_size = await conn.fetchval("""
                     SELECT COUNT(*) FROM users
-                    WHERE created_at >= {start} AND created_at < {end}
-                """) or 0
+                    WHERE created_at >= NOW() - $1::interval AND created_at < NOW() - $2::interval
+                """, start_iv, end_iv) or 0
                 if cohort_size == 0:
                     continue
                 # Покупки этой когорты
-                purchases = await conn.fetchval(f"""
+                purchases = await conn.fetchval("""
                     SELECT COUNT(*) FROM ab_events e
                     JOIN users u ON e.uid = u.uid
-                    WHERE u.created_at >= {start} AND u.created_at < {end}
+                    WHERE u.created_at >= NOW() - $1::interval AND u.created_at < NOW() - $2::interval
                     AND e.event_type = 'purchase'
-                """) or 0
+                """, start_iv, end_iv) or 0
                 # Подарки
-                gifts = await conn.fetchval(f"""
+                gifts = await conn.fetchval("""
                     SELECT COUNT(*) FROM ab_events e
                     JOIN users u ON e.uid = u.uid
-                    WHERE u.created_at >= {start} AND u.created_at < {end}
+                    WHERE u.created_at >= NOW() - $1::interval AND u.created_at < NOW() - $2::interval
                     AND e.event_type = 'gift_sent'
-                """) or 0
+                """, start_iv, end_iv) or 0
                 # Активные сейчас (за 7 дней)
-                active_now = await conn.fetchval(f"""
+                active_now = await conn.fetchval("""
                     SELECT COUNT(*) FROM users
-                    WHERE created_at >= {start} AND created_at < {end}
+                    WHERE created_at >= NOW() - $1::interval AND created_at < NOW() - $2::interval
                     AND last_seen > NOW() - INTERVAL '7 days'
-                """) or 0
+                """, start_iv, end_iv) or 0
                 # Среднее кол-во чатов
-                avg_chats = await conn.fetchval(f"""
+                avg_chats = await conn.fetchval("""
                     SELECT ROUND(AVG(total_chats)::numeric, 1) FROM users
-                    WHERE created_at >= {start} AND created_at < {end}
+                    WHERE created_at >= NOW() - $1::interval AND created_at < NOW() - $2::interval
                     AND total_chats > 0
-                """) or 0
+                """, start_iv, end_iv) or 0
 
                 retention = round(active_now / max(cohort_size, 1) * 100)
                 conv_pct = round(purchases / max(cohort_size, 1) * 100, 1)
@@ -1208,16 +1209,18 @@ async def streak_and_ai_push_task():
 
                 # 2. AI miss-you: юзеры с историей AI, не заходили 2+ дня
                 ai_users = await conn.fetch("""
-                    SELECT DISTINCT ON (h.uid) h.uid, h.character_id, u.lang
-                    FROM ai_history h
-                    JOIN users u ON u.uid = h.uid
-                    WHERE u.last_seen < NOW() - INTERVAL '48 hours'
-                    AND u.last_seen > NOW() - INTERVAL '14 days'
-                    AND u.ban_until IS NULL
-                    AND (u.last_reminder IS NULL OR u.last_reminder < NOW() - INTERVAL '24 hours')
-                    AND h.role = 'user'
-                    GROUP BY h.uid, h.character_id, u.lang
-                    ORDER BY h.uid, COUNT(*) DESC
+                    SELECT uid, character_id, lang FROM (
+                        SELECT h.uid, h.character_id, u.lang,
+                               ROW_NUMBER() OVER (PARTITION BY h.uid ORDER BY COUNT(*) DESC) AS rn
+                        FROM ai_history h
+                        JOIN users u ON u.uid = h.uid
+                        WHERE u.last_seen < NOW() - INTERVAL '48 hours'
+                        AND u.last_seen > NOW() - INTERVAL '14 days'
+                        AND u.ban_until IS NULL
+                        AND (u.last_reminder IS NULL OR u.last_reminder < NOW() - INTERVAL '24 hours')
+                        AND h.role = 'user'
+                        GROUP BY h.uid, h.character_id, u.lang
+                    ) sub WHERE rn = 1
                     LIMIT 30
                 """)
                 sent_ai = 0
@@ -1528,6 +1531,9 @@ async def char_media_view(callback: types.CallbackQuery, state: FSMContext):
     if callback.from_user.id != _admin_id:
         return
     _, char_id, field = callback.data.split(":", 2)
+    if field not in _FIELD_LABELS:
+        await callback.answer("Неизвестный слот", show_alert=True)
+        return
     async with _db_pool.acquire() as conn:
         row = await conn.fetchrow(
             f"SELECT {field} FROM ai_character_media WHERE character_id=$1",
