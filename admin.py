@@ -1380,6 +1380,7 @@ async def winback_task():
 @router.callback_query(F.data.startswith("charmedia:"), StateFilter("*"))
 async def char_media_select(callback: types.CallbackQuery, state: FSMContext):
     if callback.from_user.id != _admin_id:
+        await callback.answer()
         return
     char_id = callback.data.split(":", 1)[1]
     chars = _AI_CHARACTERS or {}
@@ -1529,6 +1530,7 @@ _FIELD_LABELS = {
 @router.callback_query(F.data.startswith("cmview:"), StateFilter("*"))
 async def char_media_view(callback: types.CallbackQuery, state: FSMContext):
     if callback.from_user.id != _admin_id:
+        await callback.answer()
         return
     _, char_id, field = callback.data.split(":", 2)
     if field not in _FIELD_LABELS:
@@ -1560,6 +1562,7 @@ async def char_media_view(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("cmdel:"), StateFilter("*"))
 async def char_media_delete(callback: types.CallbackQuery, state: FSMContext):
     if callback.from_user.id != _admin_id:
+        await callback.answer()
         return
     _, char_id, field = callback.data.split(":", 2)
     if field not in _FIELD_LABELS:

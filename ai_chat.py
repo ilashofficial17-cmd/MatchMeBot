@@ -1341,6 +1341,13 @@ def _build_content_funnel(lang: str, msg_count: int, media_info: dict | None) ->
             "es": "\n\n[INTERNO: Di que envías foto — 'vale, ahí va mi foto 😏'. El sistema enviará la foto automáticamente después de tu mensaje.]",
         }
         parts.append(_send_photo.get(lang, _send_photo["ru"]))
+    elif has_photo and msg_count > 15:
+        _remind_photo = {
+            "ru": "\n\n[ВНУТРЕННЯЯ ИНСТРУКЦИЯ: У тебя есть фотографии. Ты уже отправляла фото ранее. Если пользователь попросит ещё — скажи 'ладно, лови ещё 😏'. НЕ описывай что на фото.]",
+            "en": "\n\n[INTERNAL: You have photos. You already sent photos earlier. If the user asks for more — say 'alright, here you go 😏'. Do NOT describe what's in the photo.]",
+            "es": "\n\n[INTERNO: Tienes fotos. Ya enviaste fotos antes. Si el usuario pide más — di 'vale, toma 😏'. NO describas lo que hay en la foto.]",
+        }
+        parts.append(_remind_photo.get(lang, _remind_photo["ru"]))
 
     # Hot content funnel
     if has_hot and msg_count >= 10 and msg_count < 20:
@@ -1372,9 +1379,7 @@ def _build_content_funnel(lang: str, msg_count: int, media_info: dict | None) ->
 
 def _has_roleplay_actions(text: str) -> bool:
     """Check if response contains *action* style roleplay."""
-    import re
-    # Match *word word* patterns (action descriptions)
-    return bool(re.search(r'\*[^*]{2,50}\*', text))
+    return bool(_re.search(r'\*[^*]{2,50}\*', text))
 
 
 async def ask_ai(character_id: str, history: list, user_message: str,
