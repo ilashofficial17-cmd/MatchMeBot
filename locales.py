@@ -52,6 +52,15 @@ TEXTS = {
         "rules_choose_lang": "👆 Выбери язык чтобы продолжить.",
         "welcome_back": "👋 С возвращением в MatchMe!{badge}",
         "welcome_new": "👋 Добро пожаловать в MatchMe!{badge}",
+        "welcome_intro": (
+            "Привет, {name}! 👋\n\n"
+            "MatchMe — анонимный чат для знакомств.\n"
+            "Общайся, флиртуй, находи людей по интересам.\n"
+            "AI-собеседники, живые чаты, полная анонимность.\n\n"
+            "📄 Выше — правила и политика конфиденциальности.\n"
+            "Нажми кнопку ниже чтобы принять и начать!"
+        ),
+        "btn_accept_all": "✅ Принимаю",
         "banned_permanent": "🚫 Ты заблокирован навсегда.",
         "banned_until": "🚫 Ты заблокирован до {until}",
         # Кнопки — privacy/rules/channel
@@ -665,6 +674,15 @@ TEXTS = {
         "rules_choose_lang": "👆 Choose a language to continue.",
         "welcome_back": "👋 Welcome back to MatchMe!{badge}",
         "welcome_new": "👋 Welcome to MatchMe!{badge}",
+        "welcome_intro": (
+            "Hey, {name}! 👋\n\n"
+            "MatchMe — anonymous dating chat.\n"
+            "Chat, flirt, find people who match your vibe.\n"
+            "AI companions, live chats, full anonymity.\n\n"
+            "📄 Above — our rules and privacy policy.\n"
+            "Tap below to accept and start!"
+        ),
+        "btn_accept_all": "✅ I accept",
         "banned_permanent": "🚫 You are permanently banned.",
         "banned_until": "🚫 You are banned until {until}",
         # Buttons — privacy/rules/channel
@@ -1290,6 +1308,15 @@ TEXTS = {
         "rules_choose_lang": "👆 Elige un idioma para continuar.",
         "welcome_back": "👋 ¡Bienvenido de vuelta a MatchMe!{badge}",
         "welcome_new": "👋 ¡Bienvenido a MatchMe!{badge}",
+        "welcome_intro": (
+            "¡Hola, {name}! 👋\n\n"
+            "MatchMe — chat anónimo para conocer gente.\n"
+            "Chatea, coquetea, encuentra personas afines.\n"
+            "Compañeros IA, chats en vivo, total anonimato.\n\n"
+            "📄 Arriba — nuestras reglas y política de privacidad.\n"
+            "¡Toca abajo para aceptar y empezar!"
+        ),
+        "btn_accept_all": "✅ Acepto",
         "banned_permanent": "🚫 Estás baneado permanentemente.",
         "banned_until": "🚫 Estás baneado hasta {until}",
         # Botones — privacy/rules/channel
