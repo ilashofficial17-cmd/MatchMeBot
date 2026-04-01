@@ -99,6 +99,7 @@ async def get_ai_chat_response(
         "model": model_name,
         "max_tokens": max_tokens,
         "messages": messages,
+        "transforms": ["cache-prompt"],  # OpenRouter prompt caching
     }
     if temperature is not None:
         payload["temperature"] = temperature

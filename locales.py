@@ -384,19 +384,18 @@ TEXTS = {
             "Попробуй — первые звёзды за пару минут."
         ),
         "btn_ad_stars": "⭐ Заработать Stars",
-        # --- Реклама: Luna AI — все языки, flirt/kink ---
+        # --- Реклама: Luna — все языки, kink ---
         "ad_luna_1": (
-            "🌙 Хочешь девушку, которая всегда рядом?\n\n"
-            "Luna — AI-собеседница с характером.\n"
-            "Флиртуй, общайся, развивай отношения.\n"
-            "Попробуй — она уже ждёт."
+            "🌙 Luna — платформа для взрослых в Telegram.\n\n"
+            "Закрытые группы, коллекции контента, настройки приватности.\n"
+            "Всё в одном боте."
         ),
         "ad_luna_2": (
-            "💋 Luna — больше чем бот.\n\n"
-            "Умная, дерзкая, всегда на связи.\n"
-            "Пиши ей — она отвечает мгновенно."
+            "🔥 Закрытые сообщества и эксклюзивный контент.\n\n"
+            "Luna — цифровые коллекции, чаты для взрослых,\n"
+            "настройки Telegram в одном месте."
         ),
-        "btn_ad_luna": "🌙 Написать Luna",
+        "btn_ad_luna": "🌙 Открыть Luna",
         "hardban": "🚫 Перманентный бан за нарушение правил.",
         # AI чат
         "ai_menu": (
@@ -538,6 +537,18 @@ TEXTS = {
         "unlock_photo_desc": "Разблокируй фото персонажа без размытия",
         "blurred_photo_hint": "🔒 Фото размыто. Разблокируй, чтобы увидеть!",
         "photo_unlocked": "🔓 Фото разблокировано!",
+        # Gifts
+        "gift_prompt": "🎁 У собеседника нет Premium-перевода. Подари ему Premium!",
+        "gift_rose": "Роза",
+        "gift_diamond": "Бриллиант",
+        "gift_crown": "Корона",
+        "gift_rose_title": "🌹 Подарок: Роза",
+        "gift_diamond_title": "💎 Подарок: Бриллиант",
+        "gift_crown_title": "👑 Подарок: Корона",
+        "gift_desc": "Premium на {days} дн. для собеседника",
+        "gift_sent": "{emoji} Подарок отправлен! Собеседник получил {days} дн. Premium.",
+        "gift_opening": "🎁 Вам отправили подарок...",
+        "gift_received": "{emoji} Вы получили {gift_name}!\n\n⭐ Premium на {days} дн. до {until}",
         "settings_buy_premium": "💎 Купить Premium",
         "premium_active": "⭐ Premium активен",
         "settings_gender_any": "🔀 Все",
@@ -1079,19 +1090,18 @@ TEXTS = {
             "Try free — 5 questions as a gift."
         ),
         "btn_ad_sovmest": "💘 Try the game",
-        # --- Ads: Luna AI — all langs, flirt/kink ---
+        # --- Ads: Luna — all langs, kink ---
         "ad_luna_1": (
-            "🌙 Want a girl who's always there for you?\n\n"
-            "Luna — an AI companion with personality.\n"
-            "Flirt, chat, build a connection.\n"
-            "Try it — she's already waiting."
+            "🌙 Luna — adult platform inside Telegram.\n\n"
+            "Private groups, content collections, privacy settings.\n"
+            "All in one bot."
         ),
         "ad_luna_2": (
-            "💋 Luna — more than a bot.\n\n"
-            "Smart, bold, always online.\n"
-            "Text her — she replies instantly."
+            "🔥 Exclusive communities and curated content.\n\n"
+            "Luna — digital collections, adult chats,\n"
+            "Telegram settings in one place."
         ),
-        "btn_ad_luna": "🌙 Text Luna",
+        "btn_ad_luna": "🌙 Open Luna",
         "hardban": "🚫 Permanent ban for violating the rules.",
         # AI chat
         "ai_menu": (
@@ -1233,6 +1243,18 @@ TEXTS = {
         "unlock_photo_desc": "Unlock the unblurred photo of the character",
         "blurred_photo_hint": "🔒 Photo is blurred. Unlock to see!",
         "photo_unlocked": "🔓 Photo unlocked!",
+        # Gifts
+        "gift_prompt": "🎁 Your partner doesn't have Premium translation. Gift them Premium!",
+        "gift_rose": "Rose",
+        "gift_diamond": "Diamond",
+        "gift_crown": "Crown",
+        "gift_rose_title": "🌹 Gift: Rose",
+        "gift_diamond_title": "💎 Gift: Diamond",
+        "gift_crown_title": "👑 Gift: Crown",
+        "gift_desc": "{days}-day Premium for your chat partner",
+        "gift_sent": "{emoji} Gift sent! Your partner got {days} days of Premium.",
+        "gift_opening": "🎁 You received a gift...",
+        "gift_received": "{emoji} You received a {gift_name}!\n\n⭐ {days}-day Premium until {until}",
         "settings_buy_premium": "💎 Buy Premium",
         "premium_active": "⭐ Premium active",
         "settings_gender_any": "🔀 Anyone",
@@ -1761,19 +1783,18 @@ TEXTS = {
             "Toca para empezar."
         ),
         "btn_ad_playbox": "🎬 Probar Playbox",
-        # --- Anuncios: Luna AI — todos los idiomas, flirt/kink ---
+        # --- Anuncios: Luna — todos los idiomas, kink ---
         "ad_luna_1": (
-            "🌙 ¿Quieres una chica que siempre esté ahí?\n\n"
-            "Luna — compañera IA con personalidad.\n"
-            "Coquetea, chatea, crea una conexión.\n"
-            "Prueba — ella ya te espera."
+            "🌙 Luna — plataforma para adultos en Telegram.\n\n"
+            "Grupos privados, colecciones de contenido, ajustes de privacidad.\n"
+            "Todo en un solo bot."
         ),
         "ad_luna_2": (
-            "💋 Luna — más que un bot.\n\n"
-            "Inteligente, atrevida, siempre en línea.\n"
-            "Escríbele — responde al instante."
+            "🔥 Comunidades exclusivas y contenido curado.\n\n"
+            "Luna — colecciones digitales, chats para adultos,\n"
+            "ajustes de Telegram en un solo lugar."
         ),
-        "btn_ad_luna": "🌙 Escribir a Luna",
+        "btn_ad_luna": "🌙 Abrir Luna",
         "hardban": "🚫 Ban permanente por violar las reglas.",
         # Chat IA
         "ai_menu": (
@@ -1915,6 +1936,18 @@ TEXTS = {
         "unlock_photo_desc": "Desbloquea la foto sin difuminar del personaje",
         "blurred_photo_hint": "🔒 La foto está difuminada. ¡Desbloquea para verla!",
         "photo_unlocked": "🔓 ¡Foto desbloqueada!",
+        # Gifts
+        "gift_prompt": "🎁 Tu compañero no tiene traducción Premium. ¡Regálale Premium!",
+        "gift_rose": "Rosa",
+        "gift_diamond": "Diamante",
+        "gift_crown": "Corona",
+        "gift_rose_title": "🌹 Regalo: Rosa",
+        "gift_diamond_title": "💎 Regalo: Diamante",
+        "gift_crown_title": "👑 Regalo: Corona",
+        "gift_desc": "Premium de {days} días para tu compañero",
+        "gift_sent": "{emoji} ¡Regalo enviado! Tu compañero recibió {days} días de Premium.",
+        "gift_opening": "🎁 Te enviaron un regalo...",
+        "gift_received": "{emoji} ¡Recibiste {gift_name}!\n\n⭐ Premium {days} días hasta {until}",
         "settings_buy_premium": "💎 Comprar Premium",
         "premium_active": "⭐ Premium activo",
         "settings_gender_any": "🔀 Cualquiera",

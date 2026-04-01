@@ -1411,6 +1411,9 @@ async def ask_ai(character_id: str, history: list, user_message: str,
     max_tokens = char.get("max_tokens", 150)
     temperature = char.get("temperature")
     model = char["model"]
+    # Dynamic model: use 70B for short messages on 405B characters (save ~40% cost)
+    if "405b" in model and len(user_message) < 30 and msg_count < 5:
+        model = "nousresearch/hermes-3-llama-3.1-70b"
     full_history = list(history[-20:]) + [{"role": "user", "content": user_message}]
 
     for attempt in range(3):
@@ -1706,8 +1709,8 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         await _save_ai_message(uid, char_id, "user", txt)
         await _save_ai_message(uid, char_id, "assistant", response)
     session["msg_count"] += 1
-    # Каждые 10 сообщений — фоновый summary ключевых фактов
-    if session["msg_count"] % 10 == 0:
+    # Summary: on 5th message (early capture) + every 10 messages
+    if session["msg_count"] == 5 or (session["msg_count"] > 5 and session["msg_count"] % 10 == 0):
         asyncio.create_task(_generate_summary(uid, char_id, session["history"], lang))
     new_count = current_count + 1
     if limit is not None and new_count > limit and ai_bonus > 0:

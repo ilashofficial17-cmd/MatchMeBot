@@ -72,12 +72,20 @@ waiting_kink_premium = set()
 last_msg_time = {}
 msg_count = {}
 translate_notice_sent = set()  # (uid, partner) — one-time translation upsell per chat
+gift_prompt_sent = set()  # (uid, partner) — one-time gift prompt per chat
 pairing_lock = asyncio.Lock()
 chat_logs = {}
 ai_sessions = {}
 last_ai_msg = {}  # uid -> datetime последнего сообщения в AI чат
 mutual_likes = {}  # uid -> set of partner_uids которым лайкнул
 liked_chats = set()  # (uid, chat_key) — защита от спама лайков
+
+# Gift system
+GIFTS = {
+    "rose":    {"emoji": "🌹", "days": 1, "stars": 19},
+    "diamond": {"emoji": "💎", "days": 3, "stars": 49},
+    "crown":   {"emoji": "👑", "days": 7, "stars": 99},
+}
 
 
 # Стоп-слова для логирования жалоб
@@ -1087,14 +1095,14 @@ PARTNER_ADS = [
         "url": "https://t.me/LunaCoreSystemBot?start=_tgr_24olCJ5iNTQy",
         "btn_key": "btn_ad_luna",
         "langs": None,
-        "modes": ["flirt", "kink"],
+        "modes": ["kink"],
     },
     {
         "text_key": "ad_luna_2",
         "url": "https://t.me/LunaCoreSystemBot?start=_tgr_24olCJ5iNTQy",
         "btn_key": "btn_ad_luna",
         "langs": None,
-        "modes": ["flirt", "kink"],
+        "modes": ["kink"],
     },
 ]
 
@@ -1281,6 +1289,13 @@ async def do_find(uid, state):
         asyncio.create_task(notify_no_partner(uid))
         return False
 
+# Smart character suggestion: match AI character to user's search mode
+_MODE_CHARS = {
+    "simple": ["luna", "max_simple"],
+    "flirt": ["mia", "kai"],
+    "kink": ["lilit", "eva"],
+}
+
 async def notify_no_partner(uid):
     await asyncio.sleep(30)
     if uid in active_chats:
@@ -1288,7 +1303,13 @@ async def notify_no_partner(uid):
     all_waiting = set().union(*get_all_queues())
     if uid in all_waiting:
         try:
-            char_id = random.choice(["luna", "mia", "aurora"])
+            u = await get_user(uid)
+            mode = u.get("mode", "simple") if u else "simple"
+            candidates = _MODE_CHARS.get(mode, _MODE_CHARS["simple"])
+            # For kink, check if user has premium (VIP+ required)
+            if mode == "kink" and not await is_premium(uid):
+                candidates = _MODE_CHARS["flirt"]
+            char_id = random.choice(candidates)
             char = ai_chat.AI_CHARACTERS[char_id]
             lang = await get_lang(uid)
             name = f"{char['emoji']} {t(lang, char['name_key'])}"
@@ -1314,6 +1335,8 @@ async def end_chat(uid, state, go_next=False):
         clear_chat_log(uid, partner)
         translate_notice_sent.discard((uid, partner))
         translate_notice_sent.discard((partner, uid))
+        gift_prompt_sent.discard((uid, partner))
+        gift_prompt_sent.discard((partner, uid))
 
         # Сообщение о завершении + кнопка mutual match
         my_lang = await get_lang(uid)
@@ -1894,6 +1917,62 @@ async def buy_premium(callback: types.CallbackQuery):
         prices=[LabeledPrice(label=f"Premium {label}", amount=stars)],
     )
 
+async def _handle_gift_payment(uid, payload):
+    """Process a gift payment: grant premium to recipient."""
+    parts = payload.split("_", 2)
+    if len(parts) != 3:
+        return
+    gift_type = parts[1]
+    partner_uid = int(parts[2])
+    gift = GIFTS.get(gift_type)
+    if not gift:
+        return
+    lang = await get_lang(uid)
+    p_lang = await get_lang(partner_uid)
+
+    # Grant premium to partner
+    base = datetime.now()
+    p_user = await get_user(partner_uid)
+    if p_user:
+        current_until = p_user.get("premium_until")
+        if current_until and current_until != "permanent":
+            try:
+                existing = datetime.fromisoformat(current_until)
+                if existing > base:
+                    base = existing
+            except Exception: pass
+    until = base + timedelta(days=gift["days"])
+    await update_user(partner_uid, premium_until=until.isoformat(), premium_tier="premium",
+                      winback_stage=0, premium_expired_at=None)
+
+    # Sender confirmation
+    try:
+        await bot.send_message(uid, t(lang, "gift_sent", emoji=gift["emoji"], days=gift["days"]))
+    except Exception: pass
+
+    # Recipient "opening" visual
+    try:
+        opening_msg = await bot.send_message(partner_uid, t(p_lang, "gift_opening"))
+        await asyncio.sleep(1.5)
+        await opening_msg.edit_text(
+            t(p_lang, "gift_received",
+              emoji=gift["emoji"],
+              gift_name=t(p_lang, f"gift_{gift_type}"),
+              days=gift["days"],
+              until=until.strftime('%d.%m.%Y'))
+        )
+    except Exception:
+        try:
+            await bot.send_message(partner_uid,
+                t(p_lang, "gift_received",
+                  emoji=gift["emoji"],
+                  gift_name=t(p_lang, f"gift_{gift_type}"),
+                  days=gift["days"],
+                  until=until.strftime('%d.%m.%Y')))
+        except Exception: pass
+    await log_ab_event(uid, "gift_sent", gift_type)
+
+
 @dp.pre_checkout_query(StateFilter("*"))
 async def pre_checkout(query: PreCheckoutQuery):
     await query.answer(ok=True)
@@ -1902,6 +1981,11 @@ async def pre_checkout(query: PreCheckoutQuery):
 async def successful_payment(message: types.Message):
     uid = message.from_user.id
     payload = message.successful_payment.invoice_payload
+
+    # Gift payments
+    if payload.startswith("gift_"):
+        await _handle_gift_payment(uid, payload)
+        return
 
     plan_key = payload.replace("premium_", "")
     plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1m"])
@@ -2383,6 +2467,24 @@ async def relay(message: types.Message, state: FSMContext):
             return f"{translated}\n\n💬 {text}"
         return text
 
+    # --- Gift prompt: premium user sees option to gift non-premium partner ---
+    if need_translate and (uid, partner) not in gift_prompt_sent:
+        my_premium = await is_premium(uid)
+        if my_premium and not partner_premium:
+            gift_prompt_sent.add((uid, partner))
+            try:
+                await bot.send_message(uid,
+                    t(lang, "gift_prompt"),
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [
+                            InlineKeyboardButton(text=f"🌹 {t(lang, 'gift_rose')} — {GIFTS['rose']['stars']}⭐", callback_data=f"gift:rose:{partner}"),
+                            InlineKeyboardButton(text=f"💎 {t(lang, 'gift_diamond')} — {GIFTS['diamond']['stars']}⭐", callback_data=f"gift:diamond:{partner}"),
+                        ],
+                        [InlineKeyboardButton(text=f"👑 {t(lang, 'gift_crown')} — {GIFTS['crown']['stars']}⭐", callback_data=f"gift:crown:{partner}")],
+                    ])
+                )
+            except Exception: pass
+
     try:
         if message.text:
             relay_text = await _translate_text(message.text)
@@ -2406,6 +2508,33 @@ async def relay(message: types.Message, state: FSMContext):
             await bot.send_audio(partner, message.audio.file_id)
     except Exception as e:
         logger.warning(f"Relay failed {uid}->{partner}: {e}")
+
+# ====================== ПОДАРКИ В ЧАТЕ ======================
+@dp.callback_query(F.data.startswith("gift:"), StateFilter("*"))
+async def gift_select(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    parts = callback.data.split(":")
+    if len(parts) != 3:
+        await callback.answer()
+        return
+    gift_type = parts[1]
+    partner_uid = int(parts[2])
+    gift = GIFTS.get(gift_type)
+    if not gift:
+        await callback.answer()
+        return
+    lang = await get_lang(uid)
+    # Send invoice for the gift
+    await bot.send_invoice(
+        chat_id=uid,
+        title=t(lang, f"gift_{gift_type}_title"),
+        description=t(lang, "gift_desc", days=gift["days"]),
+        payload=f"gift_{gift_type}_{partner_uid}",
+        currency="XTR",
+        prices=[LabeledPrice(label=f"{gift['emoji']} Gift", amount=gift["stars"])],
+    )
+    await callback.answer()
+
 
 # ====================== ЖАЛОБА ======================
 @dp.callback_query(F.data == "rep:cancel", StateFilter(Complaint.reason))
