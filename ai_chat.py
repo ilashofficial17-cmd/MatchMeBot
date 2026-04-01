@@ -964,7 +964,7 @@ async def _get_char_media(char_id: str) -> dict | None:
         return None
     async with _db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT gif_file_id, photo_file_id, blurred_file_id, hot_photo_file_id FROM ai_character_media WHERE character_id=$1",
+            "SELECT gif_file_id, photo_file_id, blurred_file_id, hot_photo_file_id, hot_gif_file_id FROM ai_character_media WHERE character_id=$1",
             char_id
         )
     return dict(row) if row else None

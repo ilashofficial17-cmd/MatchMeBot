@@ -772,21 +772,24 @@ async def char_media_select(callback: types.CallbackQuery, state: FSMContext):
     # Check current media
     async with _db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT gif_file_id, photo_file_id, blurred_file_id, hot_photo_file_id FROM ai_character_media WHERE character_id=$1",
+            "SELECT gif_file_id, photo_file_id, blurred_file_id, hot_photo_file_id, hot_gif_file_id FROM ai_character_media WHERE character_id=$1",
             char_id
         )
     gif_status = "✅" if (row and row["gif_file_id"]) else "❌"
     photo_status = "✅" if (row and row["photo_file_id"]) else "❌"
     hot_status = "✅" if (row and row.get("hot_photo_file_id")) else "❌"
+    hot_gif_status = "✅" if (row and row.get("hot_gif_file_id")) else "❌"
 
     text = (
         f"{char['emoji']} <b>{char_id}</b>\n\n"
         f"{gif_status} GIF (превью при выборе)\n"
-        f"{photo_status} Фото — 15 ⭐ (платное фото в чате)\n"
-        f"{hot_status} 🔥 Hot фото — 50 ⭐ (интимное платное)\n\n"
-        f"Отправь GIF/анимацию — сохраню как превью.\n"
-        f"Отправь фото — сохраню как платное фото.\n"
-        f"Отправь фото с подписью hot — сохраню как горячее фото."
+        f"{photo_status} Фото — 15 ⭐\n"
+        f"{hot_status} 🔥 Hot фото — 50 ⭐\n"
+        f"{hot_gif_status} 🔥 Hot GIF\n\n"
+        f"GIF/анимация → превью\n"
+        f"GIF с подписью hot → hot GIF\n"
+        f"Фото → платное фото (15 ⭐)\n"
+        f"Фото с подписью hot → горячее фото (50 ⭐)"
     )
     await state.set_state(AdminState.waiting_char_gif)
     await state.update_data(media_char_id=char_id)
@@ -813,20 +816,35 @@ async def char_media_upload(message: types.Message, state: FSMContext):
     caption = (message.caption or "").strip().lower()
 
     if message.animation:
-        # GIF / animation
         file_id = message.animation.file_id
-        async with _db_pool.acquire() as conn:
-            await conn.execute("""
-                INSERT INTO ai_character_media (character_id, gif_file_id, updated_at)
-                VALUES ($1, $2, NOW())
-                ON CONFLICT (character_id)
-                DO UPDATE SET gif_file_id=$2, updated_at=NOW()
-            """, char_id, file_id)
-        await message.answer(
-            f"✅ GIF для {emoji} <b>{char_id}</b> сохранён!\n\n"
-            f"Отправь ещё медиа или нажми /admin для выхода.",
-            parse_mode="HTML"
-        )
+        if caption == "hot":
+            # Hot GIF
+            async with _db_pool.acquire() as conn:
+                await conn.execute("""
+                    INSERT INTO ai_character_media (character_id, hot_gif_file_id, updated_at)
+                    VALUES ($1, $2, NOW())
+                    ON CONFLICT (character_id)
+                    DO UPDATE SET hot_gif_file_id=$2, updated_at=NOW()
+                """, char_id, file_id)
+            await message.answer(
+                f"🔥 Hot GIF для {emoji} <b>{char_id}</b> сохранён!\n\n"
+                f"Отправь ещё медиа или нажми /admin для выхода.",
+                parse_mode="HTML"
+            )
+        else:
+            # Regular GIF (preview)
+            async with _db_pool.acquire() as conn:
+                await conn.execute("""
+                    INSERT INTO ai_character_media (character_id, gif_file_id, updated_at)
+                    VALUES ($1, $2, NOW())
+                    ON CONFLICT (character_id)
+                    DO UPDATE SET gif_file_id=$2, updated_at=NOW()
+                """, char_id, file_id)
+            await message.answer(
+                f"✅ GIF для {emoji} <b>{char_id}</b> сохранён!\n\n"
+                f"Отправь ещё медиа или нажми /admin для выхода.",
+                parse_mode="HTML"
+            )
     elif message.photo:
         file_id = message.photo[-1].file_id
         if caption == "hot":
