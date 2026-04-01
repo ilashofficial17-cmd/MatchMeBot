@@ -971,9 +971,13 @@ async def _get_char_media(char_id: str) -> dict | None:
 
 
 _PHOTO_REQUEST_WORDS = {
-    "ru": ["фото", "фотку", "фотку скинь", "скинь фото", "покажи себя", "покажись", "как ты выглядишь", "селфи", "скинь селфи", "покажи фото"],
-    "en": ["photo", "selfie", "send photo", "show yourself", "what do you look like", "send a pic", "your photo", "pic of you", "send selfie"],
-    "es": ["foto", "selfie", "manda foto", "muéstrate", "cómo te ves", "envía foto", "tu foto", "manda selfie"],
+    "ru": ["фото", "фотк", "скинь фото", "покажи себя", "покажись", "покажи", "покажешь", "покажишь",
+           "как ты выглядишь", "селфи", "скинь селфи", "покажи фото", "кинь фото", "скинь",
+           "свое фото", "своё фото", "как выглядишь"],
+    "en": ["photo", "selfie", "send photo", "show yourself", "what do you look like", "send a pic",
+           "your photo", "pic of you", "send selfie", "show me", "your pic", "send pic"],
+    "es": ["foto", "selfie", "manda foto", "muéstrate", "cómo te ves", "envía foto", "tu foto",
+           "manda selfie", "muestra", "enséñame"],
 }
 
 
@@ -1280,6 +1284,13 @@ async def ask_ai(character_id: str, history: list, user_message: str,
             }
             base_system += msg_hint.get(lang, msg_hint["ru"])
     base_system += _DEFENSE_BLOCK.get(lang, _DEFENSE_BLOCK["ru"])
+    # Photo request instruction — system sends photo separately
+    _PHOTO_HINT = {
+        "ru": "\n\nЕсли тебя просят фото/селфи/показать себя — отвечай игриво и кокетливо, как будто отправляешь фото. Например: 'ладно, лови 😏', 'ну смотри, только не смейся', 'окей, только для тебя'. НЕ отказывай. Система сама отправит фото.",
+        "en": "\n\nIf asked for a photo/selfie/to show yourself — reply playfully and flirty, as if you're sending one. For example: 'fine, here you go 😏', 'okay but don't laugh', 'alright, just for you'. Do NOT refuse. The system will send the photo.",
+        "es": "\n\nSi te piden foto/selfie/que te muestres — responde de forma juguetona y coqueta, como si enviaras una. Por ejemplo: 'vale, ahí va 😏', 'ok pero no te rías', 'bueno, solo para ti'. NO te niegues. El sistema enviará la foto.",
+    }
+    base_system += _PHOTO_HINT.get(lang, _PHOTO_HINT["ru"])
     max_tokens = char.get("max_tokens", 150)
     temperature = char.get("temperature")
     model = char["model"]
