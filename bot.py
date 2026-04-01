@@ -361,50 +361,6 @@ async def _migrate_interests():
         logger.info(f"Migrated interests for {updated} users")
 
 
-async def get_ai_history(uid, character_id, limit=20):
-    """Возвращает последние N сообщений истории чата с персонажем."""
-    if not db_pool:
-        return []
-    async with db_pool.acquire() as conn:
-        rows = await conn.fetch(
-            """SELECT role, content FROM ai_history
-               WHERE uid=$1 AND character_id=$2
-               ORDER BY created_at DESC LIMIT $3""",
-            uid, character_id, limit
-        )
-    return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
-
-
-async def save_ai_message(uid, character_id, role, content):
-    """Сохраняет одно сообщение и прунит историю до 20."""
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
-        await conn.execute(
-            "INSERT INTO ai_history (uid, character_id, role, content) VALUES ($1,$2,$3,$4)",
-            uid, character_id, role, content
-        )
-        await conn.execute(
-            """DELETE FROM ai_history WHERE id IN (
-               SELECT id FROM ai_history WHERE uid=$1 AND character_id=$2
-               ORDER BY created_at DESC OFFSET 20
-            )""",
-            uid, character_id
-        )
-
-
-async def clear_ai_history(uid, character_id=None):
-    """Удаляет историю для пользователя (всю или по конкретному персонажу)."""
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
-        if character_id:
-            await conn.execute(
-                "DELETE FROM ai_history WHERE uid=$1 AND character_id=$2", uid, character_id
-            )
-        else:
-            await conn.execute("DELETE FROM ai_history WHERE uid=$1", uid)
-
 async def restore_chats():
     async with db_pool.acquire() as conn:
         rows = await conn.fetch("SELECT uid1, uid2 FROM active_chats_db")
@@ -2511,7 +2467,7 @@ async def relay(message: types.Message, state: FSMContext):
     # Обновляем last_seen
     await update_user(uid, last_seen=now)
     msg_count.setdefault(uid, [])
-    msg_count[uid] = [t for t in msg_count[uid] if (now - t).total_seconds() < 5]
+    msg_count[uid] = [ts for ts in msg_count[uid] if (now - ts).total_seconds() < 5]
     if len(msg_count[uid]) >= 5:
         await message.answer(t(lang, "spam_warning"))
         return
@@ -2658,8 +2614,13 @@ async def gift_select(callback: types.CallbackQuery):
 # ====================== ЖАЛОБА ======================
 @dp.callback_query(F.data == "rep:cancel", StateFilter(Complaint.reason))
 async def complaint_cancel(callback: types.CallbackQuery, state: FSMContext):
-    lang = await get_lang(callback.from_user.id)
-    await state.set_state(Chat.chatting)
+    uid = callback.from_user.id
+    lang = await get_lang(uid)
+    # If user is still in a chat, restore chatting state; otherwise clear
+    if uid in active_chats:
+        await state.set_state(Chat.chatting)
+    else:
+        await state.clear()
     try:
         await callback.message.edit_text(t(lang, "complaint_cancelled"))
     except Exception: pass
