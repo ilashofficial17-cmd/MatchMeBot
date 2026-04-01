@@ -908,13 +908,12 @@ TEXTS = {
         "partner_complained": "⚠️ Someone filed a report against you.",
         # Registration
         "reg_rules_profile": (
-            "📜 Chat rules:\n\n"
-            "• Respect your partner\n"
-            "• 👍 Like — if you enjoyed it\n"
-            "• 🚩 Report — only for real violations!\n"
-            "• Advertising = ban\n"
-            "• False report = sanctions\n\n"
-            "Press ✅ Got it, start form to continue."
+            "A few things before we start:\n\n"
+            "👋 Be yourself, but respect others\n"
+            "👍 Like someone? Hit the like button\n"
+            "🚩 Report — only for real violations\n"
+            "🚫 Spam and ads — instant ban\n\n"
+            "Simple enough. Tap the button and fill out your profile 👇"
         ),
         "reg_name_prompt": "📝 What's your name?",
         "reg_age_prompt": "🎂 How old are you?",
@@ -935,23 +934,20 @@ TEXTS = {
         "reg_interest_added": "Added: {val}",
         "reg_interest_removed": "Removed: {val}",
         # Profile
-        "profile_not_filled": "Profile not filled. Press '🔍 By profile'",
+        "profile_not_filled": "Profile not filled. Tap '🔍 Match by profile'",
         "profile_text": (
-            "👤 Profile{badge}:\n"
-            "Name: {name}\n"
-            "Age: {age}\n"
-            "Gender: {gender}\n"
-            "Mode: {mode}\n"
-            "Interests: {interests}\n\n"
-            "⭐ Rating: {rating} | 👍 {likes}\n"
-            "💬 Chats: {chats}\n"
+            "👤 {name}{badge}\n"
+            "━━━━━━━━━━━━━━━\n"
+            "{age} y.o.  ·  {gender}  ·  {mode}\n"
+            "🎯 {interests}\n\n"
+            "⭐ {rating}  ·  👍 {likes}  ·  💬 {chats} chats\n"
             "{level_info}\n"
             "{streak_info}\n"
-            "{progress_info}\n\n"
-            "⚠️ Warnings: {warns}\n"
-            "💎 Status: {premium}"
+            "{progress_info}\n"
+            "{warns_line}"
+            "💎 {premium}"
         ),
-        "profile_upgrade": "\n\n⭐ Upgrade to Premium — priority, more AI, no ads!",
+        "profile_upgrade": "\n\n💎 With Premium you get found first — try it!",
         "premium_eternal": "{tier} (lifetime)",
         "premium_until_date": "{tier} until {until}",
         "premium_none": "None",
@@ -969,7 +965,7 @@ TEXTS = {
         "edit_interests_done": "✅ Interests updated!",
         "edit_done": "Done!",
         # Settings
-        "settings_title": "⚙️ Search settings:",
+        "settings_title": "⚙️ Customize your search:",
         "settings_gender_prompt": "👤 Who do you want to find?",
         "settings_gender_locked": "🔒 Gender filter in Flirt and Kink — Premium only!",
         "settings_premium_only": "🔒 Premium only! Buy via /premium",
@@ -980,12 +976,10 @@ TEXTS = {
         "settings_gender_saved": "✅ Gender filter saved!",
         # Stats
         "stats_text": (
-            "📊 Your stats:\n\n"
-            "💬 Total chats: {total_chats}\n"
-            "👍 Likes received: {likes}\n"
-            "⭐ Rating: {rating}\n"
-            "⚠️ Warnings: {warns}\n"
-            "📅 Days in bot: {days}\n"
+            "📊 Your MatchMe story\n\n"
+            "💬 {total_chats} chats  ·  👍 {likes} likes  ·  ⭐ {rating}\n"
+            "📅 With us for {days} days\n"
+            "{warns_line}"
             "{premium}"
         ),
         "stats_premium_eternal": "⭐ Premium: Lifetime",
@@ -997,25 +991,24 @@ TEXTS = {
         "premium_title": (
             "⭐ MatchMe Premium\n\n"
             "{status}"
-            "Chat without limits. Find people faster.\n"
-            "Unlock VIP characters, auto-translate and skip the queue.\n\n"
-            "Choose a plan:"
+            "Premium users find partners 3x faster.\n"
+            "No ads. No queues. Full access to all AI characters.\n\n"
+            "Pick your plan:"
         ),
         "premium_status_eternal": "✅ Current: {tier} (lifetime)\n\n",
         "premium_status_until": "✅ Current: {tier} until {until}\n\n",
         "premium_info": (
-            "⭐ What's included in Premium:\n\n"
-            "🤖 Basic AI — 100 messages/day\n"
-            "🔥 VIP characters — 50 messages/day\n"
-            "🔥 VIP+ characters (18+) — 50 messages/day\n"
-            "🌐 Auto-translate in chats\n"
-            "🚀 Priority search\n"
-            "🔇 No ads\n"
-            "⭐ Premium badge on profile"
+            "⭐ What Premium gives you:\n\n"
+            "🚀 You get found first — priority in search queue\n"
+            "🤖 More AI — 100 msgs/day Basic, 50/day VIP & VIP+\n"
+            "🔥 Exclusive characters — VIP and VIP+ (18+) unlocked\n"
+            "🌐 Auto-translate — chat across languages effortlessly\n"
+            "🔇 Zero ads — nothing in the way\n"
+            "⭐ Premium badge — partners see you mean business"
         ),
         "premium_activated": "🎉 {tier} activated!\n\n📦 Plan: {label}\n📅 Until {until}\n\n{benefits}",
         "premium_unknown_plan": "Unknown plan",
-        "benefit_premium": "Basic AI (100/day), VIP & VIP+ characters (50/day), auto-translate, priority, no ads!",
+        "benefit_premium": "Priority search, all AI characters, auto-translate, no ads — full access!",
         # Reset
         "reset_confirm": (
             "⚠️ Full profile reset!\n\n"
@@ -1023,39 +1016,39 @@ TEXTS = {
             "❗ Ban, warnings and Premium will be kept.\n\nAre you sure?"
         ),
         "reset_done": "✅ Profile reset!",
-        "reset_refill": "👋 Press '🔍 By profile' to fill out the form again.",
+        "reset_refill": "👋 Press '🔍 Match by profile' to fill out the form again.",
         "reset_cancelled": "❌ Reset cancelled.",
         "reset_back": "Back to menu.",
         # Help
         "help_text": (
-            "🆘 MatchMe Help:\n\n"
-            "⚡ Search — quick anonymous search\n"
-            "🔍 By profile — by mode and interests\n"
-            "🤖 AI Chat — chat with AI\n"
+            "How it all works:\n\n"
+            "🔍 Find a partner\n"
+            "🎲 Random chat — instant anonymous match\n"
+            "🔍 Match by profile — filtered by mode & interests\n"
+            "🤖 AI chat — talk to someone right now\n\n"
+            "💬 During a chat\n"
+            "⏭ Next — switch to another person\n"
+            "🎲 Topic — get a conversation starter\n"
+            "👍 Like — if you enjoyed the person\n"
+            "❌ Stop — end the conversation\n"
+            "🚩 Report — if something's wrong\n\n"
             "📊 /stats — your stats\n"
-            "⭐ /premium — Premium subscription\n\n"
-            "In chat:\n"
-            "⏭ Next — find another partner\n"
-            "❌ Stop — end chat\n"
-            "🎲 Topic — random conversation topic\n"
-            "👍 Like — boost rating\n"
-            "🚩 Report — for violations\n\n"
-            "/reset — reset profile\n"
-            "If something broke — /start"
+            "⭐ /premium — subscription\n"
+            "/reset — start your profile over\n"
+            "Something broken? Hit /start"
         ),
         "unavailable": "⚠️ Not available right now — {reason}.",
         "no_partner_wait": (
-            "⏳ Search is taking longer than usual...\n\n"
-            "💡 While you wait — chat with {name}!\n"
-            "AI partner replies instantly 🤖"
+            "Search is taking a while... But here's an idea 💡\n\n"
+            "While you wait — chat with {name}!\n"
+            "Always available, always in the mood 🤖"
         ),
         "upsell": (
-            "💬 Liked your chat partner?\n\n"
-            "With Premium you'll find the next one 3x faster.\n"
-            "VIP characters, auto-translate, no ads.\n"
-            "Try it — feel the difference."
+            "Good chat? With Premium the next one comes even faster 🚀\n\n"
+            "Priority search, VIP characters, no ads.\n"
+            "While you're thinking — someone else is chatting in your spot."
         ),
-        "ad_message": "📢 Your ad could be here\n\n⭐ Buy Premium and remove ads forever!",
+        "ad_message": "📢 Ad break\n\nAnnoyed? With Premium there are no ads — none at all.\n⭐ /premium",
         # --- Ads: neutral (all modes) ---
         "ad_dzen_1": (
             "🔓 YouTube, TikTok and more — no blocks?\n\n"
@@ -1266,9 +1259,11 @@ TEXTS = {
         "bot_restarted": "🔄 Bot updated. Your chat has been restored!",
         "chat_start": "✅ Start chatting!",
         "partner_found": (
-            "👤 Partner found!{badge}\n"
-            "Name: {name}\nAge: {age}\nGender: {gender}\n"
-            "Mode: {mode}\nInterests: {interests}\n⭐ Rating: {rating}"
+            "✨ Partner found!{badge}\n"
+            "━━━━━━━━━━━━━━━\n"
+            "{name}  ·  {age}  ·  {gender}\n"
+            "🎯 {interests}\n"
+            "⭐ {rating}"
         ),
         # Settings — inline buttons
         "settings_mode_label": "📌 Mode: {mode}",
@@ -1459,24 +1454,25 @@ TEXTS = {
         # Auto-topic
         "auto_topic": "💡 Silence in chat? Here's a topic:\n\n{topic}",
         # Streak reminder
-        "streak_reminder": "🔥 Your streak is {days} days! Come back today to keep it alive.",
-        "streak_lost": "💔 Streak reset... Start a new one by visiting daily!",
+        "streak_reminder": "🔥 {days} days in a row — don't break the streak! Drop by today and keep going.",
+        "streak_lost": "Streak reset, oh well 🤷 You can start a new one right now!",
         # AI miss-you
-        "ai_miss_you": "{emoji} {name} misses you! Come chat 💬",
+        "ai_miss_you": "{emoji} {name} is thinking about you... Come say hi? 💬",
         # Onboarding
         "welcome_tour": (
-            "👋 Welcome to MatchMe!\n\n"
-            "Here's what awaits you:\n"
-            "🔍 Anonymous chats with real people\n"
-            "🤖 13 AI characters with unique personalities\n"
-            "📸 They can see your photos and hear voice messages!\n"
-            "🔥 Streaks and levels for activity\n"
-            "🎁 Gift Premium to friends\n\n"
-            "Fill out your profile and start chatting!"
+            "Alright, here's the deal:\n\n"
+            "💬 Anonymous chats with real people — matched in seconds\n"
+            "🤖 AI companions — instant replies, each with their own personality\n"
+            "📸 They see your photos and hear your voice messages\n\n"
+            "Fill out a quick profile — and let's go!"
         ),
         # Smart recommendation
         "ai_recommended": "💡 You might like {emoji} {name} — try it!",
         "ai_your_favorites": "⭐ Your favorites:",
+        # After-chat combined message
+        "chat_ended_rate": "Chat's over — how was your partner?",
+        # AI character unlock
+        "ai_unlock_vip_plus": "🔒 Unlock 5 VIP+ characters",
     },
 
     "es": {
