@@ -1599,15 +1599,17 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     # If user asked for a photo — send blurred photo with unlock button
     if _is_photo_request(txt, lang):
         media = await _get_char_media(char_id)
-        if media and media.get("blurred_file_id"):
-            unlock_kb = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(
-                    text=f"🔓 {t(lang, 'unlock_photo')} — {PHOTO_UNLOCK_STARS} ⭐",
-                    callback_data=f"unlock_photo:{char_id}"
-                )]
-            ])
-            await _bot.send_photo(uid, media["blurred_file_id"],
-                caption=t(lang, "blurred_photo_hint"), reply_markup=unlock_kb)
+        if media:
+            blur_id = media.get("blurred_file_id") or media.get("photo_file_id")
+            if blur_id:
+                unlock_kb = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(
+                        text=f"🔓 {t(lang, 'unlock_photo')} — {PHOTO_UNLOCK_STARS} ⭐",
+                        callback_data=f"unlock_photo:{char_id}"
+                    )]
+                ])
+                await _bot.send_photo(uid, blur_id,
+                    caption=t(lang, "blurred_photo_hint"), reply_markup=unlock_kb)
 
 
 # ====================== GOTO CALLBACKS ======================
