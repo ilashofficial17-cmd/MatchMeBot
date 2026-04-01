@@ -280,6 +280,21 @@ async def init_db():
             )
         """)
 
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS ad_events (
+                id SERIAL PRIMARY KEY,
+                uid BIGINT NOT NULL,
+                ad_key TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                source TEXT DEFAULT 'search',
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        try:
+            await conn.execute("CREATE INDEX IF NOT EXISTS ad_events_key ON ad_events(ad_key, event_type)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS ad_events_created ON ad_events(created_at)")
+        except Exception: pass
+
         await conn.execute(
             """INSERT INTO users (uid, premium_until, show_premium, accepted_privacy, accepted_rules)
                VALUES ($1, 'permanent', TRUE, TRUE, TRUE)
@@ -1119,7 +1134,19 @@ def _filter_ads(lang: str, mode: str) -> list:
     return result
 
 
-async def send_ad_message(uid):
+async def _log_ad_event(uid: int, ad_key: str, event_type: str, source: str = "search"):
+    """Логирует событие рекламы (impression/click)."""
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO ad_events (uid, ad_key, event_type, source) VALUES ($1, $2, $3, $4)",
+                uid, ad_key, event_type, source
+            )
+    except Exception:
+        pass
+
+
+async def send_ad_message(uid, source: str = "search"):
     """Показывает таргетированную партнёрскую рекламу с ротацией."""
     try:
         lang = await get_lang(uid)
@@ -1130,14 +1157,16 @@ async def send_ad_message(uid):
         if not ads:
             return
         ad = ads[chats % len(ads)]
+        ad_key = ad["text_key"]
         await bot.send_message(
             uid,
-            t(lang, ad["text_key"]),
+            t(lang, ad_key),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=t(lang, ad["btn_key"]), url=ad["url"])],
                 [InlineKeyboardButton(text=t(lang, "btn_ad_remove"), callback_data="buy:info")],
             ])
         )
+        await _log_ad_event(uid, ad_key, "impression", source)
     except Exception: pass
 
 async def do_find(uid, state):
@@ -3026,6 +3055,8 @@ async def main():
         get_rating=get_rating,
         remove_chat_from_db=remove_chat_from_db,
         AI_CHARACTERS=ai_chat.AI_CHARACTERS,
+        PARTNER_ADS=PARTNER_ADS,
+        filter_ads=_filter_ads,
     )
     dp.include_router(ai_chat.router)
     dp.include_router(admin_module.router)

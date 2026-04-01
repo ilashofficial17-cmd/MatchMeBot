@@ -1858,7 +1858,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     # Реклама в AI-чатах — каждое 10-е сообщение для не-премиум
     if cur_msg > 0 and cur_msg % 10 == 0 and _send_ad_message:
         if user_tier not in ("premium", "premium_plus"):
-            await _send_ad_message(uid)
+            await _send_ad_message(uid, source="ai_chat")
 
 
 # ====================== GOTO CALLBACKS ======================

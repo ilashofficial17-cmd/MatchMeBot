@@ -64,17 +64,20 @@ _increment_user = None
 _get_rating = None
 _remove_chat_from_db = None
 _AI_CHARACTERS = None
+_PARTNER_ADS = None
+_filter_ads = None
 
 
 def init(*, bot, dp, db_pool, admin_id, active_chats, ai_sessions, last_ai_msg,
          pairing_lock, get_all_queues, chat_logs, last_msg_time, msg_count,
          mutual_likes, clear_chat_log, get_user, update_user, increment_user,
-         get_rating, remove_chat_from_db, AI_CHARACTERS):
+         get_rating, remove_chat_from_db, AI_CHARACTERS,
+         PARTNER_ADS=None, filter_ads=None):
     global _bot, _dp, _db_pool, _admin_id, _active_chats, _ai_sessions
     global _last_ai_msg, _pairing_lock, _get_all_queues, _chat_logs
     global _last_msg_time, _msg_count, _mutual_likes, _clear_chat_log
     global _get_user, _update_user, _increment_user, _get_rating
-    global _remove_chat_from_db, _AI_CHARACTERS
+    global _remove_chat_from_db, _AI_CHARACTERS, _PARTNER_ADS, _filter_ads
     _bot = bot
     _dp = dp
     _db_pool = db_pool
@@ -95,6 +98,8 @@ def init(*, bot, dp, db_pool, admin_id, active_chats, ai_sessions, last_ai_msg,
     _get_rating = get_rating
     _remove_chat_from_db = remove_chat_from_db
     _AI_CHARACTERS = AI_CHARACTERS
+    _PARTNER_ADS = PARTNER_ADS or []
+    _filter_ads = filter_ads
 
 
 async def _get_lang(uid: int) -> str:
@@ -119,6 +124,7 @@ async def kb_admin_main():
         [InlineKeyboardButton(text="🔍 Найти пользователя", callback_data="admin:find")],
         [InlineKeyboardButton(text="🔧 Уведомить об обновлении", callback_data="admin:notify_update")],
         [InlineKeyboardButton(text="🖼 Медиа персонажей", callback_data="admin:char_media")],
+        [InlineKeyboardButton(text="📢 Маркетинг", callback_data="admin:marketing")],
     ])
 
 
@@ -270,6 +276,247 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
             if total > 10:
                 buttons.append([InlineKeyboardButton(text="➡️ Ещё", callback_data="audit:page:10")])
             await callback.message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    elif action == "marketing":
+        await callback.message.answer(
+            "📢 Маркетинг MatchMe",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📋 Креативы рекламы", callback_data="mkt:creatives")],
+                [InlineKeyboardButton(text="📊 Аналитика рекламы", callback_data="mkt:ad_stats")],
+                [InlineKeyboardButton(text="🤖 Аналитика AI-чатов", callback_data="mkt:ai_stats")],
+                [InlineKeyboardButton(text="💰 Доходы", callback_data="mkt:revenue")],
+                [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")],
+            ])
+        )
+    elif action == "back":
+        await callback.message.edit_text("🛡 Админ панель MatchMe", reply_markup=await kb_admin_main())
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("mkt:"), StateFilter("*"))
+async def marketing_handler(callback: types.CallbackQuery):
+    if callback.from_user.id != _admin_id:
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+    action = callback.data.split(":", 1)[1]
+
+    if action == "creatives":
+        # Показать выбор языка
+        await callback.message.answer(
+            "📋 Выбери язык для просмотра креативов:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🇷🇺 RU", callback_data="mkt:cr:ru"),
+                    InlineKeyboardButton(text="🇬🇧 EN", callback_data="mkt:cr:en"),
+                    InlineKeyboardButton(text="🇪🇸 ES", callback_data="mkt:cr:es"),
+                ],
+                [InlineKeyboardButton(text="📊 Все (сводка)", callback_data="mkt:cr:all")],
+            ])
+        )
+
+    elif action.startswith("cr:"):
+        lang_filter = action.split(":")[1]
+        if lang_filter == "all":
+            # Сводка: какие креативы на каких языках
+            text = "📋 Сводка креативов:\n\n"
+            seen = {}
+            for ad in _PARTNER_ADS:
+                base = ad["text_key"].rsplit("_", 1)[0]  # ad_dzen, ad_vpnglobal, etc
+                if base not in seen:
+                    seen[base] = {"langs": set(), "modes": ad["modes"], "count": 0}
+                if ad["langs"]:
+                    seen[base]["langs"].update(ad["langs"])
+                else:
+                    seen[base]["langs"].update(["ru", "en", "es"])
+                seen[base]["count"] += 1
+            for base, info in seen.items():
+                name = base.replace("ad_", "").upper()
+                langs_str = ", ".join(sorted(info["langs"]))
+                modes_str = ", ".join(info["modes"]) if info["modes"] else "все"
+                text += f"📌 {name}\n   Языки: {langs_str} | Режимы: {modes_str} | Креативов: {info['count']}\n\n"
+            text += f"Всего: {len(_PARTNER_ADS)} креативов"
+            await callback.message.answer(text)
+        else:
+            # Показать креативы для выбранного языка
+            ads = [ad for ad in _PARTNER_ADS if ad["langs"] is None or lang_filter in ad["langs"]]
+            if not ads:
+                await callback.message.answer(f"Нет креативов для {lang_filter.upper()}")
+            else:
+                for i, ad in enumerate(ads):
+                    modes_str = ", ".join(ad["modes"]) if ad["modes"] else "все"
+                    # Показываем текст на RU если есть, иначе EN
+                    from locales import TEXTS
+                    ad_text = TEXTS.get("ru", {}).get(ad["text_key"]) or TEXTS.get("en", {}).get(ad["text_key"]) or ad["text_key"]
+                    btn_text = TEXTS.get("ru", {}).get(ad["btn_key"]) or TEXTS.get("en", {}).get(ad["btn_key"]) or ad["btn_key"]
+                    langs = ", ".join(ad["langs"]) if ad["langs"] else "все"
+                    header = f"📌 #{i+1} | Языки: {langs} | Режимы: {modes_str}\n"
+                    header += f"🔘 Кнопка: {btn_text}\n\n"
+                    await callback.message.answer(
+                        header + ad_text,
+                        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                            [InlineKeyboardButton(text=btn_text, url=ad["url"])],
+                        ])
+                    )
+                    if i >= 14:  # лимит чтобы не заспамить
+                        await callback.message.answer(f"... и ещё {len(ads) - 15}")
+                        break
+
+    elif action == "ad_stats":
+        # Выбор периода
+        await callback.message.answer(
+            "📊 Аналитика рекламы — выбери период:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="Сегодня", callback_data="mkt:ads:1"),
+                    InlineKeyboardButton(text="7 дней", callback_data="mkt:ads:7"),
+                    InlineKeyboardButton(text="30 дней", callback_data="mkt:ads:30"),
+                ],
+                [InlineKeyboardButton(text="Всё время", callback_data="mkt:ads:0")],
+            ])
+        )
+
+    elif action.startswith("ads:"):
+        days = int(action.split(":")[1])
+        period_cond = ""
+        period_label = "всё время"
+        if days > 0:
+            period_cond = f"AND created_at > NOW() - INTERVAL '{days} days'"
+            period_label = f"за {days} дн."
+
+        async with _db_pool.acquire() as conn:
+            rows = await conn.fetch(f"""
+                SELECT ad_key, source, COUNT(*) as cnt
+                FROM ad_events
+                WHERE event_type = 'impression' {period_cond}
+                GROUP BY ad_key, source
+                ORDER BY cnt DESC
+            """)
+            total_impressions = await conn.fetchval(f"""
+                SELECT COUNT(*) FROM ad_events
+                WHERE event_type = 'impression' {period_cond}
+            """) or 0
+            unique_users = await conn.fetchval(f"""
+                SELECT COUNT(DISTINCT uid) FROM ad_events
+                WHERE event_type = 'impression' {period_cond}
+            """) or 0
+
+        text = f"📊 Аналитика рекламы ({period_label})\n\n"
+        text += f"Всего показов: {total_impressions}\n"
+        text += f"Уник. пользователей: {unique_users}\n\n"
+
+        if rows:
+            # Группируем по ad_key
+            by_ad = {}
+            for r in rows:
+                key = r["ad_key"]
+                if key not in by_ad:
+                    by_ad[key] = {"search": 0, "ai_chat": 0, "total": 0}
+                by_ad[key][r["source"]] = r["cnt"]
+                by_ad[key]["total"] += r["cnt"]
+
+            text += "По креативам:\n"
+            for key, data in sorted(by_ad.items(), key=lambda x: -x[1]["total"]):
+                name = key.replace("ad_", "").replace("_", " ").upper()
+                text += f"  {name}: {data['total']} (поиск: {data['search']}, AI: {data['ai_chat']})\n"
+        else:
+            text += "Нет данных за этот период."
+
+        await callback.message.answer(text)
+
+    elif action == "ai_stats":
+        async with _db_pool.acquire() as conn:
+            # Общая статистика AI
+            total_sessions = len(_ai_sessions)
+            total_ai_msgs = await conn.fetchval(
+                "SELECT COUNT(*) FROM ai_history WHERE role='user'"
+            ) or 0
+            unique_ai_users = await conn.fetchval(
+                "SELECT COUNT(DISTINCT uid) FROM ai_history"
+            ) or 0
+            # Популярность персонажей (за всё время)
+            char_stats = await conn.fetch("""
+                SELECT character_id, COUNT(*) as msg_count, COUNT(DISTINCT uid) as user_count
+                FROM ai_history
+                WHERE role = 'user'
+                GROUP BY character_id
+                ORDER BY msg_count DESC
+            """)
+            # За последние 7 дней
+            char_stats_week = await conn.fetch("""
+                SELECT character_id, COUNT(*) as msg_count, COUNT(DISTINCT uid) as user_count
+                FROM ai_history
+                WHERE role = 'user' AND created_at > NOW() - INTERVAL '7 days'
+                GROUP BY character_id
+                ORDER BY msg_count DESC
+            """)
+
+        text = f"🤖 Аналитика AI-чатов\n\n"
+        text += f"Активных сессий: {total_sessions}\n"
+        text += f"Всего сообщений: {total_ai_msgs}\n"
+        text += f"Уник. пользователей: {unique_ai_users}\n\n"
+
+        if char_stats:
+            text += "📊 Популярность (всё время):\n"
+            for r in char_stats:
+                cid = r["character_id"]
+                char = (_AI_CHARACTERS or {}).get(cid, {})
+                emoji = char.get("emoji", "")
+                name = cid.replace("_", " ").title()
+                text += f"  {emoji} {name}: {r['msg_count']} сообщ. / {r['user_count']} юзеров\n"
+
+        if char_stats_week:
+            text += f"\n📊 За 7 дней:\n"
+            for r in char_stats_week:
+                cid = r["character_id"]
+                char = (_AI_CHARACTERS or {}).get(cid, {})
+                emoji = char.get("emoji", "")
+                name = cid.replace("_", " ").title()
+                text += f"  {emoji} {name}: {r['msg_count']} сообщ. / {r['user_count']} юзеров\n"
+
+        await callback.message.answer(text)
+
+    elif action == "revenue":
+        async with _db_pool.acquire() as conn:
+            # Доходы от Premium
+            total_premiums = await conn.fetchval(
+                "SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL AND premium_until != 'permanent'"
+            ) or 0
+            # Доходы от покупок (ab_events)
+            purchases_total = await conn.fetchval(
+                "SELECT COUNT(*) FROM ab_events WHERE event_type = 'purchase'"
+            ) or 0
+            purchases_week = await conn.fetchval(
+                "SELECT COUNT(*) FROM ab_events WHERE event_type = 'purchase' AND created_at > NOW() - INTERVAL '7 days'"
+            ) or 0
+            # Подарки
+            gifts_total = await conn.fetchval(
+                "SELECT COUNT(*) FROM ab_events WHERE event_type = 'gift_sent'"
+            ) or 0
+            gifts_week = await conn.fetchval(
+                "SELECT COUNT(*) FROM ab_events WHERE event_type = 'gift_sent' AND created_at > NOW() - INTERVAL '7 days'"
+            ) or 0
+            # Триалы
+            trials_total = await conn.fetchval(
+                "SELECT COUNT(*) FROM ab_events WHERE event_type = 'trial_activated'"
+            ) or 0
+            trials_conv = await conn.fetchval(
+                "SELECT COUNT(*) FROM ab_events WHERE event_type = 'trial_shown'"
+            ) or 1  # avoid div/0
+
+        text = f"💰 Доходы MatchMe\n\n"
+        text += f"💎 Активных Premium: {total_premiums}\n\n"
+        text += f"🛒 Покупки:\n"
+        text += f"  Всего: {purchases_total}\n"
+        text += f"  За 7 дней: {purchases_week}\n\n"
+        text += f"🎁 Подарки:\n"
+        text += f"  Всего: {gifts_total}\n"
+        text += f"  За 7 дней: {gifts_week}\n\n"
+        text += f"🎟 Триалы:\n"
+        text += f"  Активировано: {trials_total}\n"
+        text += f"  Показано: {trials_conv}\n"
+        text += f"  Конверсия: {round(trials_total / max(trials_conv, 1) * 100, 1)}%"
+
+        await callback.message.answer(text)
+
     await callback.answer()
 
 
