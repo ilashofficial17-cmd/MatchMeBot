@@ -225,6 +225,16 @@ async def init_db():
         except Exception: pass
 
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_character_media (
+                character_id TEXT PRIMARY KEY,
+                gif_file_id TEXT DEFAULT NULL,
+                photo_file_id TEXT DEFAULT NULL,
+                blurred_file_id TEXT DEFAULT NULL,
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS ai_notes (
                 uid BIGINT NOT NULL,
                 character_id TEXT NOT NULL,
