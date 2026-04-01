@@ -79,9 +79,9 @@ def kb_cancel_search(lang="ru"):
 
 def kb_chat(lang="ru"):
     return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text=t(lang, "btn_like")), KeyboardButton(text=t(lang, "btn_topic"))],
         [KeyboardButton(text=t(lang, "btn_next")), KeyboardButton(text=t(lang, "btn_stop"))],
-        [KeyboardButton(text=t(lang, "btn_like")), KeyboardButton(text=t(lang, "btn_complaint"))],
-        [KeyboardButton(text=t(lang, "btn_topic")), KeyboardButton(text=t(lang, "btn_home"))],
+        [KeyboardButton(text=t(lang, "btn_complaint")), KeyboardButton(text=t(lang, "btn_home"))],
     ], resize_keyboard=True)
 
 
@@ -147,16 +147,9 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
             InlineKeyboardButton(text=t(lang, "char_master"), callback_data="aichar:master"),
         ])
     else:
+        # Одна кнопка вместо 5 заблокированных
         buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_lilit_locked"), callback_data="aichar:vip_plus_locked"),
-            InlineKeyboardButton(text=t(lang, "char_eva_locked"), callback_data="aichar:vip_plus_locked"),
-        ])
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_damir_locked"), callback_data="aichar:vip_plus_locked"),
-            InlineKeyboardButton(text=t(lang, "char_ars_locked"), callback_data="aichar:vip_plus_locked"),
-        ])
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_master_locked"), callback_data="aichar:vip_plus_locked"),
+            InlineKeyboardButton(text=t(lang, "ai_unlock_vip_plus"), callback_data="aichar:vip_plus_locked"),
         ])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_ai_info"), callback_data="aichar:info")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])

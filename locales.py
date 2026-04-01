@@ -6,8 +6,11 @@ MatchMe Bot — локализация.
 TEXTS = {
     "ru": {
         "welcome": (
-            "👋 Привет! Я MatchMe — анонимный чат для общения, флирта и знакомств.\n\n"
-            "Выбери язык / Choose language / Elige idioma 👇"
+            "Привет 👋\n\n"
+            "Я MatchMe — здесь знакомятся вслепую.\n"
+            "Анонимно. Честно. Иногда дерзко.\n\n"
+            "Готов? Сначала выбери язык 👇\n"
+            "Choose language / Elige idioma"
         ),
         "privacy": (
             "🔒 Политика конфиденциальности MatchMe\n\n"
@@ -28,8 +31,9 @@ TEXTS = {
             "Нажми /start чтобы попробовать снова."
         ),
         "channel_bonus": (
-            "🎁 Подпишись на наш канал и получи 3 дня Premium бесплатно!\n\n"
-            "В канале: обновления, новости бота и полезный контент 😄"
+            "⭐ 3 дня Premium бесплатно — просто за подписку на канал!\n\n"
+            "Приоритет в поиске, VIP-персонажи, без рекламы.\n"
+            "Жми и забирай 👇"
         ),
         "channel_not_subscribed": "Ты ещё не подписан на канал!",
         "channel_bonus_used": "Бонус уже был получен ранее!",
@@ -50,15 +54,15 @@ TEXTS = {
         ),
         "rules_accepted": "✅ Правила приняты! Добро пожаловать в MatchMe! 🎉",
         "rules_choose_lang": "👆 Выбери язык чтобы продолжить.",
-        "welcome_back": "👋 С возвращением в MatchMe!{badge}",
+        "welcome_back": "С возвращением!{badge} Тут без тебя было скучновато 😏",
         "welcome_new": "👋 Добро пожаловать в MatchMe!{badge}",
         "welcome_intro": (
-            "Привет, {name}! 👋\n\n"
-            "MatchMe — анонимный чат для знакомств.\n"
-            "Общайся, флиртуй, находи людей по интересам.\n"
-            "AI-собеседники, живые чаты, полная анонимность.\n\n"
+            "{name}, тебя тут ждали 😏\n\n"
+            "Представь: ты открываешь чат — и через 10 секунд уже болтаешь с кем-то новым.\n"
+            "Никто не знает кто ты. Ты не знаешь кого встретишь.\n"
+            "Вот в этом и кайф.\n\n"
             "📄 Выше — правила и политика конфиденциальности.\n"
-            "Нажми кнопку ниже чтобы принять и начать!"
+            "Жми кнопку и погнали!"
         ),
         "btn_accept_all": "✅ Принимаю",
         "banned_permanent": "🚫 Ты заблокирован навсегда.",
@@ -70,8 +74,8 @@ TEXTS = {
         "btn_check_channel": "✅ Проверить подписку",
         "btn_skip_channel": "⏭ Пропустить",
         # Кнопки — главное меню
-        "btn_search": "⚡ Поиск",
-        "btn_find": "🔍 По анкете",
+        "btn_search": "🎲 Случайный чат",
+        "btn_find": "🔍 Подбор по анкете",
         "btn_ai_chat": "🤖 ИИ чат",
         "btn_profile": "👤 Профиль",
         "btn_settings": "⚙️ Настройки",
@@ -114,32 +118,36 @@ TEXTS = {
         "gender_female": "Девушка 👩",
         "gender_other": "Другое ⚧",
         # Тексты — поиск
-        "searching_anon": "⚡ Ищем анонимного собеседника...",
-        "connected": "👤 Соединено! Удачи! 🎉",
+        "searching_anon": "🔍 Ищем тебе кого-то интересного...",
+        "connected": "Есть контакт! Вы анонимны — дерзайте 😉",
         "queue_info": "👥 В режиме {mode}: {count} чел.\n{status}",
         "queue_searching": "🔍 Ищем...",
         "queue_priority": "🚀 Приоритетный поиск ⭐",
         "search_cancelled": "❌ Поиск отменён.",
         "not_searching": "Ты не в поиске.",
         # Тексты — чат
-        "chat_ended": "💔 Чат завершён.",
-        "partner_left": "😔 Собеседник покинул чат.",
+        "chat_ended": "Чат завершён. Ну что — ищем следующего? 😏",
+        "partner_left": "Собеседник ушёл — бывает! Впереди ещё много интересных 💫",
         "not_in_chat": "Ты не в чате.",
         "spam_warning": "⚠️ Не спамь!",
-        "like_sent": "👍 Лайк отправлен!",
+        "like_sent": "👍 Лайк улетел!",
         "like_received": "👍 Собеседник поставил тебе лайк! ⭐",
         "like_already": "👍 Ты уже ставил лайк этому собеседнику!",
         "topic_sent": "🎲 Тема для разговора:\n\n{topic}",
         "topic_received": "🎲 Собеседник предлагает тему:\n\n{topic}",
-        "mutual_match": "🎉 Взаимный интерес! Приватный анонимный чат открыт.\nВы по-прежнему анонимны друг для друга.",
-        "mutual_request_sent": "❤️ Запрос отправлен!\nЕсли собеседник тоже захочет — вас соединят в течение 10 минут.",
-        "mutual_request_received": "💌 Твой собеседник хочет продолжить общение!\nОтветь на предложение если тоже хочешь:",
+        "mutual_match": (
+            "🎉 Это мэтч! Вы оба захотели продолжить.\n\n"
+            "Приватный анонимный чат открыт — вы по-прежнему инкогнито.\n"
+            "Ну, давайте, не стесняйтесь 😏"
+        ),
+        "mutual_request_sent": "❤️ Запрос отправлен!\nЕсли интерес взаимный — вас соединят в течение 10 минут.\nСкрестим пальцы 🤞",
+        "mutual_request_received": "💌 О! Собеседник хочет продолжить с тобой!\nТакое бывает редко — не заставляй ждать 👇",
         "mutual_no_response": "😔 Собеседник не ответил на запрос продолжения.",
         "mutual_decline_ok": "Окей, не проблема!",
         "mutual_already_in_chat": "😔 Кто-то из вас уже в чате.",
         "partner_busy": "😔 Собеседник уже общается с кем-то другим.",
-        "after_chat_propose": "Понравился собеседник?\nПредложи продолжить общение анонимно — если он тоже захочет, вас соединят 😊",
-        "inactivity_end": "⏰ Чат завершён — 7 мин неактивности.",
+        "after_chat_propose": "Понравился собеседник? Не упусти 👇\nПредложи продолжить — если интерес взаимный, вас соединят снова.",
+        "inactivity_end": "Чат закрылся — 7 мин тишины ⏰\nНичего, найдём нового собеседника когда будешь готов!",
         "inactivity_ai_end": "⏰ AI чат завершён — 10 мин неактивности.",
         # Модерация — уведомления пользователю
         "mod_warn": "⚠️ Предупреждение: {reason}\nСледующее нарушение приведёт к бану.",
@@ -171,13 +179,12 @@ TEXTS = {
         "partner_complained": "⚠️ На тебя подана жалоба.",
         # Тексты — регистрация
         "reg_rules_profile": (
-            "📜 Правила общения:\n\n"
-            "• Уважай собеседника\n"
-            "• 👍 Лайк — если понравилось\n"
-            "• 🚩 Жалоба — только при реальных нарушениях!\n"
-            "• Реклама = бан\n"
-            "• Ложная жалоба = санкции\n\n"
-            "Нажми ✅ Понятно, начать анкету для продолжения."
+            "Пару слов перед началом:\n\n"
+            "👋 Будь собой, но уважай собеседника\n"
+            "👍 Понравился человек — ставь лайк\n"
+            "🚩 Жалоба — только если реально нарушают\n"
+            "🚫 Реклама и спам — бан без предупреждений\n\n"
+            "Всё просто. Жми кнопку и заполняй анкету 👇"
         ),
         "reg_name_prompt": "📝 Как тебя зовут?",
         "reg_age_prompt": "🎂 Сколько тебе лет?",
@@ -200,21 +207,18 @@ TEXTS = {
         # Тексты — профиль
         "profile_not_filled": "Анкета не заполнена. Нажми '🔍 По анкете'",
         "profile_text": (
-            "👤 Профиль{badge}:\n"
-            "Имя: {name}\n"
-            "Возраст: {age}\n"
-            "Пол: {gender}\n"
-            "Режим: {mode}\n"
-            "Интересы: {interests}\n\n"
-            "⭐ Рейтинг: {rating} | 👍 {likes}\n"
-            "💬 Чатов: {chats}\n"
+            "👤 {name}{badge}\n"
+            "━━━━━━━━━━━━━━━\n"
+            "{age} лет  ·  {gender}  ·  {mode}\n"
+            "🎯 {interests}\n\n"
+            "⭐ {rating}  ·  👍 {likes}  ·  💬 {chats} чатов\n"
             "{level_info}\n"
             "{streak_info}\n"
-            "{progress_info}\n\n"
-            "⚠️ Предупреждений: {warns}\n"
-            "💎 Статус: {premium}"
+            "{progress_info}\n"
+            "{warns_line}"
+            "💎 {premium}"
         ),
-        "profile_upgrade": "\n\n⭐ Upgrade до Premium — приоритет, больше AI, без рекламы!",
+        "profile_upgrade": "\n\n💎 С Premium тебя находят первым — попробуй!",
         "premium_eternal": "{tier} (вечный)",
         "premium_until_date": "{tier} до {until}",
         "premium_none": "Нет",
@@ -232,7 +236,7 @@ TEXTS = {
         "edit_interests_done": "✅ Интересы обновлены!",
         "edit_done": "Готово!",
         # Тексты — настройки
-        "settings_title": "⚙️ Настройки поиска:",
+        "settings_title": "⚙️ Настрой свой поиск:",
         "settings_gender_prompt": "👤 Кого хочешь искать?",
         "settings_gender_locked": "🔒 Фильтр пола в Флирте и Kink — только Premium!",
         "settings_premium_only": "🔒 Только для Premium! Купи через /premium",
@@ -243,12 +247,10 @@ TEXTS = {
         "settings_gender_saved": "✅ Фильтр по полу сохранён!",
         # Тексты — статистика
         "stats_text": (
-            "📊 Твоя статистика:\n\n"
-            "💬 Всего чатов: {total_chats}\n"
-            "👍 Получено лайков: {likes}\n"
-            "⭐ Рейтинг: {rating}\n"
-            "⚠️ Предупреждений: {warns}\n"
-            "📅 Дней в боте: {days}\n"
+            "📊 Твоя история в MatchMe\n\n"
+            "💬 {total_chats} чатов  ·  👍 {likes} лайков  ·  ⭐ {rating}\n"
+            "📅 С нами {days} дней\n"
+            "{warns_line}"
             "{premium}"
         ),
         "stats_premium_eternal": "⭐ Premium: Вечный",
@@ -260,25 +262,24 @@ TEXTS = {
         "premium_title": (
             "⭐ MatchMe Premium\n\n"
             "{status}"
-            "Общайся без границ. Находи людей быстрее.\n"
-            "Открой VIP-персонажей, автоперевод и поиск без очереди.\n\n"
-            "Выбери тариф:"
+            "Те, кто с Premium, находят собеседника в 3 раза быстрее.\n"
+            "Без рекламы. Без очередей. С доступом ко всем AI-персонажам.\n\n"
+            "Выбери свой тариф:"
         ),
         "premium_status_eternal": "✅ Сейчас: {tier} (вечный)\n\n",
         "premium_status_until": "✅ Сейчас: {tier} до {until}\n\n",
         "premium_info": (
-            "⭐ Что входит в Premium:\n\n"
-            "🤖 Basic ИИ — 100 сообщений/день\n"
-            "🔥 VIP персонажи — 50 сообщений/день\n"
-            "🔥 VIP+ персонажи (18+) — 50 сообщений/день\n"
-            "🌐 Автоперевод в чатах\n"
-            "🚀 Приоритет в поиске\n"
-            "🔇 Без рекламы\n"
-            "⭐ Бейдж Premium в профиле"
+            "⭐ Что даёт Premium:\n\n"
+            "🚀 Тебя находят первым — приоритет в очереди поиска\n"
+            "🤖 Больше AI — 100 сообщений/день с Basic, 50/день с VIP и VIP+\n"
+            "🔥 Эксклюзивные персонажи — VIP и VIP+ (18+) открыты только тебе\n"
+            "🌐 Автоперевод — общайся с иностранцами без барьеров\n"
+            "🔇 Ноль рекламы — ничего лишнего\n"
+            "⭐ Бейдж Premium — собеседники видят, что ты серьёзно настроен"
         ),
         "premium_activated": "🎉 {tier} активирован!\n\n📦 Тариф: {label}\n📅 До {until}\n\n{benefits}",
         "premium_unknown_plan": "Неизвестный тариф",
-        "benefit_premium": "Basic ИИ (100/день), VIP и VIP+ персонажи (50/день), автоперевод, приоритет, без рекламы!",
+        "benefit_premium": "Приоритет в поиске, все AI-персонажи, автоперевод, без рекламы — полный доступ!",
         # Тексты — сброс профиля
         "reset_confirm": (
             "⚠️ Полный сброс профиля!\n\n"
@@ -286,39 +287,39 @@ TEXTS = {
             "❗ Бан, предупреждения и Premium сохранятся.\n\nТы уверен?"
         ),
         "reset_done": "✅ Профиль сброшен!",
-        "reset_refill": "👋 Нажми '🔍 По анкете' чтобы заполнить анкету заново.",
+        "reset_refill": "👋 Нажми '🔍 Подбор по анкете' чтобы заполнить анкету заново.",
         "reset_cancelled": "❌ Сброс отменён.",
         "reset_back": "Возврат в меню.",
         # Тексты — помощь
         "help_text": (
-            "🆘 Помощь MatchMe:\n\n"
-            "⚡ Поиск — быстрый анонимный поиск\n"
-            "🔍 По анкете — по режиму и интересам\n"
-            "🤖 ИИ чат — поговори с ИИ\n"
+            "Как тут всё устроено:\n\n"
+            "🔍 Найти собеседника\n"
+            "🎲 Случайный чат — мгновенный анонимный поиск\n"
+            "🔍 Подбор по анкете — с учётом режима и интересов\n"
+            "🤖 ИИ чат — если хочешь поболтать прямо сейчас\n\n"
+            "💬 Во время чата\n"
+            "⏭ Следующий — переключиться на другого\n"
+            "🎲 Тема — подкинет о чём поговорить\n"
+            "👍 Лайк — если человек понравился\n"
+            "❌ Стоп — завершить разговор\n"
+            "🚩 Жалоба — если что-то не так\n\n"
             "📊 /stats — твоя статистика\n"
-            "⭐ /premium — Premium подписка\n\n"
-            "В чате:\n"
-            "⏭ Следующий — другой собеседник\n"
-            "❌ Стоп — завершить чат\n"
-            "🎲 Дай тему — случайная тема\n"
-            "👍 Лайк — поднять рейтинг\n"
-            "🚩 Жалоба — при нарушениях\n\n"
-            "/reset — сбросить профиль\n"
-            "Если что-то сломалось — /start"
+            "⭐ /premium — подписка\n"
+            "/reset — начать профиль заново\n"
+            "Что-то сломалось? Жми /start"
         ),
         "unavailable": "⚠️ Сейчас недоступно — {reason}.",
         "no_partner_wait": (
-            "⏳ Поиск идёт дольше обычного...\n\n"
-            "💡 Пока ждёшь — пообщайся с {name}!\n"
-            "AI собеседник ответит моментально 🤖"
+            "Поиск затянулся... Но есть идея 💡\n\n"
+            "Пока ждёшь — поболтай с {name}!\n"
+            "Отвечает моментально и всегда в настроении 🤖"
         ),
         "upsell": (
-            "💬 Понравился собеседник?\n\n"
-            "С Premium ты найдёшь следующего в 3 раза быстрее.\n"
-            "VIP-персонажи, автоперевод, без рекламы.\n"
-            "Попробуй — почувствуй разницу."
+            "Хороший чат? С Premium следующий будет ещё быстрее 🚀\n\n"
+            "Приоритет в поиске, VIP-персонажи, без рекламы.\n"
+            "Пока думаешь — кто-то уже общается на твоём месте."
         ),
-        "ad_message": "📢 Здесь могла быть ваша реклама\n\n⭐ Купи Premium и убери рекламу навсегда!",
+        "ad_message": "📢 Рекламная пауза\n\nНадоело? С Premium рекламы нет — вообще никакой.\n⭐ /premium",
         # --- Реклама: нейтральная (все режимы) ---
         "ad_dzen_1": (
             "🔓 YouTube, TikTok и другие сервисы без блокировок?\n\n"
@@ -516,9 +517,11 @@ TEXTS = {
         "bot_restarted": "🔄 Бот обновлён. Твой чат восстановлен!",
         "chat_start": "✅ Начинайте общение!",
         "partner_found": (
-            "👤 Собеседник найден!{badge}\n"
-            "Имя: {name}\nВозраст: {age}\nПол: {gender}\n"
-            "Режим: {mode}\nИнтересы: {interests}\n⭐ Рейтинг: {rating}"
+            "✨ Собеседник найден!{badge}\n"
+            "━━━━━━━━━━━━━━━\n"
+            "{name}  ·  {age}  ·  {gender}\n"
+            "🎯 {interests}\n"
+            "⭐ {rating}"
         ),
         # Настройки — инлайн кнопки
         "settings_mode_label": "📌 Режим: {mode}",
@@ -709,30 +712,34 @@ TEXTS = {
         # Auto-topic
         "auto_topic": "💡 Тишина в чате? Вот тема для разговора:\n\n{topic}",
         # Streak reminder
-        "streak_reminder": "🔥 Твой стрик — {days} дн.! Зайди сегодня, чтобы не потерять его.",
-        "streak_lost": "💔 Стрик сброшен... Начни новый заходя каждый день!",
+        "streak_reminder": "🔥 {days} дней подряд — не ломай серию! Загляни сегодня и продолжи.",
+        "streak_lost": "Стрик обнулился, ну и ладно 🤷 Новый можно начать прямо сейчас!",
         # AI miss-you
-        "ai_miss_you": "{emoji} {name} скучает по тебе! Зайди поболтать 💬",
+        "ai_miss_you": "{emoji} {name} думает о тебе... Загляни, а? 💬",
         # Onboarding
         "welcome_tour": (
-            "👋 Добро пожаловать в MatchMe!\n\n"
-            "Вот что тебя ждёт:\n"
-            "🔍 Анонимные чаты с реальными людьми\n"
-            "🤖 13 AI-персонажей с разными характерами\n"
-            "📸 Они видят фото и слышат голосовые!\n"
-            "🔥 Стрики и уровни за активность\n"
-            "🎁 Дари Premium друзьям\n\n"
-            "Заполни анкету и начни общение!"
+            "Окей, коротко — что тут можно:\n\n"
+            "💬 Анонимные чаты с живыми людьми — подбор за секунды\n"
+            "🤖 AI-собеседники — отвечают мгновенно, у каждого свой характер\n"
+            "📸 Они видят твои фото и слышат голосовые\n\n"
+            "Заполни короткую анкету — и вперёд!"
         ),
         # Smart recommendation
         "ai_recommended": "💡 Тебе может понравиться {emoji} {name} — попробуй!",
         "ai_your_favorites": "⭐ Твои любимые:",
+        # After-chat combined message
+        "chat_ended_rate": "Чат завершён — как тебе собеседник?",
+        # AI character unlock
+        "ai_unlock_vip_plus": "🔒 Открыть 5 VIP+ персонажей",
     },
 
     "en": {
         "welcome": (
-            "👋 Hi! I'm MatchMe — anonymous chat for socializing, flirting and meeting new people.\n\n"
-            "Choose your language / Выбери язык / Elige idioma 👇"
+            "Hey 👋\n\n"
+            "I'm MatchMe — where people meet blindly.\n"
+            "Anonymous. Real. Sometimes bold.\n\n"
+            "Ready? Pick your language first 👇\n"
+            "Выбери язык / Elige idioma"
         ),
         "privacy": (
             "🔒 MatchMe Privacy Policy\n\n"
@@ -753,8 +760,9 @@ TEXTS = {
             "Press /start to try again."
         ),
         "channel_bonus": (
-            "🎁 Subscribe to our channel and get 3 days of Premium for free!\n\n"
-            "Updates, news and useful content inside 😄"
+            "⭐ 3 days of Premium for free — just subscribe to the channel!\n\n"
+            "Priority search, VIP characters, no ads.\n"
+            "Tap and claim it 👇"
         ),
         "channel_not_subscribed": "You haven't subscribed to the channel yet!",
         "channel_bonus_used": "You've already received the bonus!",
@@ -775,15 +783,15 @@ TEXTS = {
         ),
         "rules_accepted": "✅ Rules accepted! Welcome to MatchMe! 🎉",
         "rules_choose_lang": "👆 Choose a language to continue.",
-        "welcome_back": "👋 Welcome back to MatchMe!{badge}",
+        "welcome_back": "Welcome back!{badge} It was kinda boring without you 😏",
         "welcome_new": "👋 Welcome to MatchMe!{badge}",
         "welcome_intro": (
-            "Hey, {name}! 👋\n\n"
-            "MatchMe — anonymous dating chat.\n"
-            "Chat, flirt, find people who match your vibe.\n"
-            "AI companions, live chats, full anonymity.\n\n"
-            "📄 Above — our rules and privacy policy.\n"
-            "Tap below to accept and start!"
+            "{name}, we've been expecting you 😏\n\n"
+            "Imagine: you open a chat — and in 10 seconds you're already talking to someone new.\n"
+            "Nobody knows who you are. You don't know who you'll meet.\n"
+            "That's the whole point.\n\n"
+            "📄 Above — rules and privacy policy.\n"
+            "Hit the button and let's go!"
         ),
         "btn_accept_all": "✅ I accept",
         "banned_permanent": "🚫 You are permanently banned.",
@@ -795,8 +803,8 @@ TEXTS = {
         "btn_check_channel": "✅ Check subscription",
         "btn_skip_channel": "⏭ Skip",
         # Buttons — main menu
-        "btn_search": "⚡ Search",
-        "btn_find": "🔍 By profile",
+        "btn_search": "🎲 Random chat",
+        "btn_find": "🔍 Match by profile",
         "btn_ai_chat": "🤖 AI Chat",
         "btn_profile": "👤 Profile",
         "btn_settings": "⚙️ Settings",
@@ -839,16 +847,16 @@ TEXTS = {
         "gender_female": "Girl 👩",
         "gender_other": "Other ⚧",
         # Search
-        "searching_anon": "⚡ Looking for an anonymous partner...",
-        "connected": "👤 Connected! Good luck! 🎉",
+        "searching_anon": "🔍 Finding someone interesting for you...",
+        "connected": "It's a match! You're anonymous — go for it 😉",
         "queue_info": "👥 In {mode} mode: {count} people.\n{status}",
         "queue_searching": "🔍 Searching...",
         "queue_priority": "🚀 Priority search ⭐",
         "search_cancelled": "❌ Search cancelled.",
         "not_searching": "You are not searching.",
         # Chat
-        "chat_ended": "💔 Chat ended.",
-        "partner_left": "😔 Your partner left the chat.",
+        "chat_ended": "Chat's over. Ready for the next one? 😏",
+        "partner_left": "Partner left — happens! Plenty more interesting people ahead 💫",
         "not_in_chat": "You are not in a chat.",
         "spam_warning": "⚠️ Don't spam!",
         "like_sent": "👍 Like sent!",
@@ -856,15 +864,19 @@ TEXTS = {
         "like_already": "👍 You already liked this partner!",
         "topic_sent": "🎲 Conversation topic:\n\n{topic}",
         "topic_received": "🎲 Your partner suggests a topic:\n\n{topic}",
-        "mutual_match": "🎉 Mutual interest! Private anonymous chat opened.\nYou are still anonymous to each other.",
-        "mutual_request_sent": "❤️ Request sent!\nIf your partner wants too — you'll be connected within 10 minutes.",
-        "mutual_request_received": "💌 Your partner wants to continue chatting!\nReply if you want to too:",
+        "mutual_match": (
+            "🎉 It's a match! You both wanted to continue.\n\n"
+            "Private anonymous chat is open — you're still incognito.\n"
+            "Come on, don't be shy 😏"
+        ),
+        "mutual_request_sent": "❤️ Request sent!\nIf the interest is mutual — you'll be connected within 10 minutes.\nFingers crossed 🤞",
+        "mutual_request_received": "💌 Oh! Your partner wants to keep chatting with you!\nThis doesn't happen often — don't keep them waiting 👇",
         "mutual_no_response": "😔 Your partner didn't respond to the continuation request.",
         "mutual_decline_ok": "Okay, no problem!",
         "mutual_already_in_chat": "😔 One of you is already in a chat.",
         "partner_busy": "😔 Your partner is already chatting with someone else.",
-        "after_chat_propose": "Did you like your partner?\nSuggest continuing anonymously — if they agree, you'll be connected 😊",
-        "inactivity_end": "⏰ Chat ended — 7 min of inactivity.",
+        "after_chat_propose": "Liked your partner? Don't let them slip away 👇\nSuggest continuing — if the interest is mutual, you'll be reconnected.",
+        "inactivity_end": "Chat closed — 7 min of silence ⏰\nNo worries, we'll find someone new when you're ready!",
         "inactivity_ai_end": "⏰ AI chat ended — 10 min of inactivity.",
         # Moderation — user notifications
         "mod_warn": "⚠️ Warning: {reason}\nNext violation will result in a ban.",
