@@ -295,6 +295,19 @@ async def init_db():
             await conn.execute("CREATE INDEX IF NOT EXISTS ad_events_created ON ad_events(created_at)")
         except Exception: pass
 
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS chat_ratings (
+                id SERIAL PRIMARY KEY,
+                uid BIGINT NOT NULL,
+                partner_uid BIGINT NOT NULL,
+                stars INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        try:
+            await conn.execute("CREATE INDEX IF NOT EXISTS chat_ratings_uid ON chat_ratings(uid)")
+        except Exception: pass
+
         await conn.execute(
             """INSERT INTO users (uid, premium_until, show_premium, accepted_privacy, accepted_rules)
                VALUES ($1, 'permanent', TRUE, TRUE, TRUE)
@@ -1367,16 +1380,24 @@ async def end_chat(uid, state, go_next=False):
         gift_prompt_sent.discard((uid, partner))
         gift_prompt_sent.discard((partner, uid))
 
-        # Сообщение о завершении + кнопка mutual match
+        # Сообщение о завершении + оценка + mutual match
         my_lang = await get_lang(uid)
         p_lang = await get_lang(partner)
+        rate_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=f"{'⭐' * i}", callback_data=f"rate:{partner}:{i}") for i in range(1, 6)],
+        ])
+        p_rate_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=f"{'⭐' * i}", callback_data=f"rate:{uid}:{i}") for i in range(1, 6)],
+        ])
         try:
             await bot.send_message(uid, t(my_lang, "chat_ended"), reply_markup=kb_main(my_lang))
+            await bot.send_message(uid, t(my_lang, "rate_chat"), reply_markup=rate_kb)
             await bot.send_message(uid, t(my_lang, "after_chat_propose"), reply_markup=kb_after_chat(partner, my_lang))
         except Exception: pass
 
         try:
             await bot.send_message(partner, t(p_lang, "partner_left"), reply_markup=kb_main(p_lang))
+            await bot.send_message(partner, t(p_lang, "rate_chat"), reply_markup=p_rate_kb)
             await bot.send_message(partner, t(p_lang, "after_chat_propose"), reply_markup=kb_after_chat(uid, p_lang))
             pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
             await FSMContext(dp.storage, key=pkey).clear()
@@ -2315,6 +2336,11 @@ async def reg_mode(message: types.Message, state: FSMContext):
     await update_user(uid, mode=mode)
     await state.clear()
     await message.answer(t(lang, "reg_done"), reply_markup=kb_main(lang))
+    # Онбординг-тур для новых пользователей
+    u_check = await get_user(uid)
+    if u_check and u_check.get("total_chats", 0) == 0:
+        await message.answer(t(lang, "welcome_tour"))
+        await log_ab_event(uid, "onboarding_shown")
     # Автозапуск поиска
     q_len = len(get_queue(mode, False)) + len(get_queue(mode, True))
     status = t(lang, "queue_searching")
@@ -2342,8 +2368,12 @@ async def reg_interest(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.edit_text(t(lang, "reg_done"))
         except Exception: pass
         await callback.answer()
+        # Онбординг-тур для новых пользователей
         u = await get_user(uid)
-        mode = u.get("mode", "simple")
+        if u and u.get("total_chats", 0) == 0:
+            await callback.message.answer(t(lang, "welcome_tour"))
+            await log_ab_event(uid, "onboarding_shown")
+        mode = u.get("mode", "simple") if u else "simple"
         q_len = len(get_queue(mode, False)) + len(get_queue(mode, True))
         await callback.message.answer(
             t(lang, "queue_info", mode=t(lang, f"mode_{mode}"), count=q_len, status=t(lang, "queue_searching")),
@@ -2739,6 +2769,23 @@ async def show_profile(message: types.Message, state: FSMContext):
     badge = " ⭐" if (user_tier and show_badge) else ""
     raw_interests = (u.get("interests") or "").split(",")
     interests_str = ", ".join(t(lang, k.strip()) for k in raw_interests if k.strip()) or "—"
+    # Level / streak / progress
+    level = u.get("level", 0)
+    level_name = t(lang, f"level_{level}")
+    level_info = t(lang, "profile_level", level=level, name=level_name)
+    streak = u.get("streak_days", 0)
+    streak_info = t(lang, "profile_streak", days=streak) if streak > 0 else ""
+    total_chats = u.get("total_chats", 0)
+    if level < len(LEVEL_THRESHOLDS) - 1:
+        next_threshold = LEVEL_THRESHOLDS[level + 1]
+        current_threshold = LEVEL_THRESHOLDS[level]
+        progress_current = total_chats - current_threshold
+        progress_needed = next_threshold - current_threshold
+        pct = min(round(progress_current / max(progress_needed, 1) * 100), 99)
+        bar = "▓" * (pct // 10) + "░" * (10 - pct // 10)
+        progress_info = t(lang, "profile_progress", current=total_chats, next=next_threshold, pct=pct) + f"\n{bar}"
+    else:
+        progress_info = t(lang, "profile_progress_max")
     profile_text = t(lang, "profile_text",
         badge=badge,
         name=u.get("name", "—"),
@@ -2748,9 +2795,12 @@ async def show_profile(message: types.Message, state: FSMContext):
         interests=interests_str,
         rating=get_rating(u),
         likes=u.get("likes", 0),
-        chats=u.get("total_chats", 0),
+        chats=total_chats,
         warns=u.get("warn_count", 0),
-        premium=premium_status
+        premium=premium_status,
+        level_info=level_info,
+        streak_info=streak_info,
+        progress_info=progress_info,
     )
     if not user_tier:
         profile_text += t(lang, "profile_upgrade")
@@ -3007,6 +3057,36 @@ async def cmd_restart(message: types.Message, state: FSMContext):
 async def noop(callback: types.CallbackQuery):
     await callback.answer()
 
+
+@dp.callback_query(F.data.startswith("rate:"), StateFilter("*"))
+async def rate_chat(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    lang = await get_lang(uid)
+    parts = callback.data.split(":")
+    partner_uid = int(parts[1])
+    stars = int(parts[2])
+    try:
+        async with db_pool.acquire() as conn:
+            exists = await conn.fetchval(
+                "SELECT 1 FROM chat_ratings WHERE uid=$1 AND partner_uid=$2 AND created_at > NOW() - INTERVAL '1 minute'",
+                uid, partner_uid
+            )
+            if exists:
+                await callback.answer(t(lang, "rate_already"), show_alert=True)
+                return
+            await conn.execute(
+                "INSERT INTO chat_ratings (uid, partner_uid, stars) VALUES ($1, $2, $3)",
+                uid, partner_uid, stars
+            )
+        try:
+            await callback.message.edit_text(t(lang, "rate_thanks", stars=stars))
+        except Exception:
+            pass
+        await callback.answer(t(lang, "rate_thanks", stars=stars))
+    except Exception:
+        await callback.answer()
+
+
 # ====================== ЗАПУСК ======================
 async def main():
     await init_db()
@@ -3057,12 +3137,14 @@ async def main():
         AI_CHARACTERS=ai_chat.AI_CHARACTERS,
         PARTNER_ADS=PARTNER_ADS,
         filter_ads=_filter_ads,
+        get_chat_topics=get_chat_topics,
     )
     dp.include_router(ai_chat.router)
     dp.include_router(admin_module.router)
     asyncio.create_task(admin_module.inactivity_checker())
     asyncio.create_task(admin_module.reminder_task())
     asyncio.create_task(admin_module.winback_task())
+    asyncio.create_task(admin_module.streak_and_ai_push_task())
     logger.info("MatchMe запущен!")
     await dp.start_polling(bot)
 

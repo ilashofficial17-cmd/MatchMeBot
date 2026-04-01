@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from datetime import datetime
 
 from aiogram import Router, types, F
@@ -1452,11 +1453,54 @@ async def ask_ai(character_id: str, history: list, user_message: str,
 
 
 # ====================== AI MENU ======================
+async def _get_ai_recommendations(uid: int, lang: str, mode: str) -> str:
+    """Build recommendation text: favorites + suggested new character."""
+    if not _db_pool:
+        return ""
+    try:
+        async with _db_pool.acquire() as conn:
+            # Top 3 most-used characters
+            favorites = await conn.fetch("""
+                SELECT character_id, COUNT(*) as cnt
+                FROM ai_history WHERE uid=$1 AND role='user'
+                GROUP BY character_id ORDER BY cnt DESC LIMIT 3
+            """, uid)
+            if not favorites:
+                return ""
+            fav_ids = {r["character_id"] for r in favorites}
+            # Build favorites line
+            fav_parts = []
+            for r in favorites:
+                char = AI_CHARACTERS.get(r["character_id"])
+                if char:
+                    fav_parts.append(f"{char['emoji']} {t(lang, char['name_key'])}")
+            text = ""
+            if fav_parts:
+                text = t(lang, "ai_your_favorites") + " " + ", ".join(fav_parts) + "\n"
+            # Suggest a character they haven't tried from their mode
+            mode_blocks = {"simple": "simple", "flirt": "flirt", "kink": "kink"}
+            block = mode_blocks.get(mode, "simple")
+            untried = [
+                (cid, c) for cid, c in AI_CHARACTERS.items()
+                if cid not in fav_ids and c.get("block") == block
+            ]
+            if untried:
+                cid, char = random.choice(untried)
+                text += t(lang, "ai_recommended", emoji=char["emoji"], name=t(lang, char["name_key"]))
+            return text
+    except Exception:
+        return ""
+
+
 async def _show_ai_menu(message: types.Message, state: FSMContext, uid: int):
     lang = await _lang(uid)
     user_tier = await _get_premium_tier(uid)
     u = await _get_user(uid)
     mode = u.get("mode", "simple") if u else "simple"
+    # Smart recommendation
+    rec_text = await _get_ai_recommendations(uid, lang, mode)
+    if rec_text:
+        await message.answer(rec_text)
     await state.set_state(AIChat.choosing)
     await state.update_data(ai_show_mode=mode)
     await message.answer(t(lang, "ai_menu"), reply_markup=kb_ai_characters(user_tier, mode, lang))

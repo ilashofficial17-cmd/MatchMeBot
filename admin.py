@@ -66,18 +66,20 @@ _remove_chat_from_db = None
 _AI_CHARACTERS = None
 _PARTNER_ADS = None
 _filter_ads = None
+_get_chat_topics = None
+_auto_topic_sent = set()  # (uid, partner) pairs that got auto-topic
 
 
 def init(*, bot, dp, db_pool, admin_id, active_chats, ai_sessions, last_ai_msg,
          pairing_lock, get_all_queues, chat_logs, last_msg_time, msg_count,
          mutual_likes, clear_chat_log, get_user, update_user, increment_user,
          get_rating, remove_chat_from_db, AI_CHARACTERS,
-         PARTNER_ADS=None, filter_ads=None):
+         PARTNER_ADS=None, filter_ads=None, get_chat_topics=None):
     global _bot, _dp, _db_pool, _admin_id, _active_chats, _ai_sessions
     global _last_ai_msg, _pairing_lock, _get_all_queues, _chat_logs
     global _last_msg_time, _msg_count, _mutual_likes, _clear_chat_log
     global _get_user, _update_user, _increment_user, _get_rating
-    global _remove_chat_from_db, _AI_CHARACTERS, _PARTNER_ADS, _filter_ads
+    global _remove_chat_from_db, _AI_CHARACTERS, _PARTNER_ADS, _filter_ads, _get_chat_topics
     _bot = bot
     _dp = dp
     _db_pool = db_pool
@@ -100,6 +102,7 @@ def init(*, bot, dp, db_pool, admin_id, active_chats, ai_sessions, last_ai_msg,
     _AI_CHARACTERS = AI_CHARACTERS
     _PARTNER_ADS = PARTNER_ADS or []
     _filter_ads = filter_ads
+    _get_chat_topics = get_chat_topics
 
 
 async def _get_lang(uid: int) -> str:
@@ -284,6 +287,7 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
                 [InlineKeyboardButton(text="📊 Аналитика рекламы", callback_data="mkt:ad_stats")],
                 [InlineKeyboardButton(text="🤖 Аналитика AI-чатов", callback_data="mkt:ai_stats")],
                 [InlineKeyboardButton(text="💰 Доходы", callback_data="mkt:revenue")],
+                [InlineKeyboardButton(text="⭐ Оценки чатов", callback_data="mkt:ratings")],
                 [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")],
             ])
         )
@@ -514,6 +518,32 @@ async def marketing_handler(callback: types.CallbackQuery):
         text += f"  Активировано: {trials_total}\n"
         text += f"  Показано: {trials_conv}\n"
         text += f"  Конверсия: {round(trials_total / max(trials_conv, 1) * 100, 1)}%"
+
+        await callback.message.answer(text)
+
+    elif action == "ratings":
+        async with _db_pool.acquire() as conn:
+            total_ratings = await conn.fetchval("SELECT COUNT(*) FROM chat_ratings") or 0
+            avg_rating = await conn.fetchval("SELECT ROUND(AVG(stars)::numeric, 2) FROM chat_ratings") or 0
+            dist = await conn.fetch(
+                "SELECT stars, COUNT(*) as cnt FROM chat_ratings GROUP BY stars ORDER BY stars"
+            )
+            avg_week = await conn.fetchval(
+                "SELECT ROUND(AVG(stars)::numeric, 2) FROM chat_ratings WHERE created_at > NOW() - INTERVAL '7 days'"
+            ) or 0
+            total_week = await conn.fetchval(
+                "SELECT COUNT(*) FROM chat_ratings WHERE created_at > NOW() - INTERVAL '7 days'"
+            ) or 0
+
+        text = f"⭐ Оценки чатов\n\n"
+        text += f"Всего оценок: {total_ratings}\n"
+        text += f"Средняя: {avg_rating} ⭐\n"
+        text += f"За 7 дней: {total_week} оценок, ср. {avg_week} ⭐\n\n"
+        if dist:
+            text += "Распределение:\n"
+            for r in dist:
+                bar = "█" * r["cnt"] if r["cnt"] <= 20 else "█" * 20 + f"..{r['cnt']}"
+                text += f"  {'⭐' * r['stars']}: {r['cnt']} {bar}\n"
 
         await callback.message.answer(text)
 
@@ -866,6 +896,33 @@ async def inactivity_checker():
         await asyncio.sleep(60)
         now = datetime.now()
 
+        # Авто-тема при тишине (2 мин без сообщений)
+        if _get_chat_topics:
+            for uid, partner in list(_active_chats.items()):
+                if uid < partner:
+                    chat_key = (min(uid, partner), max(uid, partner))
+                    if chat_key in _auto_topic_sent:
+                        continue
+                    last = max(
+                        _last_msg_time.get(uid, now - timedelta(minutes=10)),
+                        _last_msg_time.get(partner, now - timedelta(minutes=10))
+                    )
+                    silence = (now - last).total_seconds()
+                    if 120 < silence < 300:  # 2-5 мин тишины
+                        _auto_topic_sent.add(chat_key)
+                        try:
+                            uid_lang = await _get_lang(uid)
+                            p_lang = await _get_lang(partner)
+                            topics = _get_chat_topics(uid_lang)
+                            idx = random.randrange(len(topics))
+                            topic = topics[idx]
+                            await _bot.send_message(uid, t(uid_lang, "auto_topic", topic=topic))
+                            p_topics = _get_chat_topics(p_lang)
+                            p_topic = p_topics[idx] if idx < len(p_topics) else topic
+                            await _bot.send_message(partner, t(p_lang, "auto_topic", topic=p_topic))
+                        except Exception:
+                            pass
+
         # Завершаем неактивные чаты
         to_end = []
         for uid, partner in list(_active_chats.items()):
@@ -879,6 +936,7 @@ async def inactivity_checker():
                 _active_chats.pop(partner, None)
             await _remove_chat_from_db(uid, partner)
             _clear_chat_log(uid, partner)
+            _auto_topic_sent.discard((min(uid, partner), max(uid, partner)))
             for chat_uid in (uid, partner):
                 try:
                     key = StorageKey(bot_id=_bot.id, chat_id=chat_uid, user_id=chat_uid)
@@ -1002,6 +1060,80 @@ async def reminder_task():
                 logger.info(f"Напоминания: отправлено {sent}")
         except Exception as e:
             logger.error(f"reminder_task error: {e}")
+
+
+# ====================== СТРИК-НАПОМИНАНИЯ + AI MISS-YOU ======================
+async def streak_and_ai_push_task():
+    """Runs every 4 hours: streak reminders + personalized AI push."""
+    while True:
+        await asyncio.sleep(14400)  # 4 часа
+        try:
+            async with _db_pool.acquire() as conn:
+                # 1. Стрик-напоминания: юзеры со стриком >= 3, не заходили сегодня
+                streak_users = await conn.fetch("""
+                    SELECT uid, lang, streak_days, streak_last_date
+                    FROM users
+                    WHERE streak_days >= 3
+                    AND streak_last_date = CURRENT_DATE - 1
+                    AND last_seen::date < CURRENT_DATE
+                    AND ban_until IS NULL
+                    AND (last_reminder IS NULL OR last_reminder < NOW() - INTERVAL '12 hours')
+                    LIMIT 50
+                """)
+                sent_streak = 0
+                for row in streak_users:
+                    try:
+                        u_lang = row.get("lang") or "ru"
+                        await _bot.send_message(
+                            row["uid"],
+                            t(u_lang, "streak_reminder", days=row["streak_days"]),
+                            reply_markup=kb_main(u_lang)
+                        )
+                        await conn.execute(
+                            "UPDATE users SET last_reminder = NOW() WHERE uid = $1", row["uid"]
+                        )
+                        sent_streak += 1
+                    except Exception:
+                        pass
+
+                # 2. AI miss-you: юзеры с историей AI, не заходили 2+ дня
+                ai_users = await conn.fetch("""
+                    SELECT DISTINCT ON (h.uid) h.uid, h.character_id, u.lang
+                    FROM ai_history h
+                    JOIN users u ON u.uid = h.uid
+                    WHERE u.last_seen < NOW() - INTERVAL '48 hours'
+                    AND u.last_seen > NOW() - INTERVAL '14 days'
+                    AND u.ban_until IS NULL
+                    AND (u.last_reminder IS NULL OR u.last_reminder < NOW() - INTERVAL '24 hours')
+                    AND h.role = 'user'
+                    GROUP BY h.uid, h.character_id, u.lang
+                    ORDER BY h.uid, COUNT(*) DESC
+                    LIMIT 30
+                """)
+                sent_ai = 0
+                for row in ai_users:
+                    try:
+                        char = (_AI_CHARACTERS or {}).get(row["character_id"])
+                        if not char:
+                            continue
+                        u_lang = row.get("lang") or "ru"
+                        char_name = t(u_lang, char["name_key"])
+                        await _bot.send_message(
+                            row["uid"],
+                            t(u_lang, "ai_miss_you", emoji=char["emoji"], name=char_name),
+                            reply_markup=kb_main(u_lang)
+                        )
+                        await conn.execute(
+                            "UPDATE users SET last_reminder = NOW() WHERE uid = $1", row["uid"]
+                        )
+                        sent_ai += 1
+                    except Exception:
+                        pass
+
+            if sent_streak or sent_ai:
+                logger.info(f"Push: streak={sent_streak}, ai_miss={sent_ai}")
+        except Exception as e:
+            logger.error(f"streak_and_ai_push_task error: {e}")
 
 
 # ====================== WIN-BACK СИСТЕМА ======================

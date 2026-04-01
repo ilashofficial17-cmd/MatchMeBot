@@ -205,10 +205,12 @@ TEXTS = {
             "Возраст: {age}\n"
             "Пол: {gender}\n"
             "Режим: {mode}\n"
-            "Интересы: {interests}\n"
-            "⭐ Рейтинг: {rating}\n"
-            "👍 Лайков: {likes}\n"
+            "Интересы: {interests}\n\n"
+            "⭐ Рейтинг: {rating} | 👍 {likes}\n"
             "💬 Чатов: {chats}\n"
+            "{level_info}\n"
+            "{streak_info}\n"
+            "{progress_info}\n\n"
             "⚠️ Предупреждений: {warns}\n"
             "💎 Статус: {premium}"
         ),
@@ -695,6 +697,36 @@ TEXTS = {
         "level_3": "Звезда",
         "level_4": "Легенда",
         "level_5": "Мастер общения",
+        # Profile extras
+        "profile_level": "📊 Уровень: {level} — {name}",
+        "profile_streak": "🔥 Стрик: {days} дн.",
+        "profile_progress": "📈 До след. уровня: {current}/{next} чатов ({pct}%)",
+        "profile_progress_max": "📈 Максимальный уровень!",
+        # Chat rating
+        "rate_chat": "Как тебе этот чат?",
+        "rate_thanks": "Спасибо за оценку! ⭐{stars}",
+        "rate_already": "Ты уже оценил этот чат.",
+        # Auto-topic
+        "auto_topic": "💡 Тишина в чате? Вот тема для разговора:\n\n{topic}",
+        # Streak reminder
+        "streak_reminder": "🔥 Твой стрик — {days} дн.! Зайди сегодня, чтобы не потерять его.",
+        "streak_lost": "💔 Стрик сброшен... Начни новый заходя каждый день!",
+        # AI miss-you
+        "ai_miss_you": "{emoji} {name} скучает по тебе! Зайди поболтать 💬",
+        # Onboarding
+        "welcome_tour": (
+            "👋 Добро пожаловать в MatchMe!\n\n"
+            "Вот что тебя ждёт:\n"
+            "🔍 Анонимные чаты с реальными людьми\n"
+            "🤖 13 AI-персонажей с разными характерами\n"
+            "📸 Они видят фото и слышат голосовые!\n"
+            "🔥 Стрики и уровни за активность\n"
+            "🎁 Дари Premium друзьям\n\n"
+            "Заполни анкету и начни общение!"
+        ),
+        # Smart recommendation
+        "ai_recommended": "💡 Тебе может понравиться {emoji} {name} — попробуй!",
+        "ai_your_favorites": "⭐ Твои любимые:",
     },
 
     "en": {
@@ -898,10 +930,12 @@ TEXTS = {
             "Age: {age}\n"
             "Gender: {gender}\n"
             "Mode: {mode}\n"
-            "Interests: {interests}\n"
-            "⭐ Rating: {rating}\n"
-            "👍 Likes: {likes}\n"
+            "Interests: {interests}\n\n"
+            "⭐ Rating: {rating} | 👍 {likes}\n"
             "💬 Chats: {chats}\n"
+            "{level_info}\n"
+            "{streak_info}\n"
+            "{progress_info}\n\n"
             "⚠️ Warnings: {warns}\n"
             "💎 Status: {premium}"
         ),
@@ -1401,6 +1435,36 @@ TEXTS = {
         "level_3": "Star",
         "level_4": "Legend",
         "level_5": "Chat master",
+        # Profile extras
+        "profile_level": "📊 Level: {level} — {name}",
+        "profile_streak": "🔥 Streak: {days} days",
+        "profile_progress": "📈 Next level: {current}/{next} chats ({pct}%)",
+        "profile_progress_max": "📈 Max level reached!",
+        # Chat rating
+        "rate_chat": "How was this chat?",
+        "rate_thanks": "Thanks for rating! ⭐{stars}",
+        "rate_already": "You already rated this chat.",
+        # Auto-topic
+        "auto_topic": "💡 Silence in chat? Here's a topic:\n\n{topic}",
+        # Streak reminder
+        "streak_reminder": "🔥 Your streak is {days} days! Come back today to keep it alive.",
+        "streak_lost": "💔 Streak reset... Start a new one by visiting daily!",
+        # AI miss-you
+        "ai_miss_you": "{emoji} {name} misses you! Come chat 💬",
+        # Onboarding
+        "welcome_tour": (
+            "👋 Welcome to MatchMe!\n\n"
+            "Here's what awaits you:\n"
+            "🔍 Anonymous chats with real people\n"
+            "🤖 13 AI characters with unique personalities\n"
+            "📸 They can see your photos and hear voice messages!\n"
+            "🔥 Streaks and levels for activity\n"
+            "🎁 Gift Premium to friends\n\n"
+            "Fill out your profile and start chatting!"
+        ),
+        # Smart recommendation
+        "ai_recommended": "💡 You might like {emoji} {name} — try it!",
+        "ai_your_favorites": "⭐ Your favorites:",
     },
 
     "es": {
@@ -1604,10 +1668,12 @@ TEXTS = {
             "Edad: {age}\n"
             "Género: {gender}\n"
             "Modo: {mode}\n"
-            "Intereses: {interests}\n"
-            "⭐ Puntuación: {rating}\n"
-            "👍 Me gustas: {likes}\n"
+            "Intereses: {interests}\n\n"
+            "⭐ Puntuación: {rating} | 👍 {likes}\n"
             "💬 Chats: {chats}\n"
+            "{level_info}\n"
+            "{streak_info}\n"
+            "{progress_info}\n\n"
             "⚠️ Advertencias: {warns}\n"
             "💎 Estado: {premium}"
         ),
@@ -2094,6 +2160,36 @@ TEXTS = {
         "level_3": "Estrella",
         "level_4": "Leyenda",
         "level_5": "Maestro del chat",
+        # Profile extras
+        "profile_level": "📊 Nivel: {level} — {name}",
+        "profile_streak": "🔥 Racha: {days} días",
+        "profile_progress": "📈 Siguiente nivel: {current}/{next} chats ({pct}%)",
+        "profile_progress_max": "📈 ¡Nivel máximo alcanzado!",
+        # Chat rating
+        "rate_chat": "¿Cómo estuvo este chat?",
+        "rate_thanks": "¡Gracias por calificar! ⭐{stars}",
+        "rate_already": "Ya calificaste este chat.",
+        # Auto-topic
+        "auto_topic": "💡 ¿Silencio en el chat? Aquí tienes un tema:\n\n{topic}",
+        # Streak reminder
+        "streak_reminder": "🔥 ¡Tu racha es de {days} días! Entra hoy para no perderla.",
+        "streak_lost": "💔 Racha reiniciada... ¡Empieza una nueva entrando cada día!",
+        # AI miss-you
+        "ai_miss_you": "{emoji} ¡{name} te extraña! Ven a chatear 💬",
+        # Onboarding
+        "welcome_tour": (
+            "👋 ¡Bienvenido a MatchMe!\n\n"
+            "Esto es lo que te espera:\n"
+            "🔍 Chats anónimos con personas reales\n"
+            "🤖 13 personajes IA con personalidades únicas\n"
+            "📸 ¡Pueden ver tus fotos y escuchar mensajes de voz!\n"
+            "🔥 Rachas y niveles por actividad\n"
+            "🎁 Regala Premium a tus amigos\n\n"
+            "¡Completa tu perfil y empieza a chatear!"
+        ),
+        # Smart recommendation
+        "ai_recommended": "💡 Te puede gustar {emoji} {name} — ¡pruébalo!",
+        "ai_your_favorites": "⭐ Tus favoritos:",
     },
 }
 
