@@ -12,7 +12,7 @@ from aiogram.fsm.storage.base import StorageKey
 from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
     InlineKeyboardMarkup, InlineKeyboardButton, BotCommand,
-    LabeledPrice, PreCheckoutQuery
+    LabeledPrice, PreCheckoutQuery, BufferedInputFile, InputMediaDocument,
 )
 import asyncpg
 import moderation
@@ -162,6 +162,11 @@ async def init_db():
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
             except Exception: pass
+        # Migrate ai_character_media
+        try:
+            await conn.execute("ALTER TABLE ai_character_media ADD COLUMN IF NOT EXISTS hot_photo_file_id TEXT DEFAULT NULL")
+            await conn.execute("ALTER TABLE ai_character_media ADD COLUMN IF NOT EXISTS hot_gif_file_id TEXT DEFAULT NULL")
+        except Exception: pass
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS complaints_log (
@@ -223,6 +228,18 @@ async def init_db():
                 "CREATE INDEX IF NOT EXISTS ai_history_uid_char ON ai_history(uid, character_id)"
             )
         except Exception: pass
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_character_media (
+                character_id TEXT PRIMARY KEY,
+                gif_file_id TEXT DEFAULT NULL,
+                photo_file_id TEXT DEFAULT NULL,
+                blurred_file_id TEXT DEFAULT NULL,
+                hot_photo_file_id TEXT DEFAULT NULL,
+                hot_gif_file_id TEXT DEFAULT NULL,
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS ai_notes (
@@ -744,18 +761,30 @@ _LANG_WELCOME = (
     "🌐 Выбери язык / Choose language / Elige idioma 👇"
 )
 
+def _detect_lang(language_code: str | None) -> str:
+    """Auto-detect language from Telegram language_code."""
+    code = (language_code or "").lower()
+    if code.startswith("ru"):
+        return "ru"
+    if code.startswith("es"):
+        return "es"
+    return "en"
+
 async def unavailable(message: types.Message, lang: str, reason_key: str):
     await message.answer(t(lang, "unavailable", reason=t(lang, reason_key)))
 
 async def needs_onboarding(message: types.Message, state: FSMContext) -> bool:
-    """If user has no lang set, redirect to language selection. Returns True if redirected."""
+    """If user hasn't accepted rules, redirect to /start. Returns True if redirected."""
     uid = message.from_user.id
     await ensure_user(uid)
     u = await get_user(uid)
-    if not u or not u.get("lang"):
-        await state.set_state(LangSelect.choosing)
-        await message.answer(_LANG_WELCOME, reply_markup=kb_lang())
+    if not u or not u.get("accepted_rules") or not u.get("accepted_privacy"):
+        await cmd_start(message, state)
         return True
+    # Auto-detect lang if somehow missing
+    if not u.get("lang"):
+        lang = _detect_lang(message.from_user.language_code)
+        await update_user(uid, lang=lang)
     return False
 
 async def get_pending_complaints():
@@ -960,7 +989,7 @@ async def do_find(uid, state):
     if uid in active_chats:
         return False
     u = await get_user(uid)
-    if not u or not u.get("name") or not u.get("mode"): return False
+    if not u or not u.get("mode"): return False
     mode = u["mode"]
     my_lang = u.get("lang") or "ru"
     user_premium = await is_premium(uid)
@@ -1176,7 +1205,8 @@ async def end_chat(uid, state, go_next=False):
 
 async def _send_upsell_after_chat(uid, partner):
     """Умная система показа после чата:
-    Чат 1-2: ничего (даём привыкнуть)
+    Чат 1: предложить подписку на канал (3 дня Premium)
+    Чат 2: ничего
     Чат 3,6,9,...: upsell Premium
     Чат 5: триал Premium (одноразово)
     Чат 4,8,12,...: партнёрская реклама
@@ -1186,11 +1216,19 @@ async def _send_upsell_after_chat(uid, partner):
     for target_uid in (uid, partner):
         if target_uid in active_chats:
             continue
-        if await is_premium(target_uid):
-            continue
         u = await get_user(target_uid)
         chats = u.get("total_chats", 0) if u else 0
-        # Первые 2 чата — ничего, даём привыкнуть
+        # После 1-го чата — предложить подписку на канал
+        if chats == 1 and u and not u.get("channel_bonus_used") and not await is_premium(target_uid):
+            try:
+                lang = await get_lang(target_uid)
+                await bot.send_message(target_uid,
+                    t(lang, "channel_bonus"),
+                    reply_markup=kb_channel_bonus(lang))
+            except Exception: pass
+            continue
+        if await is_premium(target_uid):
+            continue
         if chats <= 2:
             continue
         # Триал Premium после 5-го чата
@@ -1355,7 +1393,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await ensure_user(uid)
 
     # Обработка реферальной ссылки /start ref_<uid>
-    args = message.text.split(maxsplit=1)
+    args = (message.text or "").split(maxsplit=1)
     if len(args) > 1 and args[1].startswith("ref_"):
         try:
             referrer_id = int(args[1][4:])
@@ -1366,8 +1404,20 @@ async def cmd_start(message: types.Message, state: FSMContext):
         except (ValueError, TypeError):
             pass
 
+    # Автоопределение языка
     u = await get_user(uid)
-    lang = (u.get("lang") or "ru") if u else "ru"
+    if not u or not u.get("lang"):
+        lang = _detect_lang(message.from_user.language_code)
+        await update_user(uid, lang=lang)
+    else:
+        lang = u.get("lang", "ru")
+
+    # Автозахват имени из Telegram
+    tg_name = (message.from_user.first_name or "User")[:30]
+    if not u or not u.get("name"):
+        await update_user(uid, name=tg_name)
+
+    u = await get_user(uid)
 
     banned, until = await is_banned(uid)
     if banned:
@@ -1377,35 +1427,103 @@ async def cmd_start(message: types.Message, state: FSMContext):
             await message.answer(t(lang, "banned_until", until=until.strftime('%H:%M %d.%m.%Y')))
         return
 
-    # Шаг 0: Выбор языка — всегда первый, если не выбран
-    if not u or not u.get("lang"):
-        await state.set_state(LangSelect.choosing)
-        await message.answer(_LANG_WELCOME, reply_markup=kb_lang())
+    # Уже всё принял — в меню
+    if u.get("accepted_rules") and u.get("accepted_privacy"):
+        badge = await get_premium_badge(uid)
+        await message.answer(t(lang, "welcome_back", badge=badge), reply_markup=kb_main(lang))
         return
 
-    # Шаг 1: Политика конфиденциальности (на выбранном языке)
-    if not u.get("accepted_privacy"):
-        await message.answer(t(lang, "privacy"), reply_markup=kb_privacy(lang))
-        return
+    # Новый юзер — отправляем документы файлами + приветствие
+    privacy_text = t(lang, "privacy")
+    rules_text = t(lang, "rules")
+    try:
+        media = [
+            InputMediaDocument(
+                media=BufferedInputFile(privacy_text.encode("utf-8"), filename="MatchMe_Privacy.txt"),
+            ),
+            InputMediaDocument(
+                media=BufferedInputFile(rules_text.encode("utf-8"), filename="MatchMe_Rules.txt"),
+            ),
+        ]
+        await bot.send_media_group(uid, media)
+    except Exception:
+        pass
 
-    # Шаг 2: Правила (на выбранном языке)
-    if not u.get("accepted_rules"):
-        await state.set_state(Rules.waiting)
-        await message.answer(t(lang, "rules"), reply_markup=kb_rules(lang))
-        return
+    name = u.get("name", tg_name)
+    await message.answer(
+        t(lang, "welcome_intro", name=name),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=t(lang, "btn_accept_all"), callback_data="accept:all")],
+            [
+                InlineKeyboardButton(text="🇷🇺", callback_data="lang:ru"),
+                InlineKeyboardButton(text="🇬🇧", callback_data="lang:en"),
+                InlineKeyboardButton(text="🇪🇸", callback_data="lang:es"),
+            ],
+        ])
+    )
 
-    # Всё принято — в меню
+# ====================== ПРИНЯТИЕ ПРАВИЛ (НОВЫЙ ОНБОРДИНГ) ======================
+@dp.callback_query(F.data == "accept:all", StateFilter("*"))
+async def accept_all(callback: types.CallbackQuery, state: FSMContext):
+    uid = callback.from_user.id
+    lang = await get_lang(uid)
+    await update_user(uid, accepted_privacy=True, accepted_rules=True)
+    try:
+        await callback.message.edit_text(t(lang, "rules_accepted"))
+    except Exception: pass
     badge = await get_premium_badge(uid)
-    await message.answer(t(lang, "welcome_back", badge=badge), reply_markup=kb_main(lang))
+    await callback.message.answer(t(lang, "welcome_new", badge=badge), reply_markup=kb_main(lang))
+    await callback.answer()
 
-# ====================== ВЫБОР ЯЗЫКА ======================
+@dp.callback_query(F.data.startswith("lang:"), StateFilter("*"))
+async def switch_lang_onboarding(callback: types.CallbackQuery, state: FSMContext):
+    uid = callback.from_user.id
+    new_lang = callback.data.split(":")[1]
+    if new_lang not in ("ru", "en", "es"):
+        await callback.answer()
+        return
+    await update_user(uid, lang=new_lang)
+    u = await get_user(uid)
+    name = u.get("name", "User") if u else "User"
+
+    # Пересылаем документы на новом языке
+    try:
+        privacy_text = t(new_lang, "privacy")
+        rules_text = t(new_lang, "rules")
+        media = [
+            InputMediaDocument(
+                media=BufferedInputFile(privacy_text.encode("utf-8"), filename="MatchMe_Privacy.txt"),
+            ),
+            InputMediaDocument(
+                media=BufferedInputFile(rules_text.encode("utf-8"), filename="MatchMe_Rules.txt"),
+            ),
+        ]
+        await bot.send_media_group(uid, media)
+    except Exception: pass
+
+    # Обновляем приветствие
+    try:
+        await callback.message.edit_text(
+            t(new_lang, "welcome_intro", name=name),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text=t(new_lang, "btn_accept_all"), callback_data="accept:all")],
+                [
+                    InlineKeyboardButton(text="🇷🇺", callback_data="lang:ru"),
+                    InlineKeyboardButton(text="🇬🇧", callback_data="lang:en"),
+                    InlineKeyboardButton(text="🇪🇸", callback_data="lang:es"),
+                ],
+            ])
+        )
+    except Exception: pass
+    await callback.answer()
+
+# ====================== ВЫБОР ЯЗЫКА (legacy) ======================
 @dp.message(StateFilter(LangSelect.choosing), F.text.in_(list(LANG_BUTTONS.keys())))
 async def choose_language(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     lang = LANG_BUTTONS[message.text]
     await update_user(uid, lang=lang)
     await state.clear()
-    # Переходим к политике конфиденциальности на выбранном языке
     await message.answer(t(lang, "privacy"), reply_markup=kb_privacy(lang))
 
 @dp.message(StateFilter(LangSelect.choosing))
@@ -1444,14 +1562,14 @@ async def channel_check(callback: types.CallbackQuery, state: FSMContext):
 
     if u and u.get("channel_bonus_used"):
         await callback.answer(t(lang, "channel_bonus_used"), show_alert=True)
-        await _proceed_to_rules(callback.message, state, uid)
+        await _proceed_after_channel(callback.message, state, uid)
         return
 
     # Если уже есть активный Premium — не даём бесплатный бонус
     if await is_premium(uid):
         await callback.answer(t(lang, "channel_already_premium"), show_alert=True)
         await update_user(uid, channel_bonus_used=True)
-        await _proceed_to_rules(callback.message, state, uid)
+        await _proceed_after_channel(callback.message, state, uid)
         return
 
     is_subscribed = await check_channel_subscription(uid)
@@ -1466,7 +1584,7 @@ async def channel_check(callback: types.CallbackQuery, state: FSMContext):
             t(lang, "channel_bonus_activated", until=until.strftime('%d.%m.%Y'))
         )
     except Exception: pass
-    await _proceed_to_rules(callback.message, state, uid)
+    await _proceed_after_channel(callback.message, state, uid)
     await callback.answer()
 
 @dp.callback_query(F.data == "channel:skip", StateFilter("*"))
@@ -1476,19 +1594,15 @@ async def channel_skip(callback: types.CallbackQuery, state: FSMContext):
     try:
         await callback.message.edit_text(t(lang, "channel_skip"))
     except Exception: pass
-    await _proceed_to_rules(callback.message, state, uid)
+    await _proceed_after_channel(callback.message, state, uid)
     await callback.answer()
 
-async def _proceed_to_rules(message, state, uid):
-    """Продолжение после privacy/channel — к правилам или в меню"""
+async def _proceed_after_channel(message, state, uid):
+    """Продолжение после channel bonus — в меню"""
     u = await get_user(uid)
     lang = (u.get("lang") or "ru") if u else "ru"
-    if not u or not u.get("accepted_rules"):
-        await state.set_state(Rules.waiting)
-        await message.answer(t(lang, "rules"), reply_markup=kb_rules(lang))
-    else:
-        badge = await get_premium_badge(uid)
-        await message.answer(t(lang, "welcome_new", badge=badge), reply_markup=kb_main(lang))
+    badge = await get_premium_badge(uid)
+    await message.answer(t(lang, "welcome_back", badge=badge), reply_markup=kb_main(lang))
 
 # ====================== ПРАВИЛА ======================
 
@@ -1615,6 +1729,7 @@ async def pre_checkout(query: PreCheckoutQuery):
 async def successful_payment(message: types.Message):
     uid = message.from_user.id
     payload = message.successful_payment.invoice_payload
+
     plan_key = payload.replace("premium_", "")
     plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1m"])
     u = await get_user(uid)
@@ -1796,9 +1911,9 @@ async def cmd_find(message: types.Message, state: FSMContext):
             await message.answer(t(lang, "banned_until", until=until.strftime('%H:%M %d.%m.%Y')))
         return
     u = await get_user(uid)
-    if not u or not u.get("name") or not u.get("mode"):
-        await state.set_state(Reg.name)
-        await message.answer(t(lang, "reg_rules_profile"), reply_markup=kb_rules_profile(lang))
+    if not u or not u.get("mode"):
+        await state.set_state(Reg.age)
+        await message.answer(t(lang, "reg_age_prompt"), reply_markup=kb_cancel_reg(lang))
         return
     mode = u["mode"]
     user_premium = await is_premium(uid)
@@ -1908,10 +2023,16 @@ async def reg_mode(message: types.Message, state: FSMContext):
             await message.answer(t(lang, "reg_kink_age"), reply_markup=kb_mode(lang))
             return
     await update_user(uid, mode=mode)
-    await state.update_data(temp_interests=[], reg_mode=mode)
-    await state.set_state(Reg.interests)
-    await message.answer(t(lang, "reg_interests_prompt"), reply_markup=ReplyKeyboardRemove())
-    await message.answer("👇", reply_markup=kb_interests(mode, [], lang))
+    await state.clear()
+    await message.answer(t(lang, "reg_done"), reply_markup=kb_main(lang))
+    # Автозапуск поиска
+    q_len = len(get_queue(mode, False)) + len(get_queue(mode, True))
+    status = t(lang, "queue_searching")
+    await message.answer(
+        t(lang, "queue_info", mode=t(lang, f"mode_{mode}"), count=q_len, status=status),
+        reply_markup=kb_cancel_search(lang)
+    )
+    await do_find(uid, state)
 
 @dp.callback_query(F.data.startswith("int:"), StateFilter(Reg.interests))
 async def reg_interest(callback: types.CallbackQuery, state: FSMContext):
@@ -2534,6 +2655,7 @@ async def main():
         clear_ai_history=clear_ai_history,
         get_ai_notes=get_ai_notes,
         save_ai_notes=save_ai_notes,
+        db_pool=db_pool,
     )
     admin_module.init(
         bot=bot,

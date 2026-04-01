@@ -52,6 +52,15 @@ TEXTS = {
         "rules_choose_lang": "👆 Выбери язык чтобы продолжить.",
         "welcome_back": "👋 С возвращением в MatchMe!{badge}",
         "welcome_new": "👋 Добро пожаловать в MatchMe!{badge}",
+        "welcome_intro": (
+            "Привет, {name}! 👋\n\n"
+            "MatchMe — анонимный чат для знакомств.\n"
+            "Общайся, флиртуй, находи людей по интересам.\n"
+            "AI-собеседники, живые чаты, полная анонимность.\n\n"
+            "📄 Выше — правила и политика конфиденциальности.\n"
+            "Нажми кнопку ниже чтобы принять и начать!"
+        ),
+        "btn_accept_all": "✅ Принимаю",
         "banned_permanent": "🚫 Ты заблокирован навсегда.",
         "banned_until": "🚫 Ты заблокирован до {until}",
         # Кнопки — privacy/rules/channel
@@ -486,6 +495,11 @@ TEXTS = {
         "translate_premium_notice": "🌐 Собеседник пишет на другом языке. Оформи Premium, чтобы видеть автоматический перевод!",
         "settings_translate": "Автоперевод в чатах",
         "settings_translate_locked": "🔒 Автоперевод доступен только с Premium",
+        "unlock_photo": "Открыть фото",
+        "unlock_photo_title": "🔓 Фото {name}",
+        "unlock_photo_desc": "Разблокируй фото персонажа без размытия",
+        "blurred_photo_hint": "🔒 Фото размыто. Разблокируй, чтобы увидеть!",
+        "photo_unlocked": "🔓 Фото разблокировано!",
         "settings_buy_premium": "💎 Купить Premium",
         "premium_active": "⭐ Premium активен",
         "settings_gender_any": "🔀 Все",
@@ -670,6 +684,15 @@ TEXTS = {
         "rules_choose_lang": "👆 Choose a language to continue.",
         "welcome_back": "👋 Welcome back to MatchMe!{badge}",
         "welcome_new": "👋 Welcome to MatchMe!{badge}",
+        "welcome_intro": (
+            "Hey, {name}! 👋\n\n"
+            "MatchMe — anonymous dating chat.\n"
+            "Chat, flirt, find people who match your vibe.\n"
+            "AI companions, live chats, full anonymity.\n\n"
+            "📄 Above — our rules and privacy policy.\n"
+            "Tap below to accept and start!"
+        ),
+        "btn_accept_all": "✅ I accept",
         "banned_permanent": "🚫 You are permanently banned.",
         "banned_until": "🚫 You are banned until {until}",
         # Buttons — privacy/rules/channel
@@ -1129,6 +1152,11 @@ TEXTS = {
         "translate_premium_notice": "🌐 Your partner writes in another language. Get Premium to see automatic translations!",
         "settings_translate": "Auto-translate in chats",
         "settings_translate_locked": "🔒 Auto-translate is Premium only",
+        "unlock_photo": "Unlock photo",
+        "unlock_photo_title": "🔓 Photo of {name}",
+        "unlock_photo_desc": "Unlock the unblurred photo of the character",
+        "blurred_photo_hint": "🔒 Photo is blurred. Unlock to see!",
+        "photo_unlocked": "🔓 Photo unlocked!",
         "settings_buy_premium": "💎 Buy Premium",
         "premium_active": "⭐ Premium active",
         "settings_gender_any": "🔀 Anyone",
@@ -1313,6 +1341,15 @@ TEXTS = {
         "rules_choose_lang": "👆 Elige un idioma para continuar.",
         "welcome_back": "👋 ¡Bienvenido de vuelta a MatchMe!{badge}",
         "welcome_new": "👋 ¡Bienvenido a MatchMe!{badge}",
+        "welcome_intro": (
+            "¡Hola, {name}! 👋\n\n"
+            "MatchMe — chat anónimo para conocer gente.\n"
+            "Chatea, coquetea, encuentra personas afines.\n"
+            "Compañeros IA, chats en vivo, total anonimato.\n\n"
+            "📄 Arriba — nuestras reglas y política de privacidad.\n"
+            "¡Toca abajo para aceptar y empezar!"
+        ),
+        "btn_accept_all": "✅ Acepto",
         "banned_permanent": "🚫 Estás baneado permanentemente.",
         "banned_until": "🚫 Estás baneado hasta {until}",
         # Botones — privacy/rules/channel
@@ -1748,6 +1785,11 @@ TEXTS = {
         "translate_premium_notice": "🌐 Tu compañero escribe en otro idioma. ¡Obtén Premium para ver traducciones automáticas!",
         "settings_translate": "Traducción automática en chats",
         "settings_translate_locked": "🔒 Traducción automática solo con Premium",
+        "unlock_photo": "Desbloquear foto",
+        "unlock_photo_title": "🔓 Foto de {name}",
+        "unlock_photo_desc": "Desbloquea la foto sin difuminar del personaje",
+        "blurred_photo_hint": "🔒 La foto está difuminada. ¡Desbloquea para verla!",
+        "photo_unlocked": "🔓 ¡Foto desbloqueada!",
         "settings_buy_premium": "💎 Comprar Premium",
         "premium_active": "⭐ Premium activo",
         "settings_gender_any": "🔀 Cualquiera",

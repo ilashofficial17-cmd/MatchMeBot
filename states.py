@@ -36,6 +36,7 @@ class EditProfile(StatesGroup):
 
 class AdminState(StatesGroup):
     waiting_user_id = State()
+    waiting_char_gif = State()  # waiting for GIF upload for a character
 
 
 class ResetProfile(StatesGroup):
