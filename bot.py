@@ -158,6 +158,12 @@ async def init_db():
             ("referred_by", "BIGINT DEFAULT NULL"),
             ("referral_bonus_given", "BOOLEAN DEFAULT FALSE"),
             ("trial_used", "BOOLEAN DEFAULT FALSE"),
+            ("streak_days", "INTEGER DEFAULT 0"),
+            ("streak_last_date", "DATE DEFAULT NULL"),
+            ("level", "INTEGER DEFAULT 0"),
+            ("ab_group", "TEXT DEFAULT NULL"),
+            ("winback_stage", "INTEGER DEFAULT 0"),
+            ("premium_expired_at", "TIMESTAMP DEFAULT NULL"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
@@ -240,6 +246,21 @@ async def init_db():
                 updated_at TIMESTAMP DEFAULT NOW()
             )
         """)
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS ab_events (
+                id SERIAL PRIMARY KEY,
+                uid BIGINT NOT NULL,
+                ab_group TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                event_data TEXT DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        try:
+            await conn.execute("CREATE INDEX IF NOT EXISTS ab_events_uid ON ab_events(uid)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS ab_events_type ON ab_events(event_type, ab_group)")
+        except Exception: pass
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS ai_notes (
@@ -488,6 +509,87 @@ async def get_premium_tier(uid):
 
 async def is_premium(uid):
     return (await get_premium_tier(uid)) is not None
+
+
+# ====================== SOCIAL PROOF ======================
+def get_online_count() -> int:
+    """Real online count: active chats + people in queues."""
+    chatting = len(active_chats) // 2
+    in_queue = sum(len(q) for q in get_all_queues())
+    return chatting + in_queue
+
+
+# ====================== DAILY STREAK ======================
+LEVEL_THRESHOLDS = [0, 10, 30, 75, 150, 300]  # total_chats для каждого уровня
+LEVEL_NAMES = {
+    0: "level_0", 1: "level_1", 2: "level_2",
+    3: "level_3", 4: "level_4", 5: "level_5",
+}
+STREAK_BONUSES = {3: 5, 7: 10, 14: 15, 30: 20}  # streak_days -> ai_bonus
+
+
+def _calc_level(total_chats: int) -> int:
+    level = 0
+    for i, threshold in enumerate(LEVEL_THRESHOLDS):
+        if total_chats >= threshold:
+            level = i
+    return level
+
+
+async def update_streak(uid):
+    """Call once per user interaction day. Updates streak and checks level-up."""
+    u = await get_user(uid)
+    if not u:
+        return None, None  # streak_changed, level_changed
+    today = datetime.now().date()
+    last_date = u.get("streak_last_date")
+    streak = u.get("streak_days", 0)
+    old_level = u.get("level", 0)
+
+    if last_date == today:
+        return None, None  # already counted today
+
+    if last_date and (today - last_date).days == 1:
+        streak += 1  # consecutive day
+    elif last_date and (today - last_date).days > 1:
+        streak = 1  # streak broken
+    else:
+        streak = 1  # first visit
+
+    # Check level
+    new_level = _calc_level(u.get("total_chats", 0))
+
+    # Check streak bonus
+    bonus = STREAK_BONUSES.get(streak)
+    updates = {"streak_days": streak, "streak_last_date": today, "level": new_level}
+    if bonus:
+        updates["ai_bonus"] = min((u.get("ai_bonus", 0) + bonus), 50)
+    await update_user(uid, **updates)
+
+    streak_changed = bonus if bonus else (streak if streak != u.get("streak_days", 0) else None)
+    level_changed = new_level if new_level > old_level else None
+    return streak_changed, level_changed
+
+
+# ====================== A/B TESTING ======================
+def get_ab_group(uid: int) -> str:
+    """Deterministic A/B group based on uid."""
+    return "A" if uid % 2 == 0 else "B"
+
+
+async def log_ab_event(uid: int, event_type: str, event_data: str = None):
+    """Log an A/B test event for analytics."""
+    if not db_pool:
+        return
+    group = get_ab_group(uid)
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO ab_events (uid, ab_group, event_type, event_data) VALUES ($1, $2, $3, $4)",
+                uid, group, event_type, event_data
+            )
+    except Exception:
+        pass
 
 
 async def is_banned(uid):
@@ -1241,6 +1343,7 @@ async def _send_upsell_after_chat(uid, partner):
                         [InlineKeyboardButton(text=t(lang, "btn_activate_trial"), callback_data="trial:activate")]
                     ])
                 )
+                await log_ab_event(target_uid, "trial_shown")
             except Exception: pass
         # Каждый 3-й чат — upsell Premium
         elif chats % 3 == 0:
@@ -1252,6 +1355,7 @@ async def _send_upsell_after_chat(uid, partner):
                         [InlineKeyboardButton(text=t(lang, "prem_compare"), callback_data="buy:info")]
                     ])
                 )
+                await log_ab_event(target_uid, "upsell_shown")
             except Exception: pass
         # Каждый 4-й чат — партнёрская реклама
         elif chats % 4 == 0:
@@ -1286,6 +1390,7 @@ async def activate_trial(callback: types.CallbackQuery):
             pass
     until = base + timedelta(days=3)
     await update_user(uid, premium_until=until.isoformat(), premium_tier="premium", trial_used=True)
+    await log_ab_event(uid, "trial_activated")
     try:
         await callback.message.edit_text(t(lang, "trial_activated", until=until.strftime('%d.%m.%Y %H:%M')))
     except Exception: pass
@@ -1429,8 +1534,24 @@ async def cmd_start(message: types.Message, state: FSMContext):
 
     # Уже всё принял — в меню
     if u.get("accepted_rules") and u.get("accepted_privacy"):
+        # Streak + level check
+        streak_info, level_info = await update_streak(uid)
         badge = await get_premium_badge(uid)
-        await message.answer(t(lang, "welcome_back", badge=badge), reply_markup=kb_main(lang))
+        online = get_online_count()
+        online_text = f"\n🟢 {t(lang, 'online_count', count=online)}" if online > 0 else ""
+        await message.answer(
+            t(lang, "welcome_back", badge=badge) + online_text,
+            reply_markup=kb_main(lang)
+        )
+        # Notify streak milestone
+        if streak_info and isinstance(streak_info, int) and streak_info in STREAK_BONUSES:
+            await message.answer(t(lang, "streak_bonus", days=streak_info, bonus=STREAK_BONUSES[streak_info]))
+        # Notify level-up
+        if level_info is not None:
+            level_name = t(lang, LEVEL_NAMES.get(level_info, "level_0"))
+            await message.answer(t(lang, "level_up", level=level_info, name=level_name))
+        # A/B log
+        await log_ab_event(uid, "session_start")
         return
 
     # Новый юзер — отправляем документы файлами + приветствие
@@ -1467,12 +1588,19 @@ async def cmd_start(message: types.Message, state: FSMContext):
 async def accept_all(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
     lang = await get_lang(uid)
-    await update_user(uid, accepted_privacy=True, accepted_rules=True)
+    await update_user(uid, accepted_privacy=True, accepted_rules=True, ab_group=get_ab_group(uid))
+    await update_streak(uid)
     try:
         await callback.message.edit_text(t(lang, "rules_accepted"))
     except Exception: pass
     badge = await get_premium_badge(uid)
-    await callback.message.answer(t(lang, "welcome_new", badge=badge), reply_markup=kb_main(lang))
+    online = get_online_count()
+    online_text = f"\n🟢 {t(lang, 'online_count', count=online)}" if online > 0 else ""
+    await callback.message.answer(
+        t(lang, "welcome_new", badge=badge) + online_text,
+        reply_markup=kb_main(lang)
+    )
+    await log_ab_event(uid, "registered")
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("lang:"), StateFilter("*"))
@@ -1745,7 +1873,9 @@ async def successful_payment(message: types.Message):
             except Exception:
                 pass
     until = base + timedelta(days=plan["days"])
-    await update_user(uid, premium_until=until.isoformat(), premium_tier="premium")
+    await update_user(uid, premium_until=until.isoformat(), premium_tier="premium",
+                      winback_stage=0, premium_expired_at=None)
+    await log_ab_event(uid, "purchase", plan_key)
     lang = await get_lang(uid)
     label = t(lang, plan["label_key"])
     await message.answer(
@@ -1837,7 +1967,9 @@ async def anon_search(message: types.Message, state: FSMContext):
             await message.answer(t(lang, "banned_until", until=until.strftime('%H:%M %d.%m.%Y')))
         return
     await ensure_user(uid)
-    await message.answer(t(lang, "searching_anon"), reply_markup=kb_cancel_search(lang))
+    online = get_online_count()
+    online_hint = f"\n🟢 {t(lang, 'online_count', count=online)}" if online > 0 else ""
+    await message.answer(t(lang, "searching_anon") + online_hint, reply_markup=kb_cancel_search(lang))
     # Shadow ban & language check
     u = await get_user(uid)
     my_shadow = u.get("shadow_ban", False) if u else False
@@ -2683,6 +2815,7 @@ async def main():
     dp.include_router(admin_module.router)
     asyncio.create_task(admin_module.inactivity_checker())
     asyncio.create_task(admin_module.reminder_task())
+    asyncio.create_task(admin_module.winback_task())
     logger.info("MatchMe запущен!")
     await dp.start_polling(bot)
 

@@ -757,6 +757,132 @@ async def reminder_task():
             logger.error(f"reminder_task error: {e}")
 
 
+# ====================== WIN-BACK СИСТЕМА ======================
+
+WINBACK_MESSAGES = {
+    "ru": {
+        1: "⏳ Твой Premium заканчивается завтра!\n\nНе теряй приоритетный поиск, VIP-персонажей и автоперевод.\nПродли сейчас — и не пропусти ни одного интересного собеседника.",
+        2: "💔 Твой Premium закончился.\n\nБез Premium поиск медленнее, рекламы больше.\nВернись — ты заслуживаешь лучший опыт.",
+        3: "👋 Скучаем по тебе!\n\nТвои VIP-персонажи ждут.\nВозвращайся в Premium — почувствуй разницу снова.",
+        4: "🎁 Последний шанс!\n\nMatchMe Premium — приоритет поиска, VIP AI, без рекламы.\nНе упусти — вернись прямо сейчас.",
+    },
+    "en": {
+        1: "⏳ Your Premium expires tomorrow!\n\nDon't lose priority search, VIP characters and auto-translate.\nRenew now — don't miss out on great conversations.",
+        2: "💔 Your Premium has expired.\n\nWithout Premium, search is slower and there are more ads.\nCome back — you deserve a better experience.",
+        3: "👋 We miss you!\n\nYour VIP characters are waiting.\nReturn to Premium — feel the difference again.",
+        4: "🎁 Last chance!\n\nMatchMe Premium — priority search, VIP AI, no ads.\nDon't miss out — come back now.",
+    },
+    "es": {
+        1: "⏳ ¡Tu Premium expira mañana!\n\nNo pierdas búsqueda prioritaria, personajes VIP y traducción automática.\nRenueva ahora — no te pierdas buenas conversaciones.",
+        2: "💔 Tu Premium ha expirado.\n\nSin Premium, la búsqueda es más lenta y hay más anuncios.\nVuelve — mereces una mejor experiencia.",
+        3: "👋 ¡Te extrañamos!\n\nTus personajes VIP te esperan.\nVuelve a Premium — siente la diferencia otra vez.",
+        4: "🎁 ¡Última oportunidad!\n\nMatchMe Premium — búsqueda prioritaria, IA VIP, sin anuncios.\nNo lo dejes pasar — vuelve ahora.",
+    },
+}
+
+
+async def winback_task():
+    """Background task: sends win-back messages to users with expiring/expired premium."""
+    while True:
+        await asyncio.sleep(3600)  # каждый час
+        try:
+            now = datetime.now()
+            async with _db_pool.acquire() as conn:
+                # Stage 1: Premium expires within 24h
+                rows_expiring = await conn.fetch("""
+                    SELECT uid, lang, premium_until, winback_stage FROM users
+                    WHERE premium_until IS NOT NULL
+                    AND premium_until != 'permanent'
+                    AND winback_stage = 0
+                    AND ban_until IS NULL
+                    AND accepted_rules = TRUE
+                    LIMIT 50
+                """)
+                # Stage 2-4: Already expired
+                rows_expired = await conn.fetch("""
+                    SELECT uid, lang, premium_expired_at, winback_stage FROM users
+                    WHERE premium_expired_at IS NOT NULL
+                    AND winback_stage BETWEEN 1 AND 3
+                    AND premium_until IS NULL
+                    AND ban_until IS NULL
+                    LIMIT 50
+                """)
+
+            sent = 0
+            # Stage 1: 24h before expiry
+            for row in rows_expiring:
+                try:
+                    p_until = datetime.fromisoformat(row["premium_until"])
+                    hours_left = (p_until - now).total_seconds() / 3600
+                    if hours_left <= 24 and hours_left > 0:
+                        uid = row["uid"]
+                        u_lang = row.get("lang") or "ru"
+                        msg = WINBACK_MESSAGES.get(u_lang, WINBACK_MESSAGES["ru"])[1]
+                        from keyboards import kb_premium
+                        await _bot.send_message(uid, msg, reply_markup=kb_premium(u_lang))
+                        async with _db_pool.acquire() as conn:
+                            await conn.execute(
+                                "UPDATE users SET winback_stage=1 WHERE uid=$1", uid
+                            )
+                        sent += 1
+                except Exception:
+                    pass
+
+            # Stage 2: Just expired (mark expiry time)
+            # This handles the transition: premium_until passed -> set premium_expired_at
+            try:
+                async with _db_pool.acquire() as conn:
+                    await conn.execute("""
+                        UPDATE users
+                        SET premium_expired_at = NOW(),
+                            premium_until = NULL,
+                            premium_tier = NULL,
+                            winback_stage = GREATEST(winback_stage, 1)
+                        WHERE premium_until IS NOT NULL
+                        AND premium_until != 'permanent'
+                        AND premium_until < $1
+                    """, now.isoformat())
+            except Exception:
+                pass
+
+            # Stage 2-4: Progressive win-back after expiry
+            for row in rows_expired:
+                try:
+                    uid = row["uid"]
+                    stage = row["winback_stage"]
+                    expired_at = row["premium_expired_at"]
+                    if not expired_at:
+                        continue
+                    days_since = (now - expired_at).total_seconds() / 86400
+                    u_lang = row.get("lang") or "ru"
+
+                    next_stage = None
+                    if stage == 1 and days_since >= 0.1:  # right after expiry
+                        next_stage = 2
+                    elif stage == 2 and days_since >= 3:
+                        next_stage = 3
+                    elif stage == 3 and days_since >= 7:
+                        next_stage = 4
+
+                    if next_stage:
+                        msg = WINBACK_MESSAGES.get(u_lang, WINBACK_MESSAGES["ru"]).get(next_stage)
+                        if msg:
+                            from keyboards import kb_premium
+                            await _bot.send_message(uid, msg, reply_markup=kb_premium(u_lang))
+                            async with _db_pool.acquire() as conn:
+                                await conn.execute(
+                                    "UPDATE users SET winback_stage=$2 WHERE uid=$1", uid, next_stage
+                                )
+                            sent += 1
+                except Exception:
+                    pass
+
+            if sent:
+                logger.info(f"Win-back: отправлено {sent}")
+        except Exception as e:
+            logger.error(f"winback_task error: {e}")
+
+
 # ====================== МЕДИА ПЕРСОНАЖЕЙ ======================
 
 @router.callback_query(F.data.startswith("charmedia:"), StateFilter("*"))

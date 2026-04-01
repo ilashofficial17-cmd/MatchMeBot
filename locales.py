@@ -634,6 +634,18 @@ TEXTS = {
         # Retention
         "retention_miss_you": "👋 Давно тебя не было! В MatchMe сейчас {count} человек онлайн. Заходи пообщаться!",
         "retention_ai_miss": "💬 {name} скучает по тебе! Зайди продолжить разговор.",
+        # Social proof
+        "online_count": "Сейчас в сети: {count}",
+        # Streak
+        "streak_bonus": "🔥 {days} дней подряд! +{bonus} бонусных AI-сообщений сегодня.",
+        # Levels
+        "level_up": "🎉 Новый уровень: {level} — {name}!",
+        "level_0": "Новичок",
+        "level_1": "Общительный",
+        "level_2": "Душа компании",
+        "level_3": "Звезда",
+        "level_4": "Легенда",
+        "level_5": "Мастер общения",
     },
 
     "en": {
@@ -1291,6 +1303,18 @@ TEXTS = {
         # Retention
         "retention_miss_you": "👋 We miss you! {count} people are online on MatchMe right now. Come chat!",
         "retention_ai_miss": "💬 {name} misses you! Come back to continue the conversation.",
+        # Social proof
+        "online_count": "Online now: {count}",
+        # Streak
+        "streak_bonus": "🔥 {days} days in a row! +{bonus} bonus AI messages today.",
+        # Levels
+        "level_up": "🎉 New level: {level} — {name}!",
+        "level_0": "Newbie",
+        "level_1": "Social",
+        "level_2": "Life of the party",
+        "level_3": "Star",
+        "level_4": "Legend",
+        "level_5": "Chat master",
     },
 
     "es": {
@@ -1924,6 +1948,18 @@ TEXTS = {
         # Retention
         "retention_miss_you": "👋 ¡Te extrañamos! Hay {count} personas en línea en MatchMe. ¡Ven a chatear!",
         "retention_ai_miss": "💬 ¡{name} te extraña! Vuelve a continuar la conversación.",
+        # Social proof
+        "online_count": "En línea ahora: {count}",
+        # Streak
+        "streak_bonus": "🔥 ¡{days} días seguidos! +{bonus} mensajes IA bonus hoy.",
+        # Levels
+        "level_up": "🎉 ¡Nuevo nivel: {level} — {name}!",
+        "level_0": "Novato",
+        "level_1": "Sociable",
+        "level_2": "Alma de la fiesta",
+        "level_3": "Estrella",
+        "level_4": "Leyenda",
+        "level_5": "Maestro del chat",
     },
 }
 
