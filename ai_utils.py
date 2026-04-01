@@ -122,6 +122,52 @@ async def get_ai_chat_response(
         return None
 
 
+async def describe_image(image_base64: str, lang: str = "ru") -> str | None:
+    """
+    Describe an image using GPT-4o-mini vision.
+    Returns a brief description in the user's language.
+    """
+    if not OPEN_ROUTER_KEY:
+        return None
+    lang_prompts = {
+        "ru": "Опиши кратко что на фото (1-2 предложения). Если на фото человек — опиши внешность, одежду, выражение. Если другое — опиши что видишь. Пиши на русском.",
+        "en": "Briefly describe what's in the photo (1-2 sentences). If it's a person — describe appearance, clothing, expression. If something else — describe what you see.",
+        "es": "Describe brevemente lo que hay en la foto (1-2 oraciones). Si es una persona — describe apariencia, ropa, expresión. Si es otra cosa — describe lo que ves.",
+    }
+    headers = {
+        "Authorization": f"Bearer {OPEN_ROUTER_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://t.me/MatchMeBot",
+    }
+    payload = {
+        "model": "openai/gpt-4o-mini",
+        "max_tokens": 150,
+        "messages": [
+            {"role": "user", "content": [
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+                {"type": "text", "text": lang_prompts.get(lang, lang_prompts["en"])},
+            ]},
+        ],
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                OPEN_ROUTER_URL,
+                json=payload,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return data["choices"][0]["message"]["content"]
+                body = await resp.text()
+                logger.error(f"OpenRouter vision {resp.status}: {body[:300]}")
+                return None
+    except Exception as e:
+        logger.error(f"OpenRouter vision exception: {e}")
+        return None
+
+
 _LANG_NAMES = {"ru": "Russian", "en": "English", "es": "Spanish"}
 
 

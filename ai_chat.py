@@ -10,7 +10,9 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputPaidM
 from states import AIChat, Chat, Reg
 from keyboards import kb_main, kb_ai_characters, kb_ai_chat, kb_cancel_search
 from locales import t, TEXTS
-from ai_utils import get_ai_chat_response
+import base64
+import io
+from ai_utils import get_ai_chat_response, describe_image
 
 router = Router()
 logger = logging.getLogger("matchme")
@@ -1654,6 +1656,43 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
                     await _save_ai_message(uid, char_id, "assistant", greeting)
                 await message.answer(f"{char['emoji']} {greeting}")
         return
+    # Обработка фото — vision через GPT-4o-mini
+    if message.photo and not txt:
+        if uid not in _ai_sessions:
+            await state.clear()
+            await message.answer(t(lang, "ai_session_lost"), reply_markup=kb_main(lang))
+            return
+        await _bot.send_chat_action(uid, "typing")
+        try:
+            file_info = await _bot.get_file(message.photo[-1].file_id)
+            photo_bytes = await _bot.download_file(file_info.file_path)
+            if isinstance(photo_bytes, io.BytesIO):
+                photo_data = photo_bytes.read()
+            else:
+                photo_data = photo_bytes
+            img_b64 = base64.b64encode(photo_data).decode()
+            description = await describe_image(img_b64, lang)
+        except Exception as e:
+            logger.warning(f"Vision download/describe failed uid={uid}: {e}")
+            description = None
+        if description:
+            caption = message.caption or ""
+            photo_labels = {"ru": "отправил(а) фото", "en": "sent a photo", "es": "envió una foto"}
+            label = photo_labels.get(lang, photo_labels["en"])
+            txt = f"[{label}: {description}]"
+            if caption:
+                txt += f"\n{caption}"
+        else:
+            photo_fallbacks = {
+                "ru": "Прости, не могу разглядеть фото 😅 Расскажи что на нём?",
+                "en": "Sorry, I can't see the photo 😅 Tell me what's in it?",
+                "es": "Perdón, no puedo ver la foto 😅 ¿Dime qué hay en ella?",
+            }
+            char_id = _ai_sessions[uid]["character"]
+            emoji = AI_CHARACTERS[char_id]["emoji"]
+            await message.answer(f"{emoji} {photo_fallbacks.get(lang, photo_fallbacks['en'])}")
+            return
+
     if uid not in _ai_sessions:
         await state.clear()
         await message.answer(t(lang, "ai_session_lost"), reply_markup=kb_main(lang))
@@ -1661,6 +1700,9 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     session = _ai_sessions[uid]
     char_id = session["character"]
     char = AI_CHARACTERS[char_id]
+    # Игнорируем пустые сообщения (стикеры, голосовые и т.д. без текста/фото)
+    if not txt.strip():
+        return
     user_tier = await _get_premium_tier(uid)
     char_tier = char["tier"]
     limit = get_ai_limit(char_tier, user_tier)
