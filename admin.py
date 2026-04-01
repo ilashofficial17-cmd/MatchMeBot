@@ -772,21 +772,21 @@ async def char_media_select(callback: types.CallbackQuery, state: FSMContext):
     # Check current media
     async with _db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT gif_file_id, photo_file_id, blurred_file_id FROM ai_character_media WHERE character_id=$1",
+            "SELECT gif_file_id, photo_file_id, blurred_file_id, hot_photo_file_id FROM ai_character_media WHERE character_id=$1",
             char_id
         )
     gif_status = "✅" if (row and row["gif_file_id"]) else "❌"
     photo_status = "✅" if (row and row["photo_file_id"]) else "❌"
-    blurred_status = "✅" if (row and row["blurred_file_id"]) else "❌"
+    hot_status = "✅" if (row and row.get("hot_photo_file_id")) else "❌"
 
     text = (
         f"{char['emoji']} <b>{char_id}</b>\n\n"
         f"{gif_status} GIF (превью при выборе)\n"
-        f"{photo_status} Фото (отправка в чате)\n"
-        f"{blurred_status} Размытое фото (замыленное)\n\n"
+        f"{photo_status} Фото — 15 ⭐ (платное фото в чате)\n"
+        f"{hot_status} 🔥 Hot фото — 50 ⭐ (интимное платное)\n\n"
         f"Отправь GIF/анимацию — сохраню как превью.\n"
-        f"Отправь фото — сохраню как фото персонажа.\n"
-        f"Отправь фото с подписью blur — сохраню как размытое."
+        f"Отправь фото — сохраню как платное фото.\n"
+        f"Отправь фото с подписью hot — сохраню как горячее фото."
     )
     await state.set_state(AdminState.waiting_char_gif)
     await state.update_data(media_char_id=char_id)
@@ -829,22 +829,22 @@ async def char_media_upload(message: types.Message, state: FSMContext):
         )
     elif message.photo:
         file_id = message.photo[-1].file_id
-        if caption == "blur":
-            # Blurred photo
+        if caption == "hot":
+            # Hot photo (intimate, 50 stars)
             async with _db_pool.acquire() as conn:
                 await conn.execute("""
-                    INSERT INTO ai_character_media (character_id, blurred_file_id, updated_at)
+                    INSERT INTO ai_character_media (character_id, hot_photo_file_id, updated_at)
                     VALUES ($1, $2, NOW())
                     ON CONFLICT (character_id)
-                    DO UPDATE SET blurred_file_id=$2, updated_at=NOW()
+                    DO UPDATE SET hot_photo_file_id=$2, updated_at=NOW()
                 """, char_id, file_id)
             await message.answer(
-                f"✅ Размытое фото для {emoji} <b>{char_id}</b> сохранено!\n\n"
+                f"🔥 Hot фото для {emoji} <b>{char_id}</b> сохранено!\n\n"
                 f"Отправь ещё медиа или нажми /admin для выхода.",
                 parse_mode="HTML"
             )
         else:
-            # Normal photo
+            # Regular paid photo (15 stars)
             async with _db_pool.acquire() as conn:
                 await conn.execute("""
                     INSERT INTO ai_character_media (character_id, photo_file_id, updated_at)
@@ -854,7 +854,7 @@ async def char_media_upload(message: types.Message, state: FSMContext):
                 """, char_id, file_id)
             await message.answer(
                 f"✅ Фото для {emoji} <b>{char_id}</b> сохранено!\n\n"
-                f"Отправь фото с подписью blur для размытой версии.\n"
+                f"Отправь фото с подписью hot для горячего фото.\n"
                 f"Или отправь ещё медиа / /admin для выхода.",
                 parse_mode="HTML"
             )

@@ -162,6 +162,10 @@ async def init_db():
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
             except Exception: pass
+        # Migrate ai_character_media
+        try:
+            await conn.execute("ALTER TABLE ai_character_media ADD COLUMN IF NOT EXISTS hot_photo_file_id TEXT DEFAULT NULL")
+        except Exception: pass
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS complaints_log (
@@ -230,6 +234,7 @@ async def init_db():
                 gif_file_id TEXT DEFAULT NULL,
                 photo_file_id TEXT DEFAULT NULL,
                 blurred_file_id TEXT DEFAULT NULL,
+                hot_photo_file_id TEXT DEFAULT NULL,
                 updated_at TIMESTAMP DEFAULT NOW()
             )
         """)

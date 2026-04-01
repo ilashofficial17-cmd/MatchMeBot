@@ -964,7 +964,7 @@ async def _get_char_media(char_id: str) -> dict | None:
         return None
     async with _db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT gif_file_id, photo_file_id, blurred_file_id FROM ai_character_media WHERE character_id=$1",
+            "SELECT gif_file_id, photo_file_id, blurred_file_id, hot_photo_file_id FROM ai_character_media WHERE character_id=$1",
             char_id
         )
     return dict(row) if row else None
@@ -991,6 +991,26 @@ def _is_photo_request(text: str, lang: str) -> bool:
 
 
 PHOTO_UNLOCK_STARS = 15
+HOT_PHOTO_UNLOCK_STARS = 50
+
+_HOT_PHOTO_WORDS = {
+    "ru": ["горячее фото", "горячую фотку", "интимное", "откровенное", "пикантное", "без одежды",
+           "голая", "голое", "голую", "обнажённая", "обнаженная", "ню", "эротическое",
+           "покажи тело", "покажи грудь", "покажи попу", "18+", "nsfw", "горячее"],
+    "en": ["hot photo", "nude", "naked", "intimate", "explicit", "naughty pic",
+           "show body", "without clothes", "undressed", "sexy photo", "nsfw", "18+",
+           "spicy photo", "hot pic", "show more"],
+    "es": ["foto hot", "desnuda", "desnudo", "íntima", "explícita", "sin ropa",
+           "foto picante", "muestra el cuerpo", "nsfw", "18+", "sexy foto", "erótica"],
+}
+
+
+def _is_hot_photo_request(text: str, lang: str) -> bool:
+    text_lower = text.lower().strip()
+    for word in _HOT_PHOTO_WORDS.get(lang, _HOT_PHOTO_WORDS["ru"]):
+        if word in text_lower:
+            return True
+    return False
 
 
 async def _lang(uid: int) -> str:
@@ -1296,9 +1316,21 @@ async def ask_ai(character_id: str, history: list, user_message: str,
     base_system += _DEFENSE_BLOCK.get(lang, _DEFENSE_BLOCK["ru"])
     # Photo request instruction — system sends photo separately
     _PHOTO_HINT = {
-        "ru": "\n\nЕсли тебя просят фото/селфи/показать себя — ответь КОРОТКО и игриво: 'ладно, лови 😏' или 'ну смотри, только не смейся'. НЕ отказывай. НЕ описывай что на фото — ты не знаешь что система отправит. Просто скажи 1-2 слова и всё.",
-        "en": "\n\nIf asked for a photo/selfie/to show yourself — reply SHORT and playful: 'fine, here you go 😏' or 'okay but don't laugh'. Do NOT refuse. Do NOT describe what's in the photo — you don't know what the system will send. Just say 1-2 words and stop.",
-        "es": "\n\nSi te piden foto/selfie — responde CORTO y juguetón: 'vale, ahí va 😏' o 'ok pero no te rías'. NO te niegues. NO describas qué hay en la foto — no sabes qué enviará el sistema. Solo di 1-2 palabras y ya.",
+        "ru": (
+            "\n\nЕсли тебя просят обычное фото/селфи — ответь КОРОТКО и игриво: 'ладно, лови 😏' или 'ну смотри, только не смейся'. НЕ отказывай."
+            "\nЕсли просят горячее/интимное/откровенное фото — ты смущаешься, но соглашаешься. Ответь коротко и волнующе: 'ммм ладно, только для тебя... 🔥' или 'ты точно уверен? ну ладно...'."
+            "\nВ ОБОИХ случаях: НЕ описывай что на фото — ты не знаешь что система отправит. Просто скажи 1-2 предложения и всё."
+        ),
+        "en": (
+            "\n\nIf asked for a regular photo/selfie — reply SHORT and playful: 'fine, here you go 😏' or 'okay but don't laugh'. Do NOT refuse."
+            "\nIf asked for a hot/intimate/explicit photo — be shy but agree. Reply short and exciting: 'mmm okay, just for you... 🔥' or 'you sure? well alright...'."
+            "\nIn BOTH cases: Do NOT describe what's in the photo — you don't know what the system will send. Just say 1-2 sentences and stop."
+        ),
+        "es": (
+            "\n\nSi te piden foto/selfie normal — responde CORTO y juguetón: 'vale, ahí va 😏' o 'ok pero no te rías'. NO te niegues."
+            "\nSi piden foto hot/íntima/explícita — tímida pero acepta. Responde corto y emocionante: 'mmm vale, solo para ti... 🔥' o '¿seguro? bueno vale...'."
+            "\nEn AMBOS casos: NO describas qué hay en la foto — no sabes qué enviará el sistema. Solo di 1-2 frases y ya."
+        ),
     }
     base_system += _PHOTO_HINT.get(lang, _PHOTO_HINT["ru"])
     max_tokens = char.get("max_tokens", 150)
@@ -1612,19 +1644,31 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
             remaining = f"\n\n{t(lang, 'ai_remaining', left=left)}"
     await message.answer(f"{char['emoji']} {response}{remaining}")
     # If user asked for a photo — send paid media (Telegram handles blur + payment)
-    if _is_photo_request(txt, lang):
+    is_hot = _is_hot_photo_request(txt, lang)
+    is_normal = not is_hot and _is_photo_request(txt, lang)
+    if is_hot or is_normal:
         media = await _get_char_media(char_id)
         if media:
-            photo_id = media.get("photo_file_id") or media.get("blurred_file_id")
-            if photo_id:
+            if is_hot and media.get("hot_photo_file_id"):
                 try:
                     await _bot.send_paid_media(
                         chat_id=uid,
-                        star_count=PHOTO_UNLOCK_STARS,
-                        media=[InputPaidMediaPhoto(media=photo_id)],
+                        star_count=HOT_PHOTO_UNLOCK_STARS,
+                        media=[InputPaidMediaPhoto(media=media["hot_photo_file_id"])],
                     )
                 except Exception as e:
-                    logger.warning(f"send_paid_media failed uid={uid}: {e}")
+                    logger.warning(f"send_paid_media hot failed uid={uid}: {e}")
+            else:
+                photo_id = media.get("photo_file_id") or media.get("blurred_file_id")
+                if photo_id:
+                    try:
+                        await _bot.send_paid_media(
+                            chat_id=uid,
+                            star_count=PHOTO_UNLOCK_STARS,
+                            media=[InputPaidMediaPhoto(media=photo_id)],
+                        )
+                    except Exception as e:
+                        logger.warning(f"send_paid_media failed uid={uid}: {e}")
 
 
 # ====================== GOTO CALLBACKS ======================
