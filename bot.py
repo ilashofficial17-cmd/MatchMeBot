@@ -976,34 +976,34 @@ PARTNER_ADS = [
         "langs": ["ru"],
         "modes": None,
     },
-    # --- Buy VPN Global — только EN ---
+    # --- Buy VPN Global — EN + ES ---
     {
         "text_key": "ad_vpnglobal_1",
         "url": "https://t.me/BuyVPN_Global_bot?start=_tgr_YDRuRzQwYzhi",
         "btn_key": "btn_ad_get_vpn",
-        "langs": ["en"],
+        "langs": ["en", "es"],
         "modes": None,
     },
     {
         "text_key": "ad_vpnglobal_2",
         "url": "https://t.me/BuyVPN_Global_bot?start=_tgr_YDRuRzQwYzhi",
         "btn_key": "btn_ad_get_vpn",
-        "langs": ["en"],
+        "langs": ["en", "es"],
         "modes": None,
     },
-    # --- Playbox — только EN, только kink ---
+    # --- Playbox — EN + ES, только kink ---
     {
         "text_key": "ad_playbox_1",
         "url": "https://t.me/playbox?start=_tgr_BStO_C8wYjBi",
         "btn_key": "btn_ad_playbox",
-        "langs": ["en"],
+        "langs": ["en", "es"],
         "modes": ["kink"],
     },
     {
         "text_key": "ad_playbox_2",
         "url": "https://t.me/playbox?start=_tgr_BStO_C8wYjBi",
         "btn_key": "btn_ad_playbox",
-        "langs": ["en"],
+        "langs": ["en", "es"],
         "modes": ["kink"],
     },
     # --- SMS PRO — только RU, все режимы ---
@@ -1080,6 +1080,21 @@ PARTNER_ADS = [
         "btn_key": "btn_ad_stars",
         "langs": ["ru"],
         "modes": None,
+    },
+    # --- Luna AI — RU + EN + ES, flirt/kink ---
+    {
+        "text_key": "ad_luna_1",
+        "url": "https://t.me/LunaCoreSystemBot?start=_tgr_24olCJ5iNTQy",
+        "btn_key": "btn_ad_luna",
+        "langs": None,
+        "modes": ["flirt", "kink"],
+    },
+    {
+        "text_key": "ad_luna_2",
+        "url": "https://t.me/LunaCoreSystemBot?start=_tgr_24olCJ5iNTQy",
+        "btn_key": "btn_ad_luna",
+        "langs": None,
+        "modes": ["flirt", "kink"],
     },
 ]
 

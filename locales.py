@@ -384,6 +384,19 @@ TEXTS = {
             "Попробуй — первые звёзды за пару минут."
         ),
         "btn_ad_stars": "⭐ Заработать Stars",
+        # --- Реклама: Luna AI — все языки, flirt/kink ---
+        "ad_luna_1": (
+            "🌙 Хочешь девушку, которая всегда рядом?\n\n"
+            "Luna — AI-собеседница с характером.\n"
+            "Флиртуй, общайся, развивай отношения.\n"
+            "Попробуй — она уже ждёт."
+        ),
+        "ad_luna_2": (
+            "💋 Luna — больше чем бот.\n\n"
+            "Умная, дерзкая, всегда на связи.\n"
+            "Пиши ей — она отвечает мгновенно."
+        ),
+        "btn_ad_luna": "🌙 Написать Luna",
         "hardban": "🚫 Перманентный бан за нарушение правил.",
         # AI чат
         "ai_menu": (
@@ -1066,6 +1079,19 @@ TEXTS = {
             "Try free — 5 questions as a gift."
         ),
         "btn_ad_sovmest": "💘 Try the game",
+        # --- Ads: Luna AI — all langs, flirt/kink ---
+        "ad_luna_1": (
+            "🌙 Want a girl who's always there for you?\n\n"
+            "Luna — an AI companion with personality.\n"
+            "Flirt, chat, build a connection.\n"
+            "Try it — she's already waiting."
+        ),
+        "ad_luna_2": (
+            "💋 Luna — more than a bot.\n\n"
+            "Smart, bold, always online.\n"
+            "Text her — she replies instantly."
+        ),
+        "btn_ad_luna": "🌙 Text Luna",
         "hardban": "🚫 Permanent ban for violating the rules.",
         # AI chat
         "ai_menu": (
@@ -1711,6 +1737,43 @@ TEXTS = {
             "Solo envía un clip — obtén el título y artista."
         ),
         "btn_ad_songstop": "🎵 Encontrar la canción",
+        # --- Anuncios: Buy VPN Global — EN + ES ---
+        "ad_vpnglobal_1": (
+            "🌍 ¿Necesitas un VPN que simplemente funcione?\n\n"
+            "Buy VPN Global — Proxy S5, configuración al instante.\n"
+            "Paga con Telegram Stars. Pruébalo ahora."
+        ),
+        "ad_vpnglobal_2": (
+            "🔒 Mantente privado. Mantente conectado.\n\n"
+            "VPN Global — proxies rápidos, sin registros, paga con Stars.\n"
+            "Simple y confiable."
+        ),
+        "btn_ad_get_vpn": "🛒 Obtener VPN",
+        # --- Anuncios: Playbox — EN + ES, kink ---
+        "ad_playbox_1": (
+            "🔥 Convierte cualquier imagen en video — sin límites.\n\n"
+            "Playbox AI: generador de video para adultos.\n"
+            "Crea algo inolvidable."
+        ),
+        "ad_playbox_2": (
+            "⚡ Creación de video NSFW con IA.\n\n"
+            "Playbox — dale vida a tus fantasías en segundos.\n"
+            "Toca para empezar."
+        ),
+        "btn_ad_playbox": "🎬 Probar Playbox",
+        # --- Anuncios: Luna AI — todos los idiomas, flirt/kink ---
+        "ad_luna_1": (
+            "🌙 ¿Quieres una chica que siempre esté ahí?\n\n"
+            "Luna — compañera IA con personalidad.\n"
+            "Coquetea, chatea, crea una conexión.\n"
+            "Prueba — ella ya te espera."
+        ),
+        "ad_luna_2": (
+            "💋 Luna — más que un bot.\n\n"
+            "Inteligente, atrevida, siempre en línea.\n"
+            "Escríbele — responde al instante."
+        ),
+        "btn_ad_luna": "🌙 Escribir a Luna",
         "hardban": "🚫 Ban permanente por violar las reglas.",
         # Chat IA
         "ai_menu": (
