@@ -1596,19 +1596,19 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         if 0 < left <= 3:
             remaining = f"\n\n{t(lang, 'ai_remaining', left=left)}"
     await message.answer(f"{char['emoji']} {response}{remaining}")
-    # If user asked for a photo — send blurred photo with unlock button
+    # If user asked for a photo — send photo with spoiler + unlock button
     if _is_photo_request(txt, lang):
         media = await _get_char_media(char_id)
         if media:
-            blur_id = media.get("blurred_file_id") or media.get("photo_file_id")
-            if blur_id:
+            photo_id = media.get("photo_file_id") or media.get("blurred_file_id")
+            if photo_id:
                 unlock_kb = InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(
                         text=f"🔓 {t(lang, 'unlock_photo')} — {PHOTO_UNLOCK_STARS} ⭐",
                         callback_data=f"unlock_photo:{char_id}"
                     )]
                 ])
-                await _bot.send_photo(uid, blur_id,
+                await _bot.send_photo(uid, photo_id, has_spoiler=True,
                     caption=t(lang, "blurred_photo_hint"), reply_markup=unlock_kb)
 
 
