@@ -925,17 +925,19 @@ _save_ai_message = None
 _clear_ai_history = None
 _get_ai_notes = None
 _save_ai_notes = None
+_db_pool = None
 
 
 def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
          active_chats, get_user, ensure_user, get_premium_tier, update_user,
          cmd_find, show_settings, get_ai_history=None, save_ai_message=None,
-         clear_ai_history=None, get_ai_notes=None, save_ai_notes=None):
+         clear_ai_history=None, get_ai_notes=None, save_ai_notes=None,
+         db_pool=None):
     global _bot, _ai_sessions, _last_ai_msg, _pairing_lock, _get_all_queues
     global _active_chats, _get_user, _ensure_user, _get_premium_tier
     global _update_user, _cmd_find, _show_settings
     global _get_ai_history, _save_ai_message, _clear_ai_history
-    global _get_ai_notes, _save_ai_notes
+    global _get_ai_notes, _save_ai_notes, _db_pool
     _bot = bot
     _ai_sessions = ai_sessions
     _last_ai_msg = last_ai_msg
@@ -953,6 +955,38 @@ def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
     _clear_ai_history = clear_ai_history
     _get_ai_notes = get_ai_notes
     _save_ai_notes = save_ai_notes
+    _db_pool = db_pool
+
+
+async def _get_char_media(char_id: str) -> dict | None:
+    """Get character media file_ids from DB."""
+    if not _db_pool:
+        return None
+    async with _db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT gif_file_id, photo_file_id, blurred_file_id FROM ai_character_media WHERE character_id=$1",
+            char_id
+        )
+    return dict(row) if row else None
+
+
+_PHOTO_REQUEST_WORDS = {
+    "ru": ["фото", "фотку", "фотку скинь", "скинь фото", "покажи себя", "покажись", "как ты выглядишь", "селфи", "скинь селфи", "покажи фото"],
+    "en": ["photo", "selfie", "send photo", "show yourself", "what do you look like", "send a pic", "your photo", "pic of you", "send selfie"],
+    "es": ["foto", "selfie", "manda foto", "muéstrate", "cómo te ves", "envía foto", "tu foto", "manda selfie"],
+}
+
+
+def _is_photo_request(text: str, lang: str) -> bool:
+    """Check if user message is asking for a photo."""
+    text_lower = text.lower().strip()
+    for word in _PHOTO_REQUEST_WORDS.get(lang, _PHOTO_REQUEST_WORDS["ru"]):
+        if word in text_lower:
+            return True
+    return False
+
+
+PHOTO_UNLOCK_STARS = 15
 
 
 async def _lang(uid: int) -> str:
@@ -1371,6 +1405,13 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     _ai_sessions[uid] = {"character": char_id, "history": db_history, "msg_count": 0}
     _last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
+    # Send character GIF preview if available
+    media = await _get_char_media(char_id)
+    if media and media.get("gif_file_id"):
+        try:
+            await _bot.send_animation(uid, media["gif_file_id"])
+        except Exception:
+            pass
     limit_text = t(lang, "ai_unlimited") if limit is None else t(lang, "ai_limit_info", limit=limit)
     tier_icon = "🔥" if char["tier"] in ("vip", "vip_plus") else "✅"
     try:
@@ -1544,6 +1585,18 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         if 0 < left <= 3:
             remaining = f"\n\n{t(lang, 'ai_remaining', left=left)}"
     await message.answer(f"{char['emoji']} {response}{remaining}")
+    # If user asked for a photo — send blurred photo with unlock button
+    if _is_photo_request(txt, lang):
+        media = await _get_char_media(char_id)
+        if media and media.get("blurred_file_id"):
+            unlock_kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text=f"🔓 {t(lang, 'unlock_photo')} — {PHOTO_UNLOCK_STARS} ⭐",
+                    callback_data=f"unlock_photo:{char_id}"
+                )]
+            ])
+            await _bot.send_photo(uid, media["blurred_file_id"],
+                caption=t(lang, "blurred_photo_hint"), reply_markup=unlock_kb)
 
 
 # ====================== GOTO CALLBACKS ======================
@@ -1578,6 +1631,29 @@ async def goto_action(callback: types.CallbackQuery, state: FSMContext):
         await state.clear()
         await callback.message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
     await callback.answer()
+
+
+# ====================== UNLOCK PHOTO (Telegram Stars) ======================
+@router.callback_query(F.data.startswith("unlock_photo:"), StateFilter("*"))
+async def unlock_photo(callback: types.CallbackQuery, state: FSMContext):
+    uid = callback.from_user.id
+    lang = await _lang(uid)
+    char_id = callback.data.split(":", 1)[1]
+    if char_id not in AI_CHARACTERS:
+        await callback.answer(t(lang, "ai_char_not_found"), show_alert=True)
+        return
+    char = AI_CHARACTERS[char_id]
+    char_name = t(lang, char["name_key"])
+    await callback.answer()
+    await _bot.send_invoice(
+        chat_id=uid,
+        title=t(lang, "unlock_photo_title", name=char_name),
+        description=t(lang, "unlock_photo_desc", name=char_name),
+        payload=f"photo_{char_id}",
+        provider_token="",
+        currency="XTR",
+        prices=[types.LabeledPrice(label=f"Photo {char_name}", amount=PHOTO_UNLOCK_STARS)],
+    )
 
 
 # ====================== AI QUICK START (from search) ======================
