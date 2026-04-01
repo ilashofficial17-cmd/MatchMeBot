@@ -47,11 +47,17 @@ PREMIUM_PLANS = {
 }
 
 
-def get_plan_price(plan_key: str, lang: str) -> int:
-    """Возвращает цену плана в Stars с учётом региона."""
+# A/B ценовой тест: группа B получает скидку 15%
+AB_PRICE_DISCOUNT_B = 0.85
+
+def get_plan_price(plan_key: str, lang: str, ab_group: str = None) -> int:
+    """Возвращает цену плана в Stars с учётом региона и A/B группы."""
     base = PREMIUM_PLANS[plan_key]["stars"]
     mult = PRICE_MULTIPLIERS.get(lang, 2.0)
-    return int(base * mult)
+    price = int(base * mult)
+    if ab_group == "B":
+        price = int(price * AB_PRICE_DISCOUNT_B)
+    return price
 
 
 def get_chat_topics(lang: str) -> list:
@@ -1169,13 +1175,14 @@ async def send_ad_message(uid, source: str = "search"):
         ads = _filter_ads(lang, mode)
         if not ads:
             return
-        ad = ads[chats % len(ads)]
+        idx = chats % len(ads)
+        ad = ads[idx]
         ad_key = ad["text_key"]
         await bot.send_message(
             uid,
             t(lang, ad_key),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=t(lang, ad["btn_key"]), url=ad["url"])],
+                [InlineKeyboardButton(text=t(lang, ad["btn_key"]), callback_data=f"adclick:{idx}:{source}")],
                 [InlineKeyboardButton(text=t(lang, "btn_ad_remove"), callback_data="buy:info")],
             ])
         )
@@ -1934,7 +1941,8 @@ async def cmd_premium(message: types.Message, state: FSMContext):
                 status_text = t(lang, "premium_status_until", tier="Premium", until=until.strftime('%d.%m.%Y'))
             except Exception:
                 status_text = t(lang, "premium_status_eternal", tier="Premium")
-    prices = {k: get_plan_price(k, lang) for k in PREMIUM_PLANS}
+    ab_group = u.get("ab_group") if u else None
+    prices = {k: get_plan_price(k, lang, ab_group) for k in PREMIUM_PLANS}
     await message.answer(t(lang, "premium_title", status=status_text), reply_markup=kb_premium(lang, plan_prices=prices))
 
 @dp.callback_query(F.data == "buy:info", StateFilter("*"))
@@ -1953,9 +1961,13 @@ async def buy_premium(callback: types.CallbackQuery):
         return
     plan = PREMIUM_PLANS[plan_key]
     lang = await get_lang(uid)
+    u = await get_user(uid)
+    ab_group = u.get("ab_group") if u else None
     label = t(lang, plan["label_key"])
     desc = t(lang, plan["desc_key"])
-    stars = get_plan_price(plan_key, lang)
+    stars = get_plan_price(plan_key, lang, ab_group)
+    # Логируем A/B ценовой тест
+    await log_ab_event(uid, "price_shown", f"{plan_key}:{stars}")
     await callback.answer()
     await bot.send_invoice(
         chat_id=uid,
@@ -3085,6 +3097,31 @@ async def rate_chat(callback: types.CallbackQuery):
         await callback.answer(t(lang, "rate_thanks", stars=stars))
     except Exception:
         await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("adclick:"), StateFilter("*"))
+async def ad_click_handler(callback: types.CallbackQuery):
+    """Трекинг клика по рекламе + отправка ссылки."""
+    uid = callback.from_user.id
+    lang = await get_lang(uid)
+    parts = callback.data.split(":")
+    try:
+        idx = int(parts[1])
+        source = parts[2] if len(parts) > 2 else "search"
+    except (ValueError, IndexError):
+        await callback.answer()
+        return
+    u = await get_user(uid)
+    mode = u.get("mode", "simple") if u else "simple"
+    ads = _filter_ads(lang, mode)
+    if not ads or idx >= len(ads):
+        await callback.answer()
+        return
+    ad = ads[idx]
+    # Логируем клик
+    await _log_ad_event(uid, ad["text_key"], "click", source)
+    # Отправляем ссылку
+    await callback.answer(url=ad["url"])
 
 
 # ====================== ЗАПУСК ======================
