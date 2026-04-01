@@ -780,17 +780,17 @@ async def char_media_select(callback: types.CallbackQuery, state: FSMContext):
     blurred_status = "✅" if (row and row["blurred_file_id"]) else "❌"
 
     text = (
-        f"{char['emoji']} **{char_id}**\n\n"
+        f"{char['emoji']} <b>{char_id}</b>\n\n"
         f"{gif_status} GIF (превью при выборе)\n"
         f"{photo_status} Фото (отправка в чате)\n"
         f"{blurred_status} Размытое фото (замыленное)\n\n"
         f"Отправь GIF/анимацию — сохраню как превью.\n"
         f"Отправь фото — сохраню как фото персонажа.\n"
-        f"Отправь фото с подписью `blur` — сохраню как размытое."
+        f"Отправь фото с подписью blur — сохраню как размытое."
     )
     await state.set_state(AdminState.waiting_char_gif)
     await state.update_data(media_char_id=char_id)
-    await callback.message.answer(text, parse_mode="Markdown")
+    await callback.message.answer(text, parse_mode="HTML")
     await callback.answer()
 
 
@@ -823,9 +823,9 @@ async def char_media_upload(message: types.Message, state: FSMContext):
                 DO UPDATE SET gif_file_id=$2, updated_at=NOW()
             """, char_id, file_id)
         await message.answer(
-            f"✅ GIF для {emoji} **{char_id}** сохранён!\n\n"
+            f"✅ GIF для {emoji} <b>{char_id}</b> сохранён!\n\n"
             f"Отправь ещё медиа или нажми /admin для выхода.",
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
     elif message.photo:
         file_id = message.photo[-1].file_id
@@ -839,9 +839,9 @@ async def char_media_upload(message: types.Message, state: FSMContext):
                     DO UPDATE SET blurred_file_id=$2, updated_at=NOW()
                 """, char_id, file_id)
             await message.answer(
-                f"✅ Размытое фото для {emoji} **{char_id}** сохранено!\n\n"
+                f"✅ Размытое фото для {emoji} <b>{char_id}</b> сохранено!\n\n"
                 f"Отправь ещё медиа или нажми /admin для выхода.",
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
         else:
             # Normal photo
@@ -853,10 +853,10 @@ async def char_media_upload(message: types.Message, state: FSMContext):
                     DO UPDATE SET photo_file_id=$2, updated_at=NOW()
                 """, char_id, file_id)
             await message.answer(
-                f"✅ Фото для {emoji} **{char_id}** сохранено!\n\n"
-                f"Отправь фото с подписью `blur` для размытой версии.\n"
+                f"✅ Фото для {emoji} <b>{char_id}</b> сохранено!\n\n"
+                f"Отправь фото с подписью blur для размытой версии.\n"
                 f"Или отправь ещё медиа / /admin для выхода.",
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
     elif message.text and message.text.startswith("/"):
         await state.clear()
