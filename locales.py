@@ -301,7 +301,12 @@ TEXTS = {
             "💡 Пока ждёшь — пообщайся с {name}!\n"
             "AI собеседник ответит моментально 🤖"
         ),
-        "upsell": "⭐ Тебе нравится MatchMe?\nPremium = приоритет в поиске + больше AI + без рекламы!",
+        "upsell": (
+            "💬 Понравился собеседник?\n\n"
+            "С Premium ты найдёшь следующего в 3 раза быстрее.\n"
+            "VIP-персонажи, автоперевод, без рекламы.\n"
+            "Попробуй — почувствуй разницу."
+        ),
         "ad_message": "📢 Здесь могла быть ваша реклама\n\n⭐ Купи Premium и убери рекламу навсегда!",
         # --- Реклама: нейтральная (все режимы) ---
         "ad_dzen_1": (
@@ -603,14 +608,14 @@ TEXTS = {
         # Триал Premium
         "trial_offer": (
             "🎁 Тебе понравилось? У тебя уже 5 чатов!\n\n"
-            "Попробуй Premium бесплатно на 24 часа:\n"
+            "Попробуй Premium бесплатно на 3 дня:\n"
             "• Приоритетный поиск\n"
             "• VIP AI-персонажи\n"
             "• Автоперевод\n"
             "• Без рекламы"
         ),
         "btn_activate_trial": "⭐ Попробовать Premium бесплатно",
-        "trial_activated": "🎉 Premium активирован на 24 часа!\nДо {until}",
+        "trial_activated": "🎉 Premium активирован на 3 дня!\nДо {until}",
         "trial_already_used": "Ты уже использовал пробный период!",
         # Retention
         "retention_miss_you": "👋 Давно тебя не было! В MatchMe сейчас {count} человек онлайн. Заходи пообщаться!",
@@ -914,7 +919,12 @@ TEXTS = {
             "💡 While you wait — chat with {name}!\n"
             "AI partner replies instantly 🤖"
         ),
-        "upsell": "⭐ Enjoying MatchMe?\nPremium = priority search + more AI + no ads!",
+        "upsell": (
+            "💬 Liked your chat partner?\n\n"
+            "With Premium you'll find the next one 3x faster.\n"
+            "VIP characters, auto-translate, no ads.\n"
+            "Try it — feel the difference."
+        ),
         "ad_message": "📢 Your ad could be here\n\n⭐ Buy Premium and remove ads forever!",
         # --- Ads: neutral (all modes) ---
         "ad_dzen_1": (
@@ -970,6 +980,19 @@ TEXTS = {
             "Join now."
         ),
         "btn_ad_boundless": "🎬 Try it",
+        # --- Ads: Song Stop Spot — EN + ES ---
+        "ad_songstop_1": (
+            "🎵 Hear a song and can't name it?\n\n"
+            "Song Stop Spot — send a voice or audio clip,\n"
+            "the bot identifies the track instantly.\n"
+            "Try it right now!"
+        ),
+        "ad_songstop_2": (
+            "🎧 That song stuck in your head?\n\n"
+            "Song Stop Spot will find it for you.\n"
+            "Just send a clip — get the title and artist."
+        ),
+        "btn_ad_songstop": "🎵 Find the song",
         "hardban": "🚫 Permanent ban for violating the rules.",
         # AI chat
         "ai_menu": (
@@ -1228,14 +1251,14 @@ TEXTS = {
         # Trial Premium
         "trial_offer": (
             "🎁 Enjoying it? You've had 5 chats already!\n\n"
-            "Try Premium free for 24 hours:\n"
+            "Try Premium free for 3 days:\n"
             "• Priority search\n"
             "• VIP AI characters\n"
             "• Auto-translate\n"
             "• No ads"
         ),
         "btn_activate_trial": "⭐ Try Premium for free",
-        "trial_activated": "🎉 Premium activated for 24 hours!\nUntil {until}",
+        "trial_activated": "🎉 Premium activated for 3 days!\nUntil {until}",
         "trial_already_used": "You've already used the free trial!",
         # Retention
         "retention_miss_you": "👋 We miss you! {count} people are online on MatchMe right now. Come chat!",
@@ -1539,7 +1562,12 @@ TEXTS = {
             "💡 Mientras esperas — ¡chatea con {name}!\n"
             "El compañero IA responde al instante 🤖"
         ),
-        "upsell": "⭐ ¿Disfrutas MatchMe?\n¡Premium = búsqueda prioritaria + más IA + sin anuncios!",
+        "upsell": (
+            "💬 ¿Te gustó tu compañero de chat?\n\n"
+            "Con Premium encontrarás al siguiente 3 veces más rápido.\n"
+            "Personajes VIP, traducción automática, sin anuncios.\n"
+            "Pruébalo — siente la diferencia."
+        ),
         "ad_message": "📢 Tu anuncio podría estar aquí\n\n⭐ ¡Compra Premium y elimina los anuncios para siempre!",
         # --- Anuncios: neutral (todos los modos) ---
         "ad_dzen_1": (
@@ -1571,6 +1599,19 @@ TEXTS = {
             "Únete ahora."
         ),
         "btn_ad_boundless": "🎬 Probar",
+        # --- Anuncios: Song Stop Spot — EN + ES ---
+        "ad_songstop_1": (
+            "🎵 ¿Escuchaste una canción y no sabes cómo se llama?\n\n"
+            "Song Stop Spot — envía un audio o nota de voz,\n"
+            "el bot identifica la canción al instante.\n"
+            "¡Pruébalo ahora!"
+        ),
+        "ad_songstop_2": (
+            "🎧 ¿Esa canción que no puedes sacar de tu cabeza?\n\n"
+            "Song Stop Spot la encuentra por ti.\n"
+            "Solo envía un clip — obtén el título y artista."
+        ),
+        "btn_ad_songstop": "🎵 Encontrar la canción",
         "hardban": "🚫 Ban permanente por violar las reglas.",
         # Chat IA
         "ai_menu": (
@@ -1829,14 +1870,14 @@ TEXTS = {
         # Trial Premium
         "trial_offer": (
             "🎁 ¿Te gusta? ¡Ya llevas 5 chats!\n\n"
-            "Prueba Premium gratis por 24 horas:\n"
+            "Prueba Premium gratis por 3 días:\n"
             "• Búsqueda prioritaria\n"
             "• Personajes IA VIP\n"
             "• Traducción automática\n"
             "• Sin anuncios"
         ),
         "btn_activate_trial": "⭐ Probar Premium gratis",
-        "trial_activated": "🎉 ¡Premium activado por 24 horas!\nHasta {until}",
+        "trial_activated": "🎉 ¡Premium activado por 3 días!\nHasta {until}",
         "trial_already_used": "¡Ya usaste el periodo de prueba!",
         # Retention
         "retention_miss_you": "👋 ¡Te extrañamos! Hay {count} personas en línea en MatchMe. ¡Ven a chatear!",

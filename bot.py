@@ -905,6 +905,21 @@ PARTNER_ADS = [
         "langs": None,
         "modes": ["kink", "flirt"],
     },
+    # --- Song Stop Spot — EN + ES, все режимы ---
+    {
+        "text_key": "ad_songstop_1",
+        "url": "https://t.me/SongStop45_Bot?start=_tgr_3RjjOGkyZWUy",
+        "btn_key": "btn_ad_songstop",
+        "langs": ["en", "es"],
+        "modes": None,
+    },
+    {
+        "text_key": "ad_songstop_2",
+        "url": "https://t.me/SongStop45_Bot?start=_tgr_3RjjOGkyZWUy",
+        "btn_key": "btn_ad_songstop",
+        "langs": ["en", "es"],
+        "modes": None,
+    },
 ]
 
 
@@ -1231,7 +1246,7 @@ async def activate_trial(callback: types.CallbackQuery):
                 base = existing
         except Exception:
             pass
-    until = base + timedelta(hours=24)
+    until = base + timedelta(days=3)
     await update_user(uid, premium_until=until.isoformat(), premium_tier="premium", trial_used=True)
     try:
         await callback.message.edit_text(t(lang, "trial_activated", until=until.strftime('%d.%m.%Y %H:%M')))
