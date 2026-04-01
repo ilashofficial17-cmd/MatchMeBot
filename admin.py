@@ -782,18 +782,32 @@ async def char_media_select(callback: types.CallbackQuery, state: FSMContext):
 
     text = (
         f"{char['emoji']} <b>{char_id}</b>\n\n"
-        f"{gif_status} GIF (превью при выборе)\n"
+        f"{gif_status} GIF (превью)\n"
         f"{photo_status} Фото — 15 ⭐\n"
         f"{hot_status} 🔥 Hot фото — 50 ⭐\n"
-        f"{hot_gif_status} 🔥 Hot GIF\n\n"
-        f"GIF/анимация → превью\n"
-        f"GIF с подписью hot → hot GIF\n"
-        f"Фото → платное фото (15 ⭐)\n"
-        f"Фото с подписью hot → горячее фото (50 ⭐)"
+        f"{hot_gif_status} 🔥 Hot GIF — 100 ⭐\n\n"
+        f"Загрузка: GIF → превью, GIF+hot → hot GIF\n"
+        f"Фото → платное, Фото+hot → горячее"
     )
+    # Build view/delete buttons for existing media
+    media_buttons = []
+    slots = [
+        ("gif_file_id", "👁 GIF", "🗑 GIF"),
+        ("photo_file_id", "👁 Фото", "🗑 Фото"),
+        ("hot_photo_file_id", "👁 Hot фото", "🗑 Hot фото"),
+        ("hot_gif_file_id", "👁 Hot GIF", "🗑 Hot GIF"),
+    ]
+    for field, view_label, del_label in slots:
+        if row and row.get(field):
+            media_buttons.append([
+                InlineKeyboardButton(text=view_label, callback_data=f"cmview:{char_id}:{field}"),
+                InlineKeyboardButton(text=del_label, callback_data=f"cmdel:{char_id}:{field}"),
+            ])
+    kb = InlineKeyboardMarkup(inline_keyboard=media_buttons) if media_buttons else None
+
     await state.set_state(AdminState.waiting_char_gif)
     await state.update_data(media_char_id=char_id)
-    await callback.message.answer(text, parse_mode="HTML")
+    await callback.message.answer(text, parse_mode="HTML", reply_markup=kb)
     await callback.answer()
 
 
@@ -881,6 +895,67 @@ async def char_media_upload(message: types.Message, state: FSMContext):
         return  # Let other handlers process commands
     else:
         await message.answer(
-            "⚠️ Отправь GIF (анимацию), фото или фото с подписью `blur`.\n"
+            "⚠️ Отправь GIF, фото, или с подписью hot.\n"
             "Или /admin для выхода."
         )
+
+
+_FIELD_LABELS = {
+    "gif_file_id": "GIF",
+    "photo_file_id": "Фото",
+    "hot_photo_file_id": "Hot фото",
+    "hot_gif_file_id": "Hot GIF",
+}
+
+
+@router.callback_query(F.data.startswith("cmview:"), StateFilter("*"))
+async def char_media_view(callback: types.CallbackQuery, state: FSMContext):
+    if callback.from_user.id != _admin_id:
+        return
+    _, char_id, field = callback.data.split(":", 2)
+    async with _db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            f"SELECT {field} FROM ai_character_media WHERE character_id=$1",
+            char_id
+        )
+    if not row or not row[field]:
+        await callback.answer("Файл не найден", show_alert=True)
+        return
+    file_id = row[field]
+    label = _FIELD_LABELS.get(field, field)
+    try:
+        if "gif" in field:
+            await _bot.send_animation(callback.from_user.id, file_id,
+                caption=f"{label} — {char_id}")
+        else:
+            await _bot.send_photo(callback.from_user.id, file_id,
+                caption=f"{label} — {char_id}")
+    except Exception as e:
+        await callback.answer(f"Ошибка: {e}", show_alert=True)
+        return
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("cmdel:"), StateFilter("*"))
+async def char_media_delete(callback: types.CallbackQuery, state: FSMContext):
+    if callback.from_user.id != _admin_id:
+        return
+    _, char_id, field = callback.data.split(":", 2)
+    if field not in _FIELD_LABELS:
+        await callback.answer("Неизвестный слот", show_alert=True)
+        return
+    async with _db_pool.acquire() as conn:
+        await conn.execute(
+            f"UPDATE ai_character_media SET {field}=NULL, updated_at=NOW() WHERE character_id=$1",
+            char_id
+        )
+    label = _FIELD_LABELS[field]
+    await callback.answer(f"🗑 {label} удалён для {char_id}", show_alert=True)
+    # Refresh the media view
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    # Re-trigger char media select
+    callback.data = f"charmedia:{char_id}"
+    await char_media_select(callback, state)
