@@ -1985,7 +1985,11 @@ async def _handle_gift_payment(uid, payload):
     if len(parts) != 3:
         return
     gift_type = parts[1]
-    partner_uid = int(parts[2])
+    try:
+        partner_uid = int(parts[2])
+    except ValueError:
+        logger.warning(f"Invalid gift payload: {payload}")
+        return
     gift = GIFTS.get(gift_type)
     if not gift:
         return
@@ -2050,7 +2054,10 @@ async def successful_payment(message: types.Message):
         return
 
     plan_key = payload.replace("premium_", "")
-    plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1m"])
+    if plan_key not in PREMIUM_PLANS:
+        logger.warning(f"Invalid plan_key in payload: {plan_key}")
+        return
+    plan = PREMIUM_PLANS[plan_key]
     u = await get_user(uid)
     base = datetime.now()
     # Продлеваем от текущей даты окончания если есть
@@ -3079,17 +3086,18 @@ async def rate_chat(callback: types.CallbackQuery):
     stars = int(parts[2])
     try:
         async with db_pool.acquire() as conn:
-            exists = await conn.fetchval(
-                "SELECT 1 FROM chat_ratings WHERE uid=$1 AND partner_uid=$2 AND created_at > NOW() - INTERVAL '1 minute'",
-                uid, partner_uid
-            )
-            if exists:
-                await callback.answer(t(lang, "rate_already"), show_alert=True)
-                return
-            await conn.execute(
-                "INSERT INTO chat_ratings (uid, partner_uid, stars) VALUES ($1, $2, $3)",
-                uid, partner_uid, stars
-            )
+            async with conn.transaction():
+                exists = await conn.fetchval(
+                    "SELECT 1 FROM chat_ratings WHERE uid=$1 AND partner_uid=$2 AND created_at > NOW() - INTERVAL '1 minute' FOR UPDATE",
+                    uid, partner_uid
+                )
+                if exists:
+                    await callback.answer(t(lang, "rate_already"), show_alert=True)
+                    return
+                await conn.execute(
+                    "INSERT INTO chat_ratings (uid, partner_uid, stars) VALUES ($1, $2, $3)",
+                    uid, partner_uid, stars
+                )
         try:
             await callback.message.edit_text(t(lang, "rate_thanks", stars=stars))
         except Exception:
