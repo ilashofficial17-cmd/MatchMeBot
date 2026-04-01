@@ -205,7 +205,7 @@ TEXTS = {
         "reg_interest_added": "Добавлено: {val}",
         "reg_interest_removed": "Убрано: {val}",
         # Тексты — профиль
-        "profile_not_filled": "Анкета не заполнена. Нажми '🔍 По анкете'",
+        "profile_not_filled": "Анкета не заполнена. Нажми '🔍 Подбор по анкете'",
         "profile_text": (
             "👤 {name}{badge}\n"
             "━━━━━━━━━━━━━━━\n"

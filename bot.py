@@ -1316,7 +1316,6 @@ async def do_find(uid, state):
               name=pu.get("name", "—"),
               age=pu.get("age", "?"),
               gender=t(my_lang, f"gender_{pu.get('gender', 'other')}"),
-              mode=t(my_lang, f"mode_{pu.get('mode', 'simple')}"),
               interests=_interests_str(pu, my_lang),
               rating=get_rating(pu))
         )
@@ -1326,7 +1325,6 @@ async def do_find(uid, state):
               name=u.get("name", "—"),
               age=u.get("age", "?"),
               gender=t(p_lang, f"gender_{u.get('gender', 'other')}"),
-              mode=t(p_lang, f"mode_{u.get('mode', 'simple')}"),
               interests=_interests_str(u, p_lang),
               rating=get_rating(u))
         )
@@ -1397,14 +1395,12 @@ async def end_chat(uid, state, go_next=False):
             [InlineKeyboardButton(text=f"{'⭐' * i}", callback_data=f"rate:{uid}:{i}") for i in range(1, 6)],
         ])
         try:
-            await bot.send_message(uid, t(my_lang, "chat_ended"), reply_markup=kb_main(my_lang))
-            await bot.send_message(uid, t(my_lang, "rate_chat"), reply_markup=rate_kb)
+            await bot.send_message(uid, t(my_lang, "chat_ended_rate"), reply_markup=rate_kb)
             await bot.send_message(uid, t(my_lang, "after_chat_propose"), reply_markup=kb_after_chat(partner, my_lang))
         except Exception: pass
 
         try:
-            await bot.send_message(partner, t(p_lang, "partner_left"), reply_markup=kb_main(p_lang))
-            await bot.send_message(partner, t(p_lang, "rate_chat"), reply_markup=p_rate_kb)
+            await bot.send_message(partner, t(p_lang, "chat_ended_rate"), reply_markup=p_rate_kb)
             await bot.send_message(partner, t(p_lang, "after_chat_propose"), reply_markup=kb_after_chat(uid, p_lang))
             pkey = StorageKey(bot_id=bot.id, chat_id=partner, user_id=partner)
             await FSMContext(dp.storage, key=pkey).clear()
@@ -1896,11 +1892,13 @@ async def cmd_stats(message: types.Message, state: FSMContext):
     else:
         premium_text = t(lang, "stats_no_premium")
     days_in_bot = (datetime.now() - u.get("created_at", datetime.now())).days
+    warns = u.get("warn_count", 0)
+    warns_line = f"⚠️ Warnings: {warns}\n" if warns > 0 else ""
     await message.answer(t(lang, "stats_text",
-        chats=u.get("total_chats", 0),
+        total_chats=u.get("total_chats", 0),
         likes=u.get("likes", 0),
         rating=get_rating(u),
-        warns=u.get("warn_count", 0),
+        warns_line=warns_line,
         days=days_in_bot,
         premium=premium_text
     ))
@@ -2805,6 +2803,8 @@ async def show_profile(message: types.Message, state: FSMContext):
         progress_info = t(lang, "profile_progress", current=total_chats, next=next_threshold, pct=pct) + f"\n{bar}"
     else:
         progress_info = t(lang, "profile_progress_max")
+    warns = u.get("warn_count", 0)
+    warns_line = f"⚠️ Предупреждений: {warns}\n" if warns > 0 else ""
     profile_text = t(lang, "profile_text",
         badge=badge,
         name=u.get("name", "—"),
@@ -2815,7 +2815,7 @@ async def show_profile(message: types.Message, state: FSMContext):
         rating=get_rating(u),
         likes=u.get("likes", 0),
         chats=total_chats,
-        warns=u.get("warn_count", 0),
+        warns_line=warns_line,
         premium=premium_status,
         level_info=level_info,
         streak_info=streak_info,
