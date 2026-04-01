@@ -1066,6 +1066,21 @@ PARTNER_ADS = [
         "langs": ["ru", "en"],
         "modes": ["simple", "flirt"],
     },
+    # --- Звёздный бот — только RU, все режимы ---
+    {
+        "text_key": "ad_stars_1",
+        "url": "https://t.me/BGC_Stars_bot?start=_tgr_z8puL2EwZDNi",
+        "btn_key": "btn_ad_stars",
+        "langs": ["ru"],
+        "modes": None,
+    },
+    {
+        "text_key": "ad_stars_2",
+        "url": "https://t.me/BGC_Stars_bot?start=_tgr_z8puL2EwZDNi",
+        "btn_key": "btn_ad_stars",
+        "langs": ["ru"],
+        "modes": None,
+    },
 ]
 
 
