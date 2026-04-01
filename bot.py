@@ -28,6 +28,13 @@ from keyboards import (
     kb_interests, kb_complaint, kb_edit, kb_complaint_action,
     kb_user_actions, kb_premium,
 )
+import db
+from constants import (
+    PRICE_MULTIPLIERS, PREMIUM_PLANS, AB_PRICE_DISCOUNT_B, GIFTS,
+    get_plan_price, get_chat_topics,
+    LEVEL_THRESHOLDS, LEVEL_NAMES, STREAK_BONUSES,
+    STOP_WORDS, PARTNER_ADS, filter_ads as _filter_ads,
+)
 import ai_chat
 import admin as admin_module
 
@@ -38,30 +45,8 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "590443268"))
 
-PRICE_MULTIPLIERS = {"ru": 1.0, "es": 1.3, "en": 2.0}
 
-PREMIUM_PLANS = {
-    "7d":  {"stars": 129,  "days": 7,   "label_key": "plan_label_7d",  "desc_key": "plan_desc_try",      "tier": "premium"},
-    "1m":  {"stars": 349,  "days": 30,  "label_key": "plan_label_1m",  "desc_key": "plan_desc_popular",  "tier": "premium"},
-    "3m":  {"stars": 749,  "days": 90,  "label_key": "plan_label_3m",  "desc_key": "plan_desc_discount", "tier": "premium"},
-}
-
-
-# A/B ценовой тест: группа B получает скидку 15%
-AB_PRICE_DISCOUNT_B = 0.85
-
-def get_plan_price(plan_key: str, lang: str, ab_group: str = None) -> int:
-    """Возвращает цену плана в Stars с учётом региона и A/B группы."""
-    base = PREMIUM_PLANS[plan_key]["stars"]
-    mult = PRICE_MULTIPLIERS.get(lang, 2.0)
-    price = int(base * mult)
-    if ab_group == "B":
-        price = int(price * AB_PRICE_DISCOUNT_B)
-    return price
-
-
-def get_chat_topics(lang: str) -> list:
-    return TEXTS.get(lang, TEXTS["ru"]).get("chat_topics", TEXTS["ru"]["chat_topics"])
+# Constants imported from constants.py: PREMIUM_PLANS, GIFTS, PRICE_MULTIPLIERS, etc.
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -86,27 +71,8 @@ last_ai_msg = {}  # uid -> datetime последнего сообщения в A
 mutual_likes = {}  # uid -> set of partner_uids которым лайкнул
 liked_chats = set()  # (uid, chat_key) — защита от спама лайков
 
-# Gift system
-GIFTS = {
-    "rose":    {"emoji": "🌹", "days": 1, "stars": 19},
-    "diamond": {"emoji": "💎", "days": 3, "stars": 49},
-    "crown":   {"emoji": "👑", "days": 7, "stars": 99},
-}
 
-
-# Стоп-слова для логирования жалоб
-STOP_WORDS = [
-    "предлагаю услуги", "оказываю услуги", "интим услуги",
-    "досуг", "escort", "эскорт", "проститутка", "проститут",
-    "вирт за деньги", "вирт платно", "за донат",
-    "подпишись на канал", "перейди по ссылке", "мой канал",
-    "казино", "ставки на спорт", "заработок в телеграм",
-    "крипта х10", "пассивный доход",
-    "мне 12", "мне 13", "мне 14", "мне 15",
-    "школьница ищу", "школьник ищу", "продаю", "порно за деньги",
-]
-
-# Списки бан-слов перенесены в moderation.py (HARD_BAN_WORDS, SUSPECT_WORDS)
+# GIFTS, STOP_WORDS — see constants.py
 
 
 # ====================== БД ======================
@@ -381,132 +347,19 @@ async def restore_chats():
     if restored:
         logger.info(f"Восстановлено {restored} чатов")
 
-async def get_user(uid):
-    if not db_pool:
-        return None
-    async with db_pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT * FROM users WHERE uid=$1", uid)
-        return dict(row) if row else None
-
-async def get_lang(uid) -> str:
-    u = await get_user(uid)
-    return (u.get("lang") or "ru") if u else "ru"
-
-async def ensure_user(uid):
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
-        await conn.execute("INSERT INTO users (uid) VALUES ($1) ON CONFLICT DO NOTHING", uid)
-        if uid == ADMIN_ID:
-            await conn.execute(
-                "UPDATE users SET premium_until='permanent' WHERE uid=$1 AND premium_until IS NULL", uid
-            )
-
-async def update_user(uid, **kwargs):
-    if not kwargs or not db_pool:
-        return
-    sets = ", ".join(f"{k}=${i+2}" for i, k in enumerate(kwargs))
-    vals = list(kwargs.values())
-    async with db_pool.acquire() as conn:
-        await conn.execute(f"UPDATE users SET {sets} WHERE uid=$1", uid, *vals)
-
-async def increment_user(uid, **kwargs):
-    """Атомарный инкремент полей: increment_user(uid, likes=1, total_chats=1)"""
-    if not kwargs or not db_pool:
-        return
-    sets = ", ".join(f"{k}={k}+${i+2}" for i, k in enumerate(kwargs))
-    vals = list(kwargs.values())
-    async with db_pool.acquire() as conn:
-        await conn.execute(f"UPDATE users SET {sets} WHERE uid=$1", uid, *vals)
-
-async def get_ai_history(uid: int, character_id: str, limit: int = 20) -> list:
-    if not db_pool:
-        return []
-    async with db_pool.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT role, content FROM ai_history "
-            "WHERE uid=$1 AND character_id=$2 ORDER BY created_at DESC LIMIT $3",
-            uid, character_id, limit
-        )
-    return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
-
-
-async def save_ai_message(uid: int, character_id: str, role: str, content: str):
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
-        await conn.execute(
-            "INSERT INTO ai_history (uid, character_id, role, content) VALUES ($1, $2, $3, $4)",
-            uid, character_id, role, content
-        )
-        await conn.execute("""
-            DELETE FROM ai_history WHERE id IN (
-                SELECT id FROM ai_history WHERE uid=$1 AND character_id=$2
-                ORDER BY created_at DESC OFFSET 20
-            )
-        """, uid, character_id)
-
-
-async def clear_ai_history(uid: int, character_id: str = None):
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
-        if character_id:
-            await conn.execute(
-                "DELETE FROM ai_history WHERE uid=$1 AND character_id=$2", uid, character_id
-            )
-        else:
-            await conn.execute("DELETE FROM ai_history WHERE uid=$1", uid)
-
-
-async def get_ai_notes(uid: int, character_id: str) -> str:
-    """Возвращает заметки о пользователе для персонажа."""
-    if not db_pool:
-        return ""
-    async with db_pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT notes FROM ai_notes WHERE uid=$1 AND character_id=$2",
-            uid, character_id
-        )
-    return (row["notes"] if row else "") or ""
-
-
-async def save_ai_notes(uid: int, character_id: str, notes: str):
-    """Сохраняет/обновляет заметки о пользователе для персонажа."""
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
-        await conn.execute("""
-            INSERT INTO ai_notes (uid, character_id, notes, updated_at)
-            VALUES ($1, $2, $3, NOW())
-            ON CONFLICT (uid, character_id)
-            DO UPDATE SET notes = $3, updated_at = NOW()
-        """, uid, character_id, notes[:500])
-
-
-async def get_premium_tier(uid):
-    """Возвращает 'premium' или None"""
-    if uid == ADMIN_ID:
-        return "premium"
-    u = await get_user(uid)
-    if not u:
-        return None
-    p_until = u.get("premium_until")
-    if not p_until:
-        return None
-    if p_until == "permanent":
-        return "premium"
-    try:
-        if datetime.now() < datetime.fromisoformat(p_until):
-            return "premium"
-        await update_user(uid, premium_until=None, premium_tier=None)
-    except Exception:
-        pass
-    return None
-
-
-async def is_premium(uid):
-    return (await get_premium_tier(uid)) is not None
+# DB helpers — delegated to db.py
+get_user = db.get_user
+get_lang = db.get_lang
+ensure_user = db.ensure_user
+update_user = db.update_user
+increment_user = db.increment_user
+get_ai_history = db.get_ai_history
+save_ai_message = db.save_ai_message
+clear_ai_history = db.clear_ai_history
+get_ai_notes = db.get_ai_notes
+save_ai_notes = db.save_ai_notes
+get_premium_tier = db.get_premium_tier
+is_premium = db.is_premium
 
 
 # ====================== SOCIAL PROOF ======================
@@ -518,12 +371,7 @@ def get_online_count() -> int:
 
 
 # ====================== DAILY STREAK ======================
-LEVEL_THRESHOLDS = [0, 10, 30, 75, 150, 300]  # total_chats для каждого уровня
-LEVEL_NAMES = {
-    0: "level_0", 1: "level_1", 2: "level_2",
-    3: "level_3", 4: "level_4", 5: "level_5",
-}
-STREAK_BONUSES = {3: 5, 7: 10, 14: 15, 30: 20}  # streak_days -> ai_bonus
+# LEVEL_THRESHOLDS, LEVEL_NAMES, STREAK_BONUSES — see constants.py
 
 
 def _calc_level(total_chats: int) -> int:
@@ -947,166 +795,7 @@ async def get_premium_badge(uid):
     if await is_premium(uid): return " ⭐"
     return ""
 
-# ====================== РЕКЛАМНАЯ СИСТЕМА ======================
-# Каждый слот: text_key (ключ в locales), url, langs (языки), modes (режимы юзера)
-# langs=None — все языки, modes=None — все режимы
-# modes=["kink","flirt"] — только 18+/флирт контент
-PARTNER_ADS = [
-    # --- Dzen VPN — только RU ---
-    {
-        "text_key": "ad_dzen_1",
-        "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
-        "btn_key": "btn_ad_connect",
-        "langs": ["ru"],
-        "modes": None,
-    },
-    {
-        "text_key": "ad_dzen_2",
-        "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
-        "btn_key": "btn_ad_connect",
-        "langs": ["ru"],
-        "modes": None,
-    },
-    {
-        "text_key": "ad_dzen_3",
-        "url": "https://t.me/vpn_dzen_bot?start=_tgr_sp0QqEc0YmVi",
-        "btn_key": "btn_ad_connect",
-        "langs": ["ru"],
-        "modes": None,
-    },
-    # --- Buy VPN Global — EN + ES ---
-    {
-        "text_key": "ad_vpnglobal_1",
-        "url": "https://t.me/BuyVPN_Global_bot?start=_tgr_YDRuRzQwYzhi",
-        "btn_key": "btn_ad_get_vpn",
-        "langs": ["en", "es"],
-        "modes": None,
-    },
-    {
-        "text_key": "ad_vpnglobal_2",
-        "url": "https://t.me/BuyVPN_Global_bot?start=_tgr_YDRuRzQwYzhi",
-        "btn_key": "btn_ad_get_vpn",
-        "langs": ["en", "es"],
-        "modes": None,
-    },
-    # --- Playbox — EN + ES, только kink ---
-    {
-        "text_key": "ad_playbox_1",
-        "url": "https://t.me/playbox?start=_tgr_BStO_C8wYjBi",
-        "btn_key": "btn_ad_playbox",
-        "langs": ["en", "es"],
-        "modes": ["kink"],
-    },
-    {
-        "text_key": "ad_playbox_2",
-        "url": "https://t.me/playbox?start=_tgr_BStO_C8wYjBi",
-        "btn_key": "btn_ad_playbox",
-        "langs": ["en", "es"],
-        "modes": ["kink"],
-    },
-    # --- SMS PRO — только RU, все режимы ---
-    {
-        "text_key": "ad_smspro_1",
-        "url": "https://t.me/Virtnumbers_buyBot?start=_tgr_josfGNMwMGYy",
-        "btn_key": "btn_ad_smspro",
-        "langs": ["ru"],
-        "modes": None,
-    },
-    {
-        "text_key": "ad_smspro_2",
-        "url": "https://t.me/Virtnumbers_buyBot?start=_tgr_josfGNMwMGYy",
-        "btn_key": "btn_ad_smspro",
-        "langs": ["ru"],
-        "modes": None,
-    },
-    # --- BoundLess3D — все языки, только kink/flirt ---
-    {
-        "text_key": "ad_boundless_1",
-        "url": "https://t.me/Boundless3D_bot?start=_tgr_3hwFzf1kYjg6",
-        "btn_key": "btn_ad_boundless",
-        "langs": None,
-        "modes": ["kink", "flirt"],
-    },
-    {
-        "text_key": "ad_boundless_2",
-        "url": "https://t.me/Boundless3D_bot?start=_tgr_3hwFzf1kYjg6",
-        "btn_key": "btn_ad_boundless",
-        "langs": None,
-        "modes": ["kink", "flirt"],
-    },
-    # --- Song Stop Spot — EN + ES, все режимы ---
-    {
-        "text_key": "ad_songstop_1",
-        "url": "https://t.me/SongStop45_Bot?start=_tgr_3RjjOGkyZWUy",
-        "btn_key": "btn_ad_songstop",
-        "langs": ["en", "es"],
-        "modes": None,
-    },
-    {
-        "text_key": "ad_songstop_2",
-        "url": "https://t.me/SongStop45_Bot?start=_tgr_3RjjOGkyZWUy",
-        "btn_key": "btn_ad_songstop",
-        "langs": ["en", "es"],
-        "modes": None,
-    },
-    # --- Детектор совместимости — RU + EN, simple/flirt ---
-    {
-        "text_key": "ad_sovmest_1",
-        "url": "https://t.me/Sovmestdetect_bot?start=_tgr_srusCgVlOWEy",
-        "btn_key": "btn_ad_sovmest",
-        "langs": ["ru", "en"],
-        "modes": ["simple", "flirt"],
-    },
-    {
-        "text_key": "ad_sovmest_2",
-        "url": "https://t.me/Sovmestdetect_bot?start=_tgr_srusCgVlOWEy",
-        "btn_key": "btn_ad_sovmest",
-        "langs": ["ru", "en"],
-        "modes": ["simple", "flirt"],
-    },
-    # --- Звёздный бот — только RU, все режимы ---
-    {
-        "text_key": "ad_stars_1",
-        "url": "https://t.me/BGC_Stars_bot?start=_tgr_z8puL2EwZDNi",
-        "btn_key": "btn_ad_stars",
-        "langs": ["ru"],
-        "modes": None,
-    },
-    {
-        "text_key": "ad_stars_2",
-        "url": "https://t.me/BGC_Stars_bot?start=_tgr_z8puL2EwZDNi",
-        "btn_key": "btn_ad_stars",
-        "langs": ["ru"],
-        "modes": None,
-    },
-    # --- Luna AI — RU + EN + ES, flirt/kink ---
-    {
-        "text_key": "ad_luna_1",
-        "url": "https://t.me/LunaCoreSystemBot?start=_tgr_24olCJ5iNTQy",
-        "btn_key": "btn_ad_luna",
-        "langs": None,
-        "modes": ["kink"],
-    },
-    {
-        "text_key": "ad_luna_2",
-        "url": "https://t.me/LunaCoreSystemBot?start=_tgr_24olCJ5iNTQy",
-        "btn_key": "btn_ad_luna",
-        "langs": None,
-        "modes": ["kink"],
-    },
-]
-
-
-def _filter_ads(lang: str, mode: str) -> list:
-    """Фильтрует рекламу по языку и режиму юзера."""
-    result = []
-    for ad in PARTNER_ADS:
-        if ad["langs"] is not None and lang not in ad["langs"]:
-            continue
-        if ad["modes"] is not None and mode not in ad["modes"]:
-            continue
-        result.append(ad)
-    return result
+# PARTNER_ADS, _filter_ads — see constants.py
 
 
 async def _log_ad_event(uid: int, ad_key: str, event_type: str, source: str = "search"):
@@ -3098,6 +2787,7 @@ async def ad_click_handler(callback: types.CallbackQuery):
 # ====================== ЗАПУСК ======================
 async def main():
     await init_db()
+    db.init(db_pool, ADMIN_ID)
     moderation.init(bot, db_pool, ADMIN_ID)
     await moderation.migrate_db()
     await set_commands()
