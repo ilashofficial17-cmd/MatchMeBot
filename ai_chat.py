@@ -633,7 +633,8 @@ async def _show_ai_menu(message: types.Message, state: FSMContext, uid: int):
     await state.update_data(ai_show_mode=mode)
     await message.answer(
         t(lang, "ai_menu", energy_left=energy_left, energy_max=max_energy),
-        reply_markup=kb_ai_characters(user_tier, mode, lang)
+        reply_markup=kb_ai_characters(user_tier, mode, lang),
+        parse_mode="HTML",
     )
 
 

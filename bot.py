@@ -2770,6 +2770,7 @@ async def cmd_energy_shop(message: types.Message, state: FSMContext):
     lang = await get_lang(uid)
     u = await get_user(uid)
     from ai_chat import DAILY_ENERGY, get_energy_info
+    from energy_shop import _energy_bar
     user_tier = await get_premium_tier(uid)
     ai_bonus = u.get("ai_bonus", 0) if u else 0
     _, max_energy = get_energy_info("basic", user_tier, ai_bonus)
@@ -2779,9 +2780,19 @@ async def cmd_energy_shop(message: types.Message, state: FSMContext):
     if reset_time and (_dt.now() - reset_time).total_seconds() > 86400:
         energy_used = 0
     energy_left = max(max_energy - energy_used, 0)
+    bar = _energy_bar(energy_left, max_energy)
+    if reset_time:
+        elapsed = (_dt.now() - reset_time).total_seconds()
+        remaining = max(0, 86400 - elapsed)
+        hrs = int(remaining // 3600)
+        mins = int((remaining % 3600) // 60)
+    else:
+        hrs, mins = 24, 0
     await message.answer(
-        t(lang, "energy_shop_title", left=energy_left, max=max_energy),
-        reply_markup=kb_energy_shop(lang)
+        t(lang, "energy_shop_title", left=energy_left, max=max_energy,
+          bar=bar, hours=hrs, mins=mins),
+        reply_markup=kb_energy_shop(lang),
+        parse_mode="HTML",
     )
 
 

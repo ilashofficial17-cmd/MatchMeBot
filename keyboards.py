@@ -21,7 +21,6 @@ def kb_main(lang="ru"):
         [KeyboardButton(text=t(lang, "btn_search")), KeyboardButton(text=t(lang, "btn_find"))],
         [KeyboardButton(text=t(lang, "btn_ai_chat")), KeyboardButton(text=t(lang, "btn_profile"))],
         [KeyboardButton(text=t(lang, "btn_settings")), KeyboardButton(text=t(lang, "btn_help"))],
-        [KeyboardButton(text=t(lang, "btn_energy_shop"))],
     ], resize_keyboard=True)
 
 
@@ -261,12 +260,19 @@ def kb_premium(lang="ru", plan_prices: dict | None = None):
 def kb_energy_shop(lang="ru"):
     mult = PRICE_MULTIPLIERS.get(lang, 2.0)
     buttons = []
-    for key, pack in ENERGY_PACKS.items():
+    pack_list = list(ENERGY_PACKS.items())
+    for i, (key, pack) in enumerate(pack_list):
         price = int(pack["stars"] * mult)
         label = t(lang, pack["label_key"])
+        badge = ""
+        if i == 1:
+            badge = " 🔥"
+        elif i == 2:
+            badge = " 💎"
         buttons.append([InlineKeyboardButton(
-            text=f"{pack['emoji']} {label} — {price} ⭐",
+            text=f"{pack['emoji']} {label} — {price} ⭐{badge}",
             callback_data=f"energy_buy:{key}"
         )])
+    buttons.append([InlineKeyboardButton(text=t(lang, "energy_shop_premium_cta"), callback_data="premium_show")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="energy_buy:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)

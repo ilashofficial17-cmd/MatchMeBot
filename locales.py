@@ -404,12 +404,10 @@ TEXTS = {
         "hardban": "🚫 Перманентный бан за нарушение правил.",
         # AI чат
         "ai_menu": (
-            "🤖 ИИ чат\n\n"
-            "⚡ Энергия: {energy_left}/{energy_max}\n\n"
-            "✅ Basic-персонажи — 1 ⚡/сообщение\n"
-            "⭐ VIP-персонажи — 2 ⚡/сообщение\n"
-            "💎 VIP+-персонажи — 3 ⚡/сообщение\n\n"
-            "Выбери с кем хочешь поговорить:"
+            "🤖 <b>ИИ чат</b>\n\n"
+            "⚡ Энергия: <b>{energy_left}</b>/{energy_max}\n\n"
+            "✅ Basic — 1 ⚡   ⭐ VIP — 2 ⚡   💎 VIP+ — 3 ⚡\n\n"
+            "Выбери персонажа:"
         ),
         "ai_select_char": "Выбери персонажа:",
         "ai_char_not_found": "Персонаж не найден.",
@@ -423,18 +421,30 @@ TEXTS = {
         "ai_limit_info": "💬 Лимит: {limit} сообщений/день",
         "ai_ended": "✅ Чат с ИИ завершён.",
         "ai_select_from_buttons": "👆 Выбери персонажа из кнопок выше.",
-        "ai_energy_cost":  "⚡ Стоимость: {cost} энергии за сообщение",
-        "ai_energy_low":   "⚠️ Мало энергии! Восстановится через 24ч или купи Premium (200 ⚡/день).",
-        "ai_energy_empty": "⚡ Энергия закончилась!\n\nВосстановится через {hours}ч {mins}м\n\n💎 Premium — 200 ⚡ в день",
-        "energy_shop_title": "⚡ Запас энергии: {left}/{max}\n\nКупи энергию и продолжай общаться прямо сейчас:",
-        "energy_pack_30": "30 ⚡ — небольшой запас",
-        "energy_pack_100": "100 ⚡ — стандартный запас",
-        "energy_pack_300": "300 ⚡ — большой запас",
-        "energy_invoice_title": "Энергия для ИИ чата",
-        "energy_invoice_desc": "+{amount} ⚡ · {label}",
-        "energy_purchased": "⚡ +{amount} энергии зачислено! Продолжай общение.",
+        "ai_energy_cost":  "⚡ {cost} энергии за сообщение",
+        "ai_energy_low":   "⚠️ Энергия на исходе! Пополни или оформи Premium — 200 ⚡ каждый день.",
+        "ai_energy_empty": (
+            "⚡ Энергия закончилась!\n\n"
+            "Пополни сейчас — и продолжи разговор.\n"
+            "Или оформи Premium и забудь про лимиты.\n\n"
+            "🔄 Бесплатный сброс через {hours}ч {mins}м"
+        ),
+        "energy_shop_title": (
+            "<b>⚡ Энергия</b>\n\n"
+            "{bar}  <b>{left}</b> / {max}\n"
+            "🔄 Сброс через {hours}ч {mins}м\n\n"
+            "Каждое сообщение ИИ тратит энергию.\n"
+            "Пополни — и общайся без пауз:"
+        ),
+        "energy_shop_premium_cta": "💎 Premium — 200 ⚡/день без покупок",
+        "energy_pack_10":  "+10 ⚡ — ещё пару фраз",
+        "energy_pack_50":  "+50 ⚡ — на целый разговор",
+        "energy_pack_150": "+150 ⚡ — запас на несколько дней",
+        "energy_invoice_title": "⚡ Энергия",
+        "energy_invoice_desc": "+{amount} ⚡ — {label}",
+        "energy_purchased": "✅ +{amount} ⚡ зачислено! Общение продолжается.",
         "energy_pack_not_found": "Пакет не найден.",
-        "btn_buy_energy": "⚡ Купить энергию",
+        "btn_buy_energy": "⚡ Пополнить энергию",
         "btn_energy_shop": "⚡ Магазин энергии",
         "ai_unavailable": "😔 ИИ временно недоступен.",
         "ai_no_funds": "💳 ИИ временно недоступен — нет средств на балансе.",
@@ -1161,12 +1171,10 @@ TEXTS = {
         "hardban": "🚫 Permanent ban for violating the rules.",
         # AI chat
         "ai_menu": (
-            "🤖 AI Chat\n\n"
-            "⚡ Energy: {energy_left}/{energy_max}\n\n"
-            "✅ Basic characters — 1 ⚡/message\n"
-            "⭐ VIP characters — 2 ⚡/message\n"
-            "💎 VIP+ characters — 3 ⚡/message\n\n"
-            "Choose who you want to talk to:"
+            "🤖 <b>AI Chat</b>\n\n"
+            "⚡ Energy: <b>{energy_left}</b>/{energy_max}\n\n"
+            "✅ Basic — 1 ⚡   ⭐ VIP — 2 ⚡   💎 VIP+ — 3 ⚡\n\n"
+            "Pick a character:"
         ),
         "ai_select_char": "Choose a character:",
         "ai_char_not_found": "Character not found.",
@@ -1180,18 +1188,30 @@ TEXTS = {
         "ai_limit_info": "💬 Limit: {limit} messages/day",
         "ai_ended": "✅ AI chat ended.",
         "ai_select_from_buttons": "👆 Choose a character from the buttons above.",
-        "ai_energy_cost":  "⚡ Cost: {cost} energy per message",
-        "ai_energy_low":   "⚠️ Low energy! Restores in 24h or buy Premium (200 ⚡/day).",
-        "ai_energy_empty": "⚡ Out of energy!\n\nRestores in {hours}h {mins}m\n\n💎 Premium — 200 ⚡ per day",
-        "energy_shop_title": "⚡ Energy: {left}/{max}\n\nBuy energy and keep chatting right now:",
-        "energy_pack_30": "30 ⚡ — small pack",
-        "energy_pack_100": "100 ⚡ — standard pack",
-        "energy_pack_300": "300 ⚡ — large pack",
-        "energy_invoice_title": "Energy for AI Chat",
-        "energy_invoice_desc": "+{amount} ⚡ · {label}",
-        "energy_purchased": "⚡ +{amount} energy added! Keep chatting.",
+        "ai_energy_cost":  "⚡ {cost} energy per message",
+        "ai_energy_low":   "⚠️ Running low! Top up or get Premium — 200 ⚡ every day.",
+        "ai_energy_empty": (
+            "⚡ Out of energy!\n\n"
+            "Top up now to keep the conversation going.\n"
+            "Or go Premium and never worry about limits.\n\n"
+            "🔄 Free reset in {hours}h {mins}m"
+        ),
+        "energy_shop_title": (
+            "<b>⚡ Energy</b>\n\n"
+            "{bar}  <b>{left}</b> / {max}\n"
+            "🔄 Resets in {hours}h {mins}m\n\n"
+            "Every AI message costs energy.\n"
+            "Top up and chat without interruptions:"
+        ),
+        "energy_shop_premium_cta": "💎 Premium — 200 ⚡/day, no purchases needed",
+        "energy_pack_10":  "+10 ⚡ — a few more lines",
+        "energy_pack_50":  "+50 ⚡ — a full conversation",
+        "energy_pack_150": "+150 ⚡ — lasts for days",
+        "energy_invoice_title": "⚡ Energy",
+        "energy_invoice_desc": "+{amount} ⚡ — {label}",
+        "energy_purchased": "✅ +{amount} ⚡ added! Keep chatting.",
         "energy_pack_not_found": "Pack not found.",
-        "btn_buy_energy": "⚡ Buy Energy",
+        "btn_buy_energy": "⚡ Top Up Energy",
         "btn_energy_shop": "⚡ Energy Shop",
         "ai_unavailable": "😔 AI is temporarily unavailable.",
         "ai_no_funds": "💳 AI temporarily unavailable — no balance.",
@@ -1905,12 +1925,10 @@ TEXTS = {
         "hardban": "🚫 Ban permanente por violar las reglas.",
         # Chat IA
         "ai_menu": (
-            "🤖 Chat IA\n\n"
-            "⚡ Energía: {energy_left}/{energy_max}\n\n"
-            "✅ Personajes Basic — 1 ⚡/mensaje\n"
-            "⭐ Personajes VIP — 2 ⚡/mensaje\n"
-            "💎 Personajes VIP+ — 3 ⚡/mensaje\n\n"
-            "Elige con quién quieres hablar:"
+            "🤖 <b>Chat IA</b>\n\n"
+            "⚡ Energía: <b>{energy_left}</b>/{energy_max}\n\n"
+            "✅ Basic — 1 ⚡   ⭐ VIP — 2 ⚡   💎 VIP+ — 3 ⚡\n\n"
+            "Elige un personaje:"
         ),
         "ai_select_char": "Elige un personaje:",
         "ai_char_not_found": "Personaje no encontrado.",
@@ -1924,18 +1942,30 @@ TEXTS = {
         "ai_limit_info": "💬 Límite: {limit} mensajes/día",
         "ai_ended": "✅ Chat IA terminado.",
         "ai_select_from_buttons": "👆 Elige un personaje con los botones de arriba.",
-        "ai_energy_cost":  "⚡ Costo: {cost} de energía por mensaje",
-        "ai_energy_low":   "⚠️ ¡Poca energía! Se restaura en 24h o compra Premium (200 ⚡/día).",
-        "ai_energy_empty": "⚡ ¡Sin energía!\n\nSe restaura en {hours}h {mins}m\n\n💎 Premium — 200 ⚡ por día",
-        "energy_shop_title": "⚡ Energía: {left}/{max}\n\nCompra energía y sigue chateando ahora mismo:",
-        "energy_pack_30": "30 ⚡ — paquete pequeño",
-        "energy_pack_100": "100 ⚡ — paquete estándar",
-        "energy_pack_300": "300 ⚡ — paquete grande",
-        "energy_invoice_title": "Energía para Chat IA",
-        "energy_invoice_desc": "+{amount} ⚡ · {label}",
-        "energy_purchased": "⚡ +{amount} energía añadida. ¡Sigue chateando!",
+        "ai_energy_cost":  "⚡ {cost} de energía por mensaje",
+        "ai_energy_low":   "⚠️ ¡Queda poca! Recarga o activa Premium — 200 ⚡ cada día.",
+        "ai_energy_empty": (
+            "⚡ ¡Sin energía!\n\n"
+            "Recarga ahora y sigue la conversación.\n"
+            "O activa Premium y olvídate de los límites.\n\n"
+            "🔄 Reinicio gratis en {hours}h {mins}m"
+        ),
+        "energy_shop_title": (
+            "<b>⚡ Energía</b>\n\n"
+            "{bar}  <b>{left}</b> / {max}\n"
+            "🔄 Se reinicia en {hours}h {mins}m\n\n"
+            "Cada mensaje IA gasta energía.\n"
+            "Recarga y chatea sin pausas:"
+        ),
+        "energy_shop_premium_cta": "💎 Premium — 200 ⚡/día sin compras",
+        "energy_pack_10":  "+10 ⚡ — unas frases más",
+        "energy_pack_50":  "+50 ⚡ — una conversación entera",
+        "energy_pack_150": "+150 ⚡ — reserva para varios días",
+        "energy_invoice_title": "⚡ Energía",
+        "energy_invoice_desc": "+{amount} ⚡ — {label}",
+        "energy_purchased": "✅ +{amount} ⚡ añadida. ¡Sigue chateando!",
         "energy_pack_not_found": "Paquete no encontrado.",
-        "btn_buy_energy": "⚡ Comprar Energía",
+        "btn_buy_energy": "⚡ Recargar Energía",
         "btn_energy_shop": "⚡ Tienda de Energía",
         "ai_unavailable": "😔 La IA no está disponible temporalmente.",
         "ai_no_funds": "💳 IA no disponible temporalmente — sin saldo.",
