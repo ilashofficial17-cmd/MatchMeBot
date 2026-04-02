@@ -13,18 +13,16 @@ TEXTS = {
             "Choose language / Elige idioma"
         ),
         "privacy": (
-            "📋 Условия использования и Политика конфиденциальности MatchMe\n\n"
-            "Используя бота, вы принимаете наши Условия:\n\n"
-            "• Минимальный возраст: 16 лет (18+ для всех режимов)\n"
-            "• Указание ложного возраста = бессрочный бан\n"
-            "• Мы собираем: Telegram ID, имя, возраст, пол\n"
-            "• Переписка НЕ хранится. Модерация — только AI\n"
-            "• Все покупки окончательны, возврат невозможен\n"
-            "• AI-персонажи вымышлены, это не реальные люди\n"
-            "• Сервис предоставляется «как есть»\n\n"
+            "📋 Условия и конфиденциальность\n\n"
+            "Коротко о главном:\n\n"
+            "🔞 Возраст — от 16 лет (18+ для всех режимов)\n"
+            "🔒 Мы храним минимум: Telegram ID, имя, возраст, пол\n"
+            "💬 Переписка не сохраняется\n"
+            "🤖 AI-персонажи — вымышленные, не реальные люди\n"
+            "💳 Покупки окончательны\n\n"
             "📄 Полная версия: {legal_url}\n"
             "💬 Поддержка: @MatchMeMaster_bot\n\n"
-            "Нажимая «Принять», вы соглашаетесь с Условиями и Политикой конфиденциальности."
+            "Нажимая «Принять», ты соглашаешься с Условиями и Политикой конфиденциальности."
         ),
         "privacy_accepted": "✅ Политика конфиденциальности принята!",
         "privacy_declined": (
@@ -422,27 +420,26 @@ TEXTS = {
         "ai_ended": "✅ Чат с ИИ завершён.",
         "ai_select_from_buttons": "👆 Выбери персонажа из кнопок выше.",
         "ai_energy_cost":  "⚡ {cost} энергии за сообщение",
-        "ai_energy_low":   "⚠️ Энергия на исходе! Пополни или оформи Premium — 200 ⚡ каждый день.",
+        "ai_energy_low":   "⚠️ Энергия почти на нуле! Пополни ⚡ или возьми Premium — и забудь про лимиты.",
         "ai_energy_empty": (
             "⚡ Энергия закончилась!\n\n"
-            "Пополни сейчас — и продолжи разговор.\n"
-            "Или оформи Premium и забудь про лимиты.\n\n"
+            "Хочешь продолжить? Пополни прямо сейчас 👇\n"
+            "Или возьми Premium — лимитов больше не будет.\n\n"
             "🔄 Бесплатный сброс через {hours}ч {mins}м"
         ),
         "energy_shop_title": (
-            "<b>⚡ Энергия</b>\n\n"
+            "<b>⚡ Твоя энергия</b>\n\n"
             "{bar}  <b>{left}</b> / {max}\n"
             "🔄 Сброс через {hours}ч {mins}м\n\n"
-            "Каждое сообщение ИИ тратит энергию.\n"
-            "Пополни — и общайся без пауз:"
+            "Выбирай пакет — и продолжай общение 👇"
         ),
-        "energy_shop_premium_cta": "💎 Premium — 200 ⚡/день без покупок",
-        "energy_pack_10":  "+10 ⚡ — ещё пару фраз",
-        "energy_pack_50":  "+50 ⚡ — на целый разговор",
-        "energy_pack_150": "+150 ⚡ — запас на несколько дней",
+        "energy_shop_premium_cta": "💎 Premium — 200 ⚡/день уже включено",
+        "energy_pack_10":  "+10 — продолжить диалог",
+        "energy_pack_50":  "+50 — на целый вечер",
+        "energy_pack_150": "+150 — хватит надолго",
         "energy_invoice_title": "⚡ Энергия",
         "energy_invoice_desc": "+{amount} ⚡ — {label}",
-        "energy_purchased": "✅ +{amount} ⚡ зачислено! Общение продолжается.",
+        "energy_purchased": "✅ +{amount} ⚡ — готово! Возвращайся в чат 💬",
         "energy_pack_not_found": "Пакет не найден.",
         "btn_buy_energy": "⚡ Пополнить энергию",
         "btn_energy_shop": "⚡ Магазин энергии",
@@ -767,18 +764,16 @@ TEXTS = {
             "Выбери язык / Elige idioma"
         ),
         "privacy": (
-            "📋 MatchMe Terms of Service & Privacy Policy\n\n"
-            "By using the bot, you accept our Terms:\n\n"
-            "• Minimum age: 16 (18+ for all modes)\n"
-            "• Providing false age = permanent ban\n"
-            "• We collect: Telegram ID, name, age, gender\n"
-            "• Messages are NOT stored. Moderation — AI only\n"
-            "• All purchases are final, no refunds\n"
-            "• AI characters are fictional, not real people\n"
-            "• Service provided \"as is\"\n\n"
+            "📋 Terms & Privacy\n\n"
+            "Here's the key stuff:\n\n"
+            "🔞 You must be 16+ (18+ for all modes)\n"
+            "🔒 We store the basics: Telegram ID, name, age, gender\n"
+            "💬 Your messages are not saved\n"
+            "🤖 AI characters are fictional, not real people\n"
+            "💳 All purchases are final\n\n"
             "📄 Full version: {legal_url}\n"
             "💬 Support: @MatchMeMaster_bot\n\n"
-            "By pressing \"Accept\", you agree to the Terms of Service & Privacy Policy."
+            "By pressing \"Accept\", you agree to our Terms of Service & Privacy Policy."
         ),
         "privacy_accepted": "✅ Privacy policy accepted!",
         "privacy_declined": (
@@ -1189,27 +1184,26 @@ TEXTS = {
         "ai_ended": "✅ AI chat ended.",
         "ai_select_from_buttons": "👆 Choose a character from the buttons above.",
         "ai_energy_cost":  "⚡ {cost} energy per message",
-        "ai_energy_low":   "⚠️ Running low! Top up or get Premium — 200 ⚡ every day.",
+        "ai_energy_low":   "⚠️ Almost out of energy! Top up ⚡ or grab Premium — forget about limits.",
         "ai_energy_empty": (
             "⚡ Out of energy!\n\n"
-            "Top up now to keep the conversation going.\n"
-            "Or go Premium and never worry about limits.\n\n"
+            "Want to continue? Top up right now 👇\n"
+            "Or grab Premium — no more limits.\n\n"
             "🔄 Free reset in {hours}h {mins}m"
         ),
         "energy_shop_title": (
-            "<b>⚡ Energy</b>\n\n"
+            "<b>⚡ Your energy</b>\n\n"
             "{bar}  <b>{left}</b> / {max}\n"
             "🔄 Resets in {hours}h {mins}m\n\n"
-            "Every AI message costs energy.\n"
-            "Top up and chat without interruptions:"
+            "Pick a pack and keep chatting 👇"
         ),
-        "energy_shop_premium_cta": "💎 Premium — 200 ⚡/day, no purchases needed",
-        "energy_pack_10":  "+10 ⚡ — a few more lines",
-        "energy_pack_50":  "+50 ⚡ — a full conversation",
-        "energy_pack_150": "+150 ⚡ — lasts for days",
+        "energy_shop_premium_cta": "💎 Premium — 200 ⚡/day included",
+        "energy_pack_10":  "+10 — continue the chat",
+        "energy_pack_50":  "+50 — enough for the evening",
+        "energy_pack_150": "+150 — lasts for days",
         "energy_invoice_title": "⚡ Energy",
         "energy_invoice_desc": "+{amount} ⚡ — {label}",
-        "energy_purchased": "✅ +{amount} ⚡ added! Keep chatting.",
+        "energy_purchased": "✅ +{amount} ⚡ — done! Back to chat 💬",
         "energy_pack_not_found": "Pack not found.",
         "btn_buy_energy": "⚡ Top Up Energy",
         "btn_energy_shop": "⚡ Energy Shop",
@@ -1534,15 +1528,13 @@ TEXTS = {
             "Choose language / Выбери язык"
         ),
         "privacy": (
-            "📋 MatchMe — Términos de Servicio y Política de Privacidad\n\n"
-            "Al usar el bot, aceptas nuestros Términos:\n\n"
-            "• Edad mínima: 16 años (18+ para todos los modos)\n"
-            "• Edad falsa = ban permanente\n"
-            "• Recopilamos: ID de Telegram, nombre, edad, género\n"
-            "• Los mensajes NO se almacenan. Moderación — solo IA\n"
-            "• Todas las compras son definitivas, sin reembolsos\n"
-            "• Los personajes IA son ficticios, no personas reales\n"
-            "• Servicio proporcionado «tal cual»\n\n"
+            "📋 Términos y privacidad\n\n"
+            "Lo importante:\n\n"
+            "🔞 Edad mínima: 16 años (18+ para todos los modos)\n"
+            "🔒 Guardamos lo básico: ID de Telegram, nombre, edad, género\n"
+            "💬 Tus mensajes no se guardan\n"
+            "🤖 Los personajes IA son ficticios, no personas reales\n"
+            "💳 Las compras son definitivas\n\n"
             "📄 Versión completa: {legal_url}\n"
             "💬 Soporte: @MatchMeMaster_bot\n\n"
             "Al presionar «Aceptar», aceptas los Términos de Servicio y la Política de Privacidad."
@@ -1943,27 +1935,26 @@ TEXTS = {
         "ai_ended": "✅ Chat IA terminado.",
         "ai_select_from_buttons": "👆 Elige un personaje con los botones de arriba.",
         "ai_energy_cost":  "⚡ {cost} de energía por mensaje",
-        "ai_energy_low":   "⚠️ ¡Queda poca! Recarga o activa Premium — 200 ⚡ cada día.",
+        "ai_energy_low":   "⚠️ ¡Casi sin energía! Recarga ⚡ o activa Premium — olvídate de los límites.",
         "ai_energy_empty": (
             "⚡ ¡Sin energía!\n\n"
-            "Recarga ahora y sigue la conversación.\n"
-            "O activa Premium y olvídate de los límites.\n\n"
+            "¿Quieres seguir? Recarga ahora 👇\n"
+            "O activa Premium — sin más límites.\n\n"
             "🔄 Reinicio gratis en {hours}h {mins}m"
         ),
         "energy_shop_title": (
-            "<b>⚡ Energía</b>\n\n"
+            "<b>⚡ Tu energía</b>\n\n"
             "{bar}  <b>{left}</b> / {max}\n"
             "🔄 Se reinicia en {hours}h {mins}m\n\n"
-            "Cada mensaje IA gasta energía.\n"
-            "Recarga y chatea sin pausas:"
+            "Elige un paquete y sigue chateando 👇"
         ),
-        "energy_shop_premium_cta": "💎 Premium — 200 ⚡/día sin compras",
-        "energy_pack_10":  "+10 ⚡ — unas frases más",
-        "energy_pack_50":  "+50 ⚡ — una conversación entera",
-        "energy_pack_150": "+150 ⚡ — reserva para varios días",
+        "energy_shop_premium_cta": "💎 Premium — 200 ⚡/día incluido",
+        "energy_pack_10":  "+10 — continuar el chat",
+        "energy_pack_50":  "+50 — para toda la noche",
+        "energy_pack_150": "+150 — reserva para días",
         "energy_invoice_title": "⚡ Energía",
         "energy_invoice_desc": "+{amount} ⚡ — {label}",
-        "energy_purchased": "✅ +{amount} ⚡ añadida. ¡Sigue chateando!",
+        "energy_purchased": "✅ +{amount} ⚡ — ¡listo! Vuelve al chat 💬",
         "energy_pack_not_found": "Paquete no encontrado.",
         "btn_buy_energy": "⚡ Recargar Energía",
         "btn_energy_shop": "⚡ Tienda de Energía",

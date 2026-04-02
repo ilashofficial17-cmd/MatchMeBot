@@ -14,9 +14,9 @@ PREMIUM_PLANS = {
 }
 
 ENERGY_PACKS = {
-    "e10":  {"stars": 29,  "amount": 10,  "label_key": "energy_pack_10",  "emoji": "🔋"},
-    "e50":  {"stars": 99,  "amount": 50,  "label_key": "energy_pack_50",  "emoji": "🔋🔋"},
-    "e150": {"stars": 249, "amount": 150, "label_key": "energy_pack_150", "emoji": "🔋🔋🔋"},
+    "e10":  {"stars": 29,  "amount": 10,  "label_key": "energy_pack_10",  "emoji": "⚡"},
+    "e50":  {"stars": 99,  "amount": 50,  "label_key": "energy_pack_50",  "emoji": "⚡"},
+    "e150": {"stars": 249, "amount": 150, "label_key": "energy_pack_150", "emoji": "⚡"},
 }
 
 AB_PRICE_DISCOUNT_B = 0.85
