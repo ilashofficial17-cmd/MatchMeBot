@@ -3,6 +3,7 @@ from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
 )
 from locales import t
+from constants import ENERGY_PACKS, PRICE_MULTIPLIERS
 
 CHANNEL_ID = "@MATCHMEHUB"
 
@@ -252,4 +253,18 @@ def kb_premium(lang="ru", plan_prices: dict | None = None):
                 text=t(lang, f"prem_{key}"), callback_data=f"buy:{key}"
             )])
     buttons.append([InlineKeyboardButton(text=t(lang, "prem_compare"), callback_data="buy:info")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def kb_energy_shop(lang="ru"):
+    mult = PRICE_MULTIPLIERS.get(lang, 2.0)
+    buttons = []
+    for key, pack in ENERGY_PACKS.items():
+        price = int(pack["stars"] * mult)
+        label = t(lang, pack["label_key"])
+        buttons.append([InlineKeyboardButton(
+            text=f"{pack['emoji']} {label} — {price} ⭐",
+            callback_data=f"energy_buy:{key}"
+        )])
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="energy_buy:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)

@@ -27,17 +27,18 @@ from keyboards import (
     kb_gender, kb_mode, kb_cancel_search, kb_chat, kb_search_gender,
     kb_after_chat, kb_channel_bonus, kb_ai_characters, kb_ai_chat,
     kb_interests, kb_complaint, kb_edit, kb_complaint_action,
-    kb_user_actions, kb_premium,
+    kb_user_actions, kb_premium, kb_energy_shop,
 )
 import db
 from constants import (
-    PRICE_MULTIPLIERS, PREMIUM_PLANS, AB_PRICE_DISCOUNT_B, GIFTS,
+    PRICE_MULTIPLIERS, PREMIUM_PLANS, AB_PRICE_DISCOUNT_B, GIFTS, ENERGY_PACKS,
     get_plan_price, get_chat_topics,
     LEVEL_THRESHOLDS, LEVEL_NAMES, STREAK_BONUSES,
     STOP_WORDS, PARTNER_ADS, filter_ads as _filter_ads,
 )
 import ai_chat
 import admin as admin_module
+import energy_shop as energy_shop_module
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("matchme")
@@ -1723,6 +1724,21 @@ async def successful_payment(message: types.Message):
         await _handle_gift_payment(uid, payload)
         return
 
+    # Energy pack payments
+    if payload.startswith("energy_"):
+        pack_key = payload[len("energy_"):]
+        pack = ENERGY_PACKS.get(pack_key)
+        if not pack:
+            logger.warning(f"Unknown energy pack: {pack_key}")
+            return
+        lang = await get_lang(uid)
+        u = await get_user(uid)
+        energy_used = u.get("ai_energy_used", 0) if u else 0
+        new_used = max(0, energy_used - pack["amount"])
+        await update_user(uid, ai_energy_used=new_used)
+        await message.answer(t(lang, "energy_purchased", amount=pack["amount"]))
+        return
+
     plan_key = payload.replace("premium_", "")
     if plan_key not in PREMIUM_PLANS:
         logger.warning(f"Invalid plan_key in payload: {plan_key}")
@@ -2884,7 +2900,14 @@ async def main():
         filter_ads=_filter_ads,
         get_chat_topics=get_chat_topics,
     )
+    energy_shop_module.setup(
+        bot=bot,
+        get_user=get_user,
+        update_user=update_user,
+        get_lang=get_lang,
+    )
     dp.include_router(ai_chat.router)
+    dp.include_router(energy_shop_module.router)
     dp.include_router(admin_module.router)
     asyncio.create_task(admin_module.inactivity_checker())
     asyncio.create_task(admin_module.reminder_task())

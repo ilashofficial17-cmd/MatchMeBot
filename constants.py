@@ -13,6 +13,12 @@ PREMIUM_PLANS = {
     "3m":  {"stars": 749,  "days": 90,  "label_key": "plan_label_3m",  "desc_key": "plan_desc_discount", "tier": "premium"},
 }
 
+ENERGY_PACKS = {
+    "e30":  {"stars": 49,  "amount": 30,  "label_key": "energy_pack_30",  "emoji": "⚡"},
+    "e100": {"stars": 129, "amount": 100, "label_key": "energy_pack_100", "emoji": "⚡⚡"},
+    "e300": {"stars": 299, "amount": 300, "label_key": "energy_pack_300", "emoji": "⚡⚡⚡"},
+}
+
 AB_PRICE_DISCOUNT_B = 0.85
 
 GIFTS = {

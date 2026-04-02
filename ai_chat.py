@@ -618,13 +618,23 @@ async def _show_ai_menu(message: types.Message, state: FSMContext, uid: int):
     user_tier = await _get_premium_tier(uid)
     u = await _get_user(uid)
     mode = u.get("mode", "simple") if u else "simple"
+    ai_bonus = u.get("ai_bonus", 0) if u else 0
+    _, max_energy = get_energy_info("basic", user_tier, ai_bonus)
+    energy_used = u.get("ai_energy_used", 0) if u else 0
+    reset_time = u.get("ai_messages_reset") if u else None
+    if reset_time and (datetime.now() - reset_time).total_seconds() > 86400:
+        energy_used = 0
+    energy_left = max(max_energy - energy_used, 0)
     # Smart recommendation
     rec_text = await _get_ai_recommendations(uid, lang, mode)
     if rec_text:
         await message.answer(rec_text)
     await state.set_state(AIChat.choosing)
     await state.update_data(ai_show_mode=mode)
-    await message.answer(t(lang, "ai_menu"), reply_markup=kb_ai_characters(user_tier, mode, lang))
+    await message.answer(
+        t(lang, "ai_menu", energy_left=energy_left, energy_max=max_energy),
+        reply_markup=kb_ai_characters(user_tier, mode, lang)
+    )
 
 
 @router.message(F.text.in_(_all("btn_ai_chat")), StateFilter("*"))
@@ -676,16 +686,9 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         lines = []
         for cid, cdata in AI_CHARACTERS.items():
             name = t(lang, cdata["name_key"])
-            # Убираем суффиксы тиров из названий для чистого отображения
-            for suffix in (" — VIP+", " — VIP"):
-                name = name.replace(suffix, "")
-            tier_label = ""
-            if cdata["tier"] == "vip":
-                tier_label = " [VIP]"
-            elif cdata["tier"] == "vip_plus":
-                tier_label = " [VIP+]"
+            cost = ENERGY_COST.get(cdata["tier"], 1)
             desc = t(lang, cdata["desc_key"])
-            lines.append(f"{cdata['emoji']} {name}{tier_label}\n{desc}")
+            lines.append(f"{name} · {cost}⚡\n{desc}")
         await callback.message.answer("\n\n".join(lines))
         await callback.answer()
         return
@@ -717,11 +720,10 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         except Exception:
             pass
     energy_text = t(lang, "ai_energy_cost", cost=cost)
-    tier_icon = {"basic": "✅", "vip": "⭐", "vip_plus": "💎"}.get(char["tier"], "✅")
     try:
         await callback.message.edit_text(
             t(lang, "ai_chatting_with",
-              name=f"{tier_icon} {t(lang, char['name_key'])}",
+              name=t(lang, char["name_key"]),
               description=t(lang, char["desc_key"]),
               energy_text=energy_text)
         )
@@ -923,6 +925,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         await message.answer(
             t(lang, "ai_energy_empty", hours=hrs_left, mins=mins_left),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text=t(lang, "btn_buy_energy"), callback_data="energy_shop")],
                 [InlineKeyboardButton(text=t(lang, "ai_buy_sub"), callback_data="premium_show")],
                 [InlineKeyboardButton(text=t(lang, "btn_find_live"), callback_data="goto:find")],
             ])
@@ -951,10 +954,9 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         asyncio.create_task(_generate_summary(uid, char_id, session["history"], lang))
     new_energy = energy_used + cost
     await _update_user(uid, ai_energy_used=new_energy)
-    bar = _energy_bar(new_energy, max_energy)
     energy_left = max(max_energy - new_energy, 0)
-    warning = f"\n{t(lang, 'ai_energy_low')}" if 0 < energy_left <= 5 else ""
-    await message.answer(f"{char['emoji']} {response}\n\n{bar}{warning}")
+    low_warning = f"\n\n{t(lang, 'ai_energy_low')}" if 0 < energy_left <= 5 else ""
+    await message.answer(f"{char['emoji']} {response}{low_warning}")
     # Content sending logic
     cur_msg = session["msg_count"]
     is_hot = _is_hot_photo_request(txt, lang)
@@ -1079,7 +1081,7 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
           name=t(lang, char["name_key"]),
           description=t(lang, char["desc_key"]),
           energy_text=energy_text),
-        reply_markup=kb_ai_chat(lang)
+        reply_markup=kb_ai_chat(lang),
     )
     if db_history:
         last_assistant = next((m for m in reversed(db_history) if m["role"] == "assistant"), None)
