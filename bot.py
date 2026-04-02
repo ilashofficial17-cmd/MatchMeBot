@@ -870,16 +870,13 @@ async def do_find(uid, state):
 
     # Собираем кандидатов ВНЕ лока (await-запросы к БД)
     # Общение — всегда изолировано, кросс-режим только Флирт↔Kink
-    queues_to_search = []
-    if user_premium:
-        queues_to_search.append(get_queue(mode, True))
-    queues_to_search.append(get_queue(mode, False))
+    # Обе очереди (premium + non-premium) всегда доступны для поиска,
+    # premium-кандидаты получают приоритет через сортировку ниже
+    queues_to_search = [get_queue(mode, True), get_queue(mode, False)]
     if cross and mode == "flirt":
-        if user_premium: queues_to_search.append(get_queue("kink", True))
-        queues_to_search.append(get_queue("kink", False))
+        queues_to_search += [get_queue("kink", True), get_queue("kink", False)]
     elif cross and mode == "kink":
-        if user_premium: queues_to_search.append(get_queue("flirt", True))
-        queues_to_search.append(get_queue("flirt", False))
+        queues_to_search += [get_queue("flirt", True), get_queue("flirt", False)]
 
     candidates = []
     for q in queues_to_search:
@@ -909,13 +906,13 @@ async def do_find(uid, state):
             if search_gender != "any" and pu.get("gender") != search_gender: continue
             p_search_gender = pu.get("search_gender", "any")
             if p_search_gender != "any" and u.get("gender") != p_search_gender: continue
-            # Двусторонняя проверка возраста
-            p_age = pu.get("age", 0) or 0
-            my_age = u.get("age", 0) or 0
-            if p_age < search_age_min or p_age > search_age_max: continue
+            # Двусторонняя проверка возраста (пропускаем если age=None/0)
+            p_age = pu.get("age") or 0
+            my_age = u.get("age") or 0
+            if p_age and (p_age < search_age_min or p_age > search_age_max): continue
             p_age_min = pu.get("search_age_min", 16) or 16
             p_age_max = pu.get("search_age_max", 99) or 99
-            if my_age < p_age_min or my_age > p_age_max: continue
+            if my_age and (my_age < p_age_min or my_age > p_age_max): continue
             p_mode = pu.get("mode", "simple")
             # Общение — изолировано: партнёр тоже должен быть в Общении
             if mode == "simple" and p_mode != "simple": continue
@@ -1198,24 +1195,23 @@ async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_reply_markup(reply_markup=None)
     except Exception: pass
 
-    # Инициализируем если нужно
-    if uid not in mutual_likes:
-        mutual_likes[uid] = set()
+    # Вся логика mutual likes — атомарно внутри лока (race condition fix)
+    async with pairing_lock:
+        if uid not in mutual_likes:
+            mutual_likes[uid] = set()
 
-    # Проверяем взаимность ДО добавления своего лайка
-    already_mutual = partner_uid in mutual_likes and uid in mutual_likes.get(partner_uid, set())
+        # Проверяем взаимность ДО добавления своего лайка
+        already_mutual = partner_uid in mutual_likes and uid in mutual_likes.get(partner_uid, set())
 
-    # Добавляем свой лайк
-    mutual_likes[uid].add(partner_uid)
+        # Добавляем свой лайк
+        mutual_likes[uid].add(partner_uid)
 
-    if already_mutual:
-        # Взаимный матч!
-        mutual_likes[uid].discard(partner_uid)
-        if partner_uid in mutual_likes:
-            mutual_likes[partner_uid].discard(uid)
+        if already_mutual:
+            # Взаимный матч! Очищаем лайки и соединяем в чат
+            mutual_likes[uid].discard(partner_uid)
+            if partner_uid in mutual_likes:
+                mutual_likes[partner_uid].discard(uid)
 
-        # Соединяем в чат — атомарно внутри лока
-        async with pairing_lock:
             if uid in active_chats or partner_uid in active_chats:
                 my_lang_tmp = await get_lang(uid)
                 await callback.answer(t(my_lang_tmp, "mutual_already_in_chat"), show_alert=True)
@@ -1223,6 +1219,8 @@ async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
             active_chats[uid] = partner_uid
             active_chats[partner_uid] = uid
             last_msg_time[uid] = last_msg_time[partner_uid] = datetime.now()
+
+    if already_mutual:
         await state.set_state(Chat.chatting)
         pkey = StorageKey(bot_id=bot.id, chat_id=partner_uid, user_id=partner_uid)
         await FSMContext(dp.storage, key=pkey).set_state(Chat.chatting)
