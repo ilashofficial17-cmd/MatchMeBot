@@ -130,6 +130,7 @@ async def init_db():
             ("last_reminder", "TIMESTAMP DEFAULT NULL"),
             ("ai_msg_basic", "INTEGER DEFAULT 0"),
             ("ai_msg_premium", "INTEGER DEFAULT 0"),
+            ("ai_energy_used", "INTEGER DEFAULT 0"),
             ("ai_messages_reset", "TIMESTAMP DEFAULT NOW()"),
             ("premium_tier", "TEXT DEFAULT NULL"),
             ("ai_pro_until", "TEXT DEFAULT NULL"),
@@ -657,7 +658,7 @@ async def kb_settings(uid, lang="ru"):
                 p_text = t(lang, "premium_active")
         buttons.append([InlineKeyboardButton(text=p_text, callback_data="noop")])
     else:
-        buttons.append([InlineKeyboardButton(text=t(lang, "settings_buy_premium"), callback_data="buy:1m")])
+        buttons.append([InlineKeyboardButton(text=t(lang, "settings_buy_premium"), callback_data="premium_show")])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -679,6 +680,17 @@ def get_queue(mode, premium=False):
 
 def get_rating(u):
     return u.get("likes", 0) - u.get("dislikes", 0)
+
+def _is_in_queue(uid):
+    return any(uid in q for q in get_all_queues())
+
+async def _clear_ai_if_active(uid, state):
+    current = await state.get_state()
+    if current in (AIChat.choosing.state, AIChat.chatting.state):
+        ai_sessions.pop(uid, None)
+        await state.clear()
+
+_last_relay_msg_id = {}
 
 async def cleanup(uid, state=None):
     async with pairing_lock:
@@ -1539,6 +1551,10 @@ async def cmd_referral(message: types.Message, state: FSMContext):
     if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
+    if _is_in_queue(uid):
+        await message.answer(t(lang, "reason_in_search"))
+        return
+    await _clear_ai_if_active(uid, state)
     ref_link = f"https://t.me/MyMatchMeBot?start=ref_{uid}"
     # Считаем сколько рефералов привёл
     count = 0
@@ -1556,10 +1572,14 @@ async def cmd_premium(message: types.Message, state: FSMContext):
     if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
+    if _is_in_queue(uid):
+        await message.answer(t(lang, "reason_in_search"))
+        return
+    await _clear_ai_if_active(uid, state)
     user_tier = await get_premium_tier(uid)
+    u = await get_user(uid)
     status_text = ""
     if user_tier:
-        u = await get_user(uid)
         if uid == ADMIN_ID or (u and u.get("premium_until") == "permanent"):
             status_text = t(lang, "premium_status_eternal", tier="Premium")
         else:
@@ -1572,6 +1592,28 @@ async def cmd_premium(message: types.Message, state: FSMContext):
     ab_group = u.get("ab_group") if u else None
     prices = {k: get_plan_price(k, lang, ab_group) for k in PREMIUM_PLANS}
     await message.answer(t(lang, "premium_title", status=status_text), reply_markup=kb_premium(lang, plan_prices=prices))
+
+@dp.callback_query(F.data == "premium_show", StateFilter("*"))
+async def premium_show_cb(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    lang = await get_lang(uid)
+    user_tier = await get_premium_tier(uid)
+    u = await get_user(uid)
+    status_text = ""
+    if user_tier:
+        if uid == ADMIN_ID or (u and u.get("premium_until") == "permanent"):
+            status_text = t(lang, "premium_status_eternal", tier="Premium")
+        else:
+            p_until = (u.get("premium_until") or "") if u else ""
+            try:
+                until = datetime.fromisoformat(p_until)
+                status_text = t(lang, "premium_status_until", tier="Premium", until=until.strftime('%d.%m.%Y'))
+            except Exception:
+                status_text = t(lang, "premium_status_eternal", tier="Premium")
+    ab_group = u.get("ab_group") if u else None
+    prices = {k: get_plan_price(k, lang, ab_group) for k in PREMIUM_PLANS}
+    await callback.message.answer(t(lang, "premium_title", status=status_text), reply_markup=kb_premium(lang, plan_prices=prices))
+    await callback.answer()
 
 @dp.callback_query(F.data == "buy:info", StateFilter("*"))
 async def premium_info(callback: types.CallbackQuery):
@@ -2055,6 +2097,9 @@ async def reg_interest_text(message: types.Message, state: FSMContext):
 @dp.message(StateFilter(Chat.chatting))
 async def relay(message: types.Message, state: FSMContext):
     uid = message.from_user.id
+    if _last_relay_msg_id.get(uid) == message.message_id:
+        return
+    _last_relay_msg_id[uid] = message.message_id
     lang = await get_lang(uid)
     txt = message.text or ""
     if txt == t(lang, "btn_next") or "⏭" in txt:
@@ -2399,6 +2444,10 @@ async def show_profile(message: types.Message, state: FSMContext):
     if current == Chat.chatting.state:
         await unavailable(message, lang, "reason_in_chat_stop")
         return
+    if _is_in_queue(uid):
+        await message.answer(t(lang, "reason_in_search"))
+        return
+    await _clear_ai_if_active(uid, state)
     await ensure_user(uid)
     u = await get_user(uid)
     if not u or not u.get("name"):
@@ -2408,19 +2457,20 @@ async def show_profile(message: types.Message, state: FSMContext):
     show_badge = u.get("show_premium", True)
     if user_tier:
         if uid == ADMIN_ID or u.get("premium_until") == "permanent":
-            premium_status = t(lang, "premium_eternal", tier="Premium")
+            premium_line = "💎 " + t(lang, "premium_eternal", tier="Premium")
         else:
             p_until = u.get("premium_until") or ""
             try:
                 until = datetime.fromisoformat(p_until)
-                premium_status = t(lang, "premium_until_date", tier="Premium", until=until.strftime('%d.%m.%Y'))
+                premium_line = "💎 " + t(lang, "premium_until_date", tier="Premium", until=until.strftime('%d.%m.%Y'))
             except Exception:
-                premium_status = "Premium"
+                premium_line = "💎 Premium"
     else:
-        premium_status = t(lang, "premium_none")
+        premium_line = ""
     badge = " ⭐" if (user_tier and show_badge) else ""
+    not_set = t(lang, "not_set")
     raw_interests = (u.get("interests") or "").split(",")
-    interests_str = ", ".join(t(lang, k.strip()) for k in raw_interests if k.strip()) or "—"
+    interests_str = ", ".join(t(lang, k.strip()) for k in raw_interests if k.strip()) or not_set
     # Level / streak / progress
     level = u.get("level", 0)
     level_name = t(lang, f"level_{level}")
@@ -2442,8 +2492,8 @@ async def show_profile(message: types.Message, state: FSMContext):
     warns_line = f"⚠️ Предупреждений: {warns}\n" if warns > 0 else ""
     profile_text = t(lang, "profile_text",
         badge=badge,
-        name=u.get("name", "—"),
-        age=u.get("age", "—"),
+        name=u.get("name") or not_set,
+        age=u.get("age") or not_set,
         gender=t(lang, f"gender_{u.get('gender', 'other')}"),
         mode=t(lang, f"mode_{u.get('mode', 'simple')}"),
         interests=interests_str,
@@ -2451,14 +2501,12 @@ async def show_profile(message: types.Message, state: FSMContext):
         likes=u.get("likes", 0),
         chats=total_chats,
         warns_line=warns_line,
-        premium=premium_status,
+        premium_line=premium_line,
         level_info=level_info,
         streak_info=streak_info,
         progress_info=progress_info,
     )
-    if not user_tier:
-        profile_text += t(lang, "profile_upgrade")
-    await message.answer(profile_text, reply_markup=kb_edit(lang))
+    await message.answer(profile_text, reply_markup=kb_edit(lang, show_premium_btn=not user_tier))
 
 # ====================== РЕДАКТИРОВАНИЕ ПРОФИЛЯ ======================
 @dp.callback_query(F.data.startswith("edit:"), StateFilter("*"))
@@ -2617,6 +2665,10 @@ async def show_settings(message: types.Message, state: FSMContext):
     if current == Chat.chatting.state:
         await unavailable(message, lang, "reason_in_chat")
         return
+    if _is_in_queue(uid):
+        await message.answer(t(lang, "reason_in_search"))
+        return
+    await _clear_ai_if_active(uid, state)
     await ensure_user(uid)
     await message.answer(t(lang, "settings_title"), reply_markup=await kb_settings(uid, lang))
 
@@ -2701,6 +2753,10 @@ async def show_help(message: types.Message, state: FSMContext):
     if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
+    if _is_in_queue(uid):
+        await message.answer(t(lang, "reason_in_search"))
+        return
+    await _clear_ai_if_active(uid, state)
     await message.answer(t(lang, "help_text"), reply_markup=kb_main(lang))
 
 @dp.message(Command("restart"), StateFilter("*"))

@@ -184,14 +184,17 @@ def kb_complaint(lang="ru"):
     ])
 
 
-def kb_edit(lang="ru"):
-    return InlineKeyboardMarkup(inline_keyboard=[
+def kb_edit(lang="ru", show_premium_btn=False):
+    buttons = [
         [InlineKeyboardButton(text=t(lang, "edit_btn_name"), callback_data="edit:name"),
          InlineKeyboardButton(text=t(lang, "edit_btn_age"), callback_data="edit:age")],
         [InlineKeyboardButton(text=t(lang, "edit_btn_gender"), callback_data="edit:gender"),
          InlineKeyboardButton(text=t(lang, "edit_btn_mode"), callback_data="edit:mode")],
         [InlineKeyboardButton(text=t(lang, "edit_btn_interests"), callback_data="edit:interests")],
-    ])
+    ]
+    if show_premium_btn:
+        buttons.append([InlineKeyboardButton(text=t(lang, "settings_buy_premium"), callback_data="premium_show")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def kb_complaint_action(complaint_id, accused_uid, reporter_uid, has_log=False, stop_words=False, lang="ru"):

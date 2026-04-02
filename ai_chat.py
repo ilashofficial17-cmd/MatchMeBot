@@ -18,7 +18,11 @@ from ai_utils import get_ai_chat_response, describe_image, transcribe_voice
 router = Router()
 logger = logging.getLogger("matchme")
 
-from ai_characters import AI_CHARACTERS, AI_LIMITS
+from ai_characters import AI_CHARACTERS
+
+# Energy system: each message costs energy based on character tier
+ENERGY_COST = {"basic": 1, "vip": 2, "vip_plus": 3}
+DAILY_ENERGY = {"free": 30, "premium": 200}
 
 
 
@@ -139,10 +143,12 @@ async def _lang(uid: int) -> str:
     return (u.get("lang") or "ru") if u else "ru"
 
 
-def get_ai_limit(char_tier: str, user_tier) -> int | None:
-    """Message limit per day. None = unlimited."""
-    tier_key = user_tier or "free"
-    return AI_LIMITS.get(char_tier, {}).get(tier_key, 10)
+def get_energy_info(char_tier: str, user_tier, ai_bonus: int = 0) -> tuple:
+    """Returns (cost, max_energy) for this character tier and user type."""
+    tier_key = "premium" if user_tier else "free"
+    cost = ENERGY_COST.get(char_tier, 1)
+    max_energy = DAILY_ENERGY.get(tier_key, 30) + ai_bonus
+    return cost, max_energy
 
 
 def _user_context(user: dict, lang: str) -> str:
@@ -689,10 +695,13 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         return
     char = AI_CHARACTERS[char_id]
     user_tier = await _get_premium_tier(uid)
-    if char["tier"] == "vip_plus" and user_tier != "premium":
-        await callback.answer(t(lang, "ai_vip_required"), show_alert=True)
+    u = await _get_user(uid)
+    ai_bonus = u.get("ai_bonus", 0) if u else 0
+    cost, max_energy = get_energy_info(char["tier"], user_tier, ai_bonus)
+    energy_used = u.get("ai_energy_used", 0) if u else 0
+    if energy_used + cost > max_energy:
+        await callback.answer(t(lang, "ai_no_energy"), show_alert=True)
         return
-    limit = get_ai_limit(char["tier"], user_tier)
     db_history = await _get_ai_history(uid, char_id) if _get_ai_history else []
     _ai_sessions[uid] = {"character": char_id, "history": db_history, "msg_count": 0}
     _last_ai_msg[uid] = datetime.now()
@@ -704,7 +713,8 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
             await _bot.send_animation(uid, media["gif_file_id"])
         except Exception:
             pass
-    limit_text = t(lang, "ai_unlimited") if limit is None else t(lang, "ai_limit_info", limit=limit)
+    energy_left = max(max_energy - energy_used, 0)
+    limit_text = t(lang, "ai_energy_status", left=energy_left, max=max_energy)
     tier_icon = "🔥" if char["tier"] in ("vip", "vip_plus") else "✅"
     try:
         await callback.message.edit_text(
@@ -892,31 +902,28 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         return
     user_tier = await _get_premium_tier(uid)
     char_tier = char["tier"]
-    limit = get_ai_limit(char_tier, user_tier)
     u = await _get_user(uid)
-    # Map tiers to DB columns: basic→ai_msg_basic, vip/vip_plus→ai_msg_premium
-    counter_field = "ai_msg_basic" if char_tier == "basic" else "ai_msg_premium"
-    current_count = u.get(counter_field, 0) if u else 0
+    ai_bonus = u.get("ai_bonus", 0) if u else 0
+    cost, max_energy = get_energy_info(char_tier, user_tier, ai_bonus)
+    energy_used = u.get("ai_energy_used", 0) if u else 0
     reset_time = u.get("ai_messages_reset") if u else None
     if reset_time and (datetime.now() - reset_time).total_seconds() > 86400:
-        await _update_user(uid, ai_msg_basic=0, ai_msg_premium=0, ai_messages_reset=datetime.now())
-        current_count = 0
-    ai_bonus = u.get("ai_bonus", 0) if u else 0
-    effective_limit = (limit + ai_bonus) if limit is not None else None
-    if effective_limit is not None and current_count >= effective_limit:
+        await _update_user(uid, ai_energy_used=0, ai_messages_reset=datetime.now())
+        energy_used = 0
+    if energy_used + cost > max_energy:
         _ai_sessions.pop(uid, None)
         _last_ai_msg.pop(uid, None)
         await state.clear()
         if user_tier == "premium":
-            limit_msg = t(lang, "ai_limit_plus", limit=limit)
+            limit_msg = t(lang, "ai_limit_plus", used=energy_used, max=max_energy)
             buttons = [
                 [InlineKeyboardButton(text=t(lang, "btn_find_live"), callback_data="goto:find")],
                 [InlineKeyboardButton(text=t(lang, "btn_home"), callback_data="goto:menu")]
             ]
         else:
-            limit_msg = t(lang, "ai_limit_basic", limit=limit)
+            limit_msg = t(lang, "ai_limit_basic", used=energy_used, max=max_energy)
             buttons = [
-                [InlineKeyboardButton(text=t(lang, "ai_buy_sub"), callback_data="buy:1m")],
+                [InlineKeyboardButton(text=t(lang, "ai_buy_sub"), callback_data="premium_show")],
                 [InlineKeyboardButton(text=t(lang, "btn_find_live"), callback_data="goto:find")],
                 [InlineKeyboardButton(text=t(lang, "btn_home"), callback_data="goto:menu")]
             ]
@@ -943,16 +950,12 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     # Summary: on 5th message (early capture) + every 10 messages
     if session["msg_count"] == 5 or (session["msg_count"] > 5 and session["msg_count"] % 10 == 0):
         asyncio.create_task(_generate_summary(uid, char_id, session["history"], lang))
-    new_count = current_count + 1
-    if limit is not None and new_count > limit and ai_bonus > 0:
-        await _update_user(uid, **{counter_field: new_count, "ai_bonus": ai_bonus - 1})
-    else:
-        await _update_user(uid, **{counter_field: new_count})
+    new_energy = energy_used + cost
+    await _update_user(uid, ai_energy_used=new_energy)
     remaining = ""
-    if effective_limit is not None:
-        left = max(effective_limit - new_count, 0)
-        if 0 < left <= 3:
-            remaining = f"\n\n{t(lang, 'ai_remaining', left=left)}"
+    energy_left = max(max_energy - new_energy, 0)
+    if 0 < energy_left <= 5:
+        remaining = f"\n\n{t(lang, 'ai_remaining', left=energy_left)}"
     await message.answer(f"{char['emoji']} {response}{remaining}")
     # Content sending logic
     cur_msg = session["msg_count"]
@@ -1065,12 +1068,16 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
     except Exception: pass
     char = AI_CHARACTERS[char_id]
     user_tier = await _get_premium_tier(uid)
-    limit = get_ai_limit(char["tier"], user_tier)
+    u = await _get_user(uid)
+    ai_bonus = u.get("ai_bonus", 0) if u else 0
+    cost, max_energy = get_energy_info(char["tier"], user_tier, ai_bonus)
+    energy_used = u.get("ai_energy_used", 0) if u else 0
+    energy_left = max(max_energy - energy_used, 0)
     db_history = await _get_ai_history(uid, char_id) if _get_ai_history else []
     _ai_sessions[uid] = {"character": char_id, "history": db_history, "msg_count": 0}
     _last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
-    limit_text = t(lang, "ai_unlimited") if limit is None else t(lang, "ai_limit_info", limit=limit)
+    limit_text = t(lang, "ai_energy_status", left=energy_left, max=max_energy)
     await callback.message.answer(
         t(lang, "ai_quick_start",
           name=t(lang, char["name_key"]),
@@ -1078,7 +1085,6 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
           limit_text=limit_text),
         reply_markup=kb_ai_chat(lang)
     )
-    u = await _get_user(uid)
     if db_history:
         last_assistant = next((m for m in reversed(db_history) if m["role"] == "assistant"), None)
         if last_assistant:

@@ -216,9 +216,10 @@ TEXTS = {
             "{streak_info}\n"
             "{progress_info}\n"
             "{warns_line}"
-            "💎 {premium}"
+            "{premium_line}"
         ),
-        "profile_upgrade": "\n\n💎 С Premium тебя находят первым — попробуй!",
+        "profile_upgrade": "",
+        "not_set": "✏️ Не указано",
         "premium_eternal": "{tier} (вечный)",
         "premium_until_date": "{tier} до {until}",
         "premium_none": "Нет",
@@ -412,6 +413,7 @@ TEXTS = {
         "ai_char_not_found": "Персонаж не найден.",
         "ai_power_soon": "🔧 В разработке! Следи за обновлениями.",
         "ai_vip_required": "🔒 Этот персонаж доступен только с VIP подпиской.",
+        "ai_no_energy": "⚡ Недостаточно энергии! Подожди сброс или купи Premium.",
         "ai_vip_plus_required": "🔒 Этот VIP+ персонаж доступен только с Premium подпиской.",
         "ai_chat_active": "💬 Чат с ИИ активен",
         "ai_char_entered": "👤 {name} вошёл в чат\n\n{bio}",
@@ -419,9 +421,10 @@ TEXTS = {
         "ai_limit_info": "💬 Лимит: {limit} сообщений/день",
         "ai_ended": "✅ Чат с ИИ завершён.",
         "ai_select_from_buttons": "👆 Выбери персонажа из кнопок выше.",
-        "ai_limit_plus": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\nСброс через 24 часа. Пока можешь пообщаться с живым собеседником!",
-        "ai_limit_basic": "⏰ Лимит исчерпан ({limit} сообщений/день).\n\n⭐ Купи Premium — 100 сообщений/день + VIP персонажи!",
-        "ai_remaining": "_💬 Осталось {left} сообщений_",
+        "ai_limit_plus": "⚡ Энергия закончилась ({used}/{max}).\n\nСброс через 24 часа. Пока можешь пообщаться с живым собеседником!",
+        "ai_limit_basic": "⚡ Энергия закончилась ({used}/{max}).\n\n⭐ Купи Premium — 200⚡ энергии/день + все персонажи!",
+        "ai_remaining": "_⚡ {left} энергии_",
+        "ai_energy_status": "⚡ {left}/{max}",
         "ai_unavailable": "😔 ИИ временно недоступен.",
         "ai_no_funds": "💳 ИИ временно недоступен — нет средств на балансе.",
         "ai_error": "😔 ИИ временно недоступен. Попробуй позже.",
@@ -571,6 +574,7 @@ TEXTS = {
         "reason_finish_chat": "сначала выйди из чата",
         "reason_finish_action": "сначала заверши текущее действие",
         "reason_finish_anketa": "сначала заверши анкету",
+        "reason_in_search": "⏳ Сначала отмени поиск",
         # Админ — кнопки действий над жалобой
         "adm_stopwords_yes": "⚠️ Стоп-слова: ДА",
         "adm_stopwords_no": "✅ Стоп-слова: НЕТ",
@@ -945,9 +949,10 @@ TEXTS = {
             "{streak_info}\n"
             "{progress_info}\n"
             "{warns_line}"
-            "💎 {premium}"
+            "{premium_line}"
         ),
-        "profile_upgrade": "\n\n💎 With Premium you get found first — try it!",
+        "profile_upgrade": "",
+        "not_set": "✏️ Not set",
         "premium_eternal": "{tier} (lifetime)",
         "premium_until_date": "{tier} until {until}",
         "premium_none": "None",
@@ -1154,6 +1159,7 @@ TEXTS = {
         "ai_char_not_found": "Character not found.",
         "ai_power_soon": "🔧 Coming soon! Stay tuned.",
         "ai_vip_required": "🔒 This character is available with VIP subscription only.",
+        "ai_no_energy": "⚡ Not enough energy! Wait for reset or buy Premium.",
         "ai_vip_plus_required": "🔒 This VIP+ character is available with Premium subscription only.",
         "ai_chat_active": "💬 AI chat active",
         "ai_char_entered": "👤 {name} has entered the chat\n\n{bio}",
@@ -1161,9 +1167,10 @@ TEXTS = {
         "ai_limit_info": "💬 Limit: {limit} messages/day",
         "ai_ended": "✅ AI chat ended.",
         "ai_select_from_buttons": "👆 Choose a character from the buttons above.",
-        "ai_limit_plus": "⏰ Limit reached ({limit} messages/day).\n\nResets in 24 hours. Meanwhile, chat with a real person!",
-        "ai_limit_basic": "⏰ Limit reached ({limit} messages/day).\n\n⭐ Buy Premium — 100 messages/day + VIP characters!",
-        "ai_remaining": "_💬 {left} messages left_",
+        "ai_limit_plus": "⚡ Energy depleted ({used}/{max}).\n\nResets in 24 hours. Meanwhile, chat with a real person!",
+        "ai_limit_basic": "⚡ Energy depleted ({used}/{max}).\n\n⭐ Buy Premium — 200⚡ energy/day + all characters!",
+        "ai_remaining": "_⚡ {left} energy left_",
+        "ai_energy_status": "⚡ {left}/{max}",
         "ai_unavailable": "😔 AI is temporarily unavailable.",
         "ai_no_funds": "💳 AI temporarily unavailable — no balance.",
         "ai_error": "😔 AI temporarily unavailable. Try again later.",
@@ -1313,6 +1320,7 @@ TEXTS = {
         "reason_finish_chat": "leave the chat first",
         "reason_finish_action": "complete your current action first",
         "reason_finish_anketa": "complete your profile first",
+        "reason_in_search": "⏳ Cancel your search first",
         # Admin — complaint action buttons
         "adm_stopwords_yes": "⚠️ Stop-words: YES",
         "adm_stopwords_no": "✅ Stop-words: NO",
@@ -1687,9 +1695,10 @@ TEXTS = {
             "{streak_info}\n"
             "{progress_info}\n"
             "{warns_line}"
-            "💎 {premium}"
+            "{premium_line}"
         ),
-        "profile_upgrade": "\n\n💎 Con Premium te encuentran primero — ¡pruébalo!",
+        "profile_upgrade": "",
+        "not_set": "✏️ No indicado",
         "premium_eternal": "{tier} (de por vida)",
         "premium_until_date": "{tier} hasta {until}",
         "premium_none": "Ninguno",
@@ -1883,6 +1892,7 @@ TEXTS = {
         "ai_char_not_found": "Personaje no encontrado.",
         "ai_power_soon": "🔧 ¡Próximamente! Mantente al tanto.",
         "ai_vip_required": "🔒 Este personaje está disponible solo con suscripción VIP.",
+        "ai_no_energy": "⚡ ¡Energía insuficiente! Espera el reinicio o compra Premium.",
         "ai_vip_plus_required": "🔒 Este personaje VIP+ está disponible solo con suscripción Premium.",
         "ai_chat_active": "💬 Chat IA activo",
         "ai_char_entered": "👤 {name} ha entrado al chat\n\n{bio}",
@@ -1890,9 +1900,10 @@ TEXTS = {
         "ai_limit_info": "💬 Límite: {limit} mensajes/día",
         "ai_ended": "✅ Chat IA terminado.",
         "ai_select_from_buttons": "👆 Elige un personaje con los botones de arriba.",
-        "ai_limit_plus": "⏰ Límite alcanzado ({limit} mensajes/día).\n\nSe reinicia en 24 horas. ¡Mientras tanto, chatea con una persona real!",
-        "ai_limit_basic": "⏰ Límite alcanzado ({limit} mensajes/día).\n\n⭐ ¡Compra Premium — 100 mensajes/día + personajes VIP!",
-        "ai_remaining": "_💬 Te quedan {left} mensajes_",
+        "ai_limit_plus": "⚡ Energía agotada ({used}/{max}).\n\nSe reinicia en 24 horas. ¡Mientras tanto, chatea con una persona real!",
+        "ai_limit_basic": "⚡ Energía agotada ({used}/{max}).\n\n⭐ ¡Compra Premium — 200⚡ energía/día + todos los personajes!",
+        "ai_remaining": "_⚡ {left} de energía_",
+        "ai_energy_status": "⚡ {left}/{max}",
         "ai_unavailable": "😔 La IA no está disponible temporalmente.",
         "ai_no_funds": "💳 IA no disponible temporalmente — sin saldo.",
         "ai_error": "😔 IA no disponible. Inténtalo más tarde.",
@@ -2041,6 +2052,7 @@ TEXTS = {
         "reason_in_chat_stop": "estás en un chat — presiona ❌ Stop",
         "reason_finish_chat": "sal del chat primero",
         "reason_finish_action": "completa tu acción actual primero",
+        "reason_in_search": "⏳ Cancela la búsqueda primero",
         "reason_finish_anketa": "completa tu perfil primero",
         # Admin — botones de queja
         "adm_stopwords_yes": "⚠️ Stop-words: SÍ",
