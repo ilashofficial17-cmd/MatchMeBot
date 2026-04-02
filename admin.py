@@ -1245,6 +1245,19 @@ async def streak_and_ai_push_task():
 
             if sent_streak or sent_ai:
                 logger.info(f"Push: streak={sent_streak}, ai_miss={sent_ai}")
+
+            # Очистка старых квестов (старше 7 дней) + сброс daily_bonus_claimed
+            try:
+                await conn.execute(
+                    "DELETE FROM daily_quests WHERE quest_date < CURRENT_DATE - 7"
+                )
+                await conn.execute(
+                    "UPDATE users SET daily_bonus_claimed = FALSE "
+                    "WHERE daily_bonus_claimed = TRUE"
+                )
+            except Exception:
+                pass
+
         except Exception as e:
             logger.error(f"streak_and_ai_push_task error: {e}")
 
@@ -1371,6 +1384,68 @@ async def winback_task():
 
             if sent:
                 logger.info(f"Win-back: отправлено {sent}")
+
+            # ===== ПОДАРКИ ВОЗВРАЩЕНИЯ =====
+            from constants import RETURN_GIFT_TIERS
+            now_rg = datetime.now()
+            inactive_users = await conn.fetch("""
+                SELECT uid, lang, last_seen, return_gift_stage, ai_energy_used, premium_until
+                FROM users
+                WHERE last_seen < NOW() - INTERVAL '3 days'
+                AND ban_until IS NULL
+                AND accepted_rules = TRUE
+                AND (return_gift_given IS NULL OR return_gift_given < NOW() - INTERVAL '7 days')
+                LIMIT 30
+            """)
+            rg_sent = 0
+            for row in inactive_users:
+                try:
+                    uid_rg = row["uid"]
+                    u_lang = row.get("lang") or "ru"
+                    last_seen = row["last_seen"]
+                    if not last_seen:
+                        continue
+                    days_inactive = (now_rg - last_seen).total_seconds() / 86400
+                    current_stage = row.get("return_gift_stage", 0) or 0
+                    # Определяем тир
+                    chosen_tier = None
+                    for tier_num in sorted(RETURN_GIFT_TIERS.keys(), reverse=True):
+                        tier = RETURN_GIFT_TIERS[tier_num]
+                        if days_inactive >= tier["days_min"] and tier_num > current_stage:
+                            chosen_tier = tier_num
+                            break
+                    if not chosen_tier:
+                        continue
+                    tier_cfg = RETURN_GIFT_TIERS[chosen_tier]
+                    # Начисляем энергию
+                    energy_used = row.get("ai_energy_used", 0) or 0
+                    new_energy = max(energy_used - tier_cfg["energy"], 0)
+                    updates = {
+                        "ai_energy_used": new_energy,
+                        "return_gift_stage": chosen_tier,
+                        "return_gift_given": now_rg,
+                        "return_gifts_total": (row.get("return_gifts_total", 0) or 0) + 1,
+                    }
+                    # Trial Premium для тиров 3-4
+                    if tier_cfg["trial_days"] > 0 and not row.get("premium_until"):
+                        trial_until = now_rg + timedelta(days=tier_cfg["trial_days"])
+                        updates["premium_until"] = trial_until.isoformat()
+                        updates["premium_tier"] = "premium"
+                    set_parts = ", ".join(f"{k}=${i+2}" for i, k in enumerate(updates))
+                    vals = list(updates.values())
+                    await conn.execute(
+                        f"UPDATE users SET {set_parts} WHERE uid=$1", uid_rg, *vals
+                    )
+                    await _bot.send_message(
+                        uid_rg, t(u_lang, f"return_gift_{chosen_tier}"),
+                        reply_markup=kb_main(u_lang)
+                    )
+                    rg_sent += 1
+                except Exception:
+                    pass
+            if rg_sent:
+                logger.info(f"Return gifts: отправлено {rg_sent}")
+
         except Exception as e:
             logger.error(f"winback_task error: {e}")
 

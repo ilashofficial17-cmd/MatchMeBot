@@ -20,7 +20,8 @@ def kb_main(lang="ru"):
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text=t(lang, "btn_search")), KeyboardButton(text=t(lang, "btn_find"))],
         [KeyboardButton(text=t(lang, "btn_ai_chat")), KeyboardButton(text=t(lang, "btn_profile"))],
-        [KeyboardButton(text=t(lang, "btn_settings")), KeyboardButton(text=t(lang, "btn_help"))],
+        [KeyboardButton(text=t(lang, "btn_quests")), KeyboardButton(text=t(lang, "btn_settings"))],
+        [KeyboardButton(text=t(lang, "btn_help"))],
     ], resize_keyboard=True)
 
 

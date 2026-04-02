@@ -78,6 +78,7 @@ TEXTS = {
         "btn_profile": "👤 Профиль",
         "btn_settings": "⚙️ Настройки",
         "btn_help": "❓ Помощь",
+        "btn_quests": "⚡ Задания",
         # Кнопки — чат
         "btn_next": "⏭ Следующий",
         "btn_stop": "❌ Стоп",
@@ -734,6 +735,21 @@ TEXTS = {
         "ach_first_like": "🏆 Ачивка: Первый лайк! +5 энергии ⚡",
         "ach_likes_50": "🏆 Ачивка: 50 лайков! +25 энергии ⚡",
         "ach_first_ai_chat": "🏆 Ачивка: Первый AI-чат! +5 энергии ⚡",
+        # Квесты
+        "quest_title": "📋 Задания на сегодня:",
+        "quest_empty": "Заданий пока нет. Загляни позже!",
+        "quest_chat_3": "Проведи 3 чата",
+        "quest_rate_2": "Оцени 2 чата",
+        "quest_ai_5": "Отправь 5 AI-сообщений",
+        "quest_like_2": "Поставь 2 лайка",
+        "quest_streak": "Зайди в бот (стрик)",
+        "quest_claimed": "✅ Квест выполнен! Энергия начислена ⚡",
+        "quest_all_done": "🎉 Все задания выполнены! Бонус +{bonus}⚡",
+        # Подарки возвращения
+        "return_gift_1": "🎁 Мы скучали! Вот тебе +10 энергии ⚡ за возвращение!",
+        "return_gift_2": "🎁 Давно не виделись! Держи +20 энергии ⚡!",
+        "return_gift_3": "🎁 С возвращением! +30 энергии ⚡ и 1 день Premium в подарок!",
+        "return_gift_4": "🎁 Ты вернулся! +50 энергии ⚡ и 3 дня Premium бесплатно!",
         # Auto-topic
         "auto_topic": "💡 Тишина в чате? Вот тема для разговора:\n\n{topic}",
         # Streak reminder
@@ -832,6 +848,7 @@ TEXTS = {
         "btn_profile": "👤 Profile",
         "btn_settings": "⚙️ Settings",
         "btn_help": "❓ Help",
+        "btn_quests": "⚡ Quests",
         # Buttons — chat
         "btn_next": "⏭ Next",
         "btn_stop": "❌ Stop",
@@ -1501,6 +1518,21 @@ TEXTS = {
         "ach_first_like": "🏆 Achievement: First like! +5 energy ⚡",
         "ach_likes_50": "🏆 Achievement: 50 likes! +25 energy ⚡",
         "ach_first_ai_chat": "🏆 Achievement: First AI chat! +5 energy ⚡",
+        # Quests
+        "quest_title": "📋 Today's quests:",
+        "quest_empty": "No quests yet. Check back later!",
+        "quest_chat_3": "Complete 3 chats",
+        "quest_rate_2": "Rate 2 chats",
+        "quest_ai_5": "Send 5 AI messages",
+        "quest_like_2": "Give 2 likes",
+        "quest_streak": "Log in (streak)",
+        "quest_claimed": "✅ Quest completed! Energy rewarded ⚡",
+        "quest_all_done": "🎉 All quests done! Bonus +{bonus}⚡",
+        # Return gifts
+        "return_gift_1": "🎁 We missed you! Here's +10 energy ⚡ for coming back!",
+        "return_gift_2": "🎁 Long time no see! Take +20 energy ⚡!",
+        "return_gift_3": "🎁 Welcome back! +30 energy ⚡ and 1 day Premium free!",
+        "return_gift_4": "🎁 You're back! +50 energy ⚡ and 3 days Premium free!",
         # Auto-topic
         "auto_topic": "💡 Silence in chat? Here's a topic:\n\n{topic}",
         # Streak reminder
@@ -1599,6 +1631,7 @@ TEXTS = {
         "btn_profile": "👤 Perfil",
         "btn_settings": "⚙️ Ajustes",
         "btn_help": "❓ Ayuda",
+        "btn_quests": "⚡ Misiones",
         # Botones — chat
         "btn_next": "⏭ Siguiente",
         "btn_stop": "❌ Parar",
@@ -2255,6 +2288,21 @@ TEXTS = {
         "ach_first_like": "🏆 Logro: ¡Primer like! +5 energía ⚡",
         "ach_likes_50": "🏆 Logro: ¡50 likes! +25 energía ⚡",
         "ach_first_ai_chat": "🏆 Logro: ¡Primer chat IA! +5 energía ⚡",
+        # Misiones
+        "quest_title": "📋 Misiones de hoy:",
+        "quest_empty": "¡No hay misiones todavía. Vuelve después!",
+        "quest_chat_3": "Completa 3 chats",
+        "quest_rate_2": "Califica 2 chats",
+        "quest_ai_5": "Envía 5 mensajes IA",
+        "quest_like_2": "Da 2 likes",
+        "quest_streak": "Entra al bot (racha)",
+        "quest_claimed": "✅ ¡Misión cumplida! Energía otorgada ⚡",
+        "quest_all_done": "🎉 ¡Todas las misiones completadas! Bono +{bonus}⚡",
+        # Regalos de regreso
+        "return_gift_1": "🎁 ¡Te extrañamos! Aquí tienes +10 energía ⚡ por volver!",
+        "return_gift_2": "🎁 ¡Cuánto tiempo! Toma +20 energía ⚡!",
+        "return_gift_3": "🎁 ¡Bienvenido de vuelta! +30 energía ⚡ y 1 día Premium gratis!",
+        "return_gift_4": "🎁 ¡Volviste! +50 energía ⚡ y 3 días Premium gratis!",
         # Auto-topic
         "auto_topic": "💡 ¿Silencio en el chat? Aquí tienes un tema:\n\n{topic}",
         # Streak reminder

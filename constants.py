@@ -65,6 +65,28 @@ ACHIEVEMENTS = {
 }
 
 
+# ====================== DAILY QUESTS ======================
+# quest_type совпадает с ключами increment_quest: chat, rate, ai, like, streak
+QUEST_POOL = [
+    {"id": "chat_3",  "type": "chat",   "goal": 3, "reward": 5,  "name_key": "quest_chat_3"},
+    {"id": "rate_2",  "type": "rate",   "goal": 2, "reward": 3,  "name_key": "quest_rate_2"},
+    {"id": "ai_5",    "type": "ai",     "goal": 5, "reward": 5,  "name_key": "quest_ai_5"},
+    {"id": "like_2",  "type": "like",   "goal": 2, "reward": 3,  "name_key": "quest_like_2"},
+    {"id": "streak",  "type": "streak", "goal": 1, "reward": 3,  "name_key": "quest_streak"},
+]
+QUEST_ALL_DONE_BONUS = 5  # бонус за выполнение всех 3 квестов
+
+
+# ====================== RETURN GIFTS ======================
+# tier -> days_inactive, energy_bonus, trial_days (0 = no trial)
+RETURN_GIFT_TIERS = {
+    1: {"days_min": 3,  "days_max": 7,  "energy": 10, "trial_days": 0},
+    2: {"days_min": 7,  "days_max": 14, "energy": 20, "trial_days": 0},
+    3: {"days_min": 14, "days_max": 30, "energy": 30, "trial_days": 1},
+    4: {"days_min": 30, "days_max": 999, "energy": 50, "trial_days": 3},
+}
+
+
 # ====================== STOP WORDS ======================
 STOP_WORDS = [
     "предлагаю услуги", "оказываю услуги", "интим услуги",

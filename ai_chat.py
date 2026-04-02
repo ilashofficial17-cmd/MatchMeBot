@@ -951,6 +951,18 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         asyncio.create_task(_generate_summary(uid, char_id, session["history"], lang))
     new_energy = energy_used + cost
     await _update_user(uid, ai_energy_used=new_energy)
+    # Квест: AI-сообщение
+    try:
+        from db import increment_quest as _inc_quest
+        claimed = await _inc_quest(uid, "ai")
+        if claimed:
+            for qid in claimed:
+                if qid == "all_done":
+                    from constants import QUEST_ALL_DONE_BONUS
+                    await message.answer(t(lang, "quest_all_done", bonus=QUEST_ALL_DONE_BONUS))
+                else:
+                    await message.answer(t(lang, "quest_claimed", quest=qid))
+    except Exception: pass
     energy_left = max(max_energy - new_energy, 0)
     low_warning = f"\n\n{t(lang, 'ai_energy_low')}" if 0 < energy_left <= 5 else ""
     await message.answer(f"{response}{low_warning}")
