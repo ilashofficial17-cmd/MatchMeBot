@@ -147,6 +147,11 @@ async def init_db():
             ("ab_group", "TEXT DEFAULT NULL"),
             ("winback_stage", "INTEGER DEFAULT 0"),
             ("premium_expired_at", "TIMESTAMP DEFAULT NULL"),
+            ("rate_energy_today", "INTEGER DEFAULT 0"),
+            ("daily_bonus_claimed", "BOOLEAN DEFAULT FALSE"),
+            ("return_gift_stage", "INTEGER DEFAULT 0"),
+            ("return_gift_given", "TIMESTAMP DEFAULT NULL"),
+            ("return_gifts_total", "INTEGER DEFAULT 0"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
@@ -283,6 +288,35 @@ async def init_db():
             await conn.execute("CREATE INDEX IF NOT EXISTS chat_ratings_uid ON chat_ratings(uid)")
         except Exception: pass
 
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS achievements (
+                uid BIGINT NOT NULL,
+                achievement_id TEXT NOT NULL,
+                unlocked_at TIMESTAMP DEFAULT NOW(),
+                energy_claimed BOOLEAN DEFAULT FALSE,
+                PRIMARY KEY (uid, achievement_id)
+            )
+        """)
+        try:
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_achievements_uid ON achievements(uid)")
+        except Exception: pass
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS daily_quests (
+                uid BIGINT NOT NULL,
+                quest_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                quest_id TEXT NOT NULL,
+                progress INTEGER DEFAULT 0,
+                goal INTEGER NOT NULL DEFAULT 1,
+                reward INTEGER NOT NULL DEFAULT 2,
+                claimed BOOLEAN DEFAULT FALSE,
+                PRIMARY KEY (uid, quest_date, quest_id)
+            )
+        """)
+        try:
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_quests_uid_date ON daily_quests(uid, quest_date)")
+        except Exception: pass
+
         await conn.execute(
             """INSERT INTO users (uid, premium_until, show_premium, accepted_privacy, accepted_rules)
                VALUES ($1, 'permanent', TRUE, TRUE, TRUE)
@@ -363,6 +397,9 @@ get_ai_notes = db.get_ai_notes
 save_ai_notes = db.save_ai_notes
 get_premium_tier = db.get_premium_tier
 is_premium = db.is_premium
+check_achievements = db.check_achievements
+generate_daily_quests = db.generate_daily_quests
+increment_quest = db.increment_quest
 
 
 # ====================== SOCIAL PROOF ======================
@@ -418,6 +455,37 @@ async def update_streak(uid):
     streak_changed = bonus if bonus else (streak if streak != u.get("streak_days", 0) else None)
     level_changed = new_level if new_level > old_level else None
     return streak_changed, level_changed
+
+
+async def _notify_achievements(uid):
+    """Проверяет ачивки и отправляет уведомления о новых."""
+    try:
+        new_achs = await check_achievements(uid)
+        if new_achs:
+            lang = await get_lang(uid)
+            for ach_id in new_achs:
+                try:
+                    await bot.send_message(uid, t(lang, f"ach_{ach_id}"))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+async def _quest_progress(uid, quest_type):
+    """Инкрементирует квест и уведомляет при claim."""
+    try:
+        claimed = await increment_quest(uid, quest_type)
+        if claimed:
+            lang = await get_lang(uid)
+            for qid in claimed:
+                if qid == "all_done":
+                    from constants import QUEST_ALL_DONE_BONUS
+                    await bot.send_message(uid, t(lang, "quest_all_done", bonus=QUEST_ALL_DONE_BONUS))
+                else:
+                    await bot.send_message(uid, t(lang, "quest_claimed", quest=qid))
+    except Exception:
+        pass
 
 
 # ====================== A/B TESTING ======================
@@ -767,6 +835,7 @@ async def set_commands():
         BotCommand(command="reset", description="Сбросить профиль"),
         BotCommand(command="ai", description="ИИ чат"),
         BotCommand(command="energy", description="Магазин энергии"),
+        BotCommand(command="quests", description="Задания"),
         BotCommand(command="help", description="Помощь"),
         BotCommand(command="admin", description="Админ панель"),
         BotCommand(command="referral", description="Пригласи друга"),
@@ -784,6 +853,7 @@ async def set_commands():
         BotCommand(command="reset", description="Reset profile"),
         BotCommand(command="ai", description="AI chat"),
         BotCommand(command="energy", description="Energy shop"),
+        BotCommand(command="quests", description="Quests"),
         BotCommand(command="help", description="Help"),
         BotCommand(command="admin", description="Admin panel"),
         BotCommand(command="referral", description="Invite a friend"),
@@ -801,6 +871,7 @@ async def set_commands():
         BotCommand(command="reset", description="Restablecer perfil"),
         BotCommand(command="ai", description="Chat IA"),
         BotCommand(command="energy", description="Tienda de energía"),
+        BotCommand(command="quests", description="Misiones"),
         BotCommand(command="help", description="Ayuda"),
         BotCommand(command="admin", description="Panel de admin"),
         BotCommand(command="referral", description="Invitar amigo"),
@@ -961,6 +1032,10 @@ async def do_find(uid, state):
         await increment_user(partner, total_chats=1)
         asyncio.create_task(grant_referral_bonus(uid))
         asyncio.create_task(grant_referral_bonus(partner))
+        asyncio.create_task(_notify_achievements(uid))
+        asyncio.create_task(_notify_achievements(partner))
+        asyncio.create_task(_quest_progress(uid, "chat"))
+        asyncio.create_task(_quest_progress(partner, "chat"))
         my_lang = (u.get("lang") or "ru") if u else "ru"
         p_lang = (pu.get("lang") or "ru") if pu else "ru"
         p_badge = await get_premium_badge(partner)
@@ -1229,6 +1304,10 @@ async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
         pkey = StorageKey(bot_id=bot.id, chat_id=partner_uid, user_id=partner_uid)
         await FSMContext(dp.storage, key=pkey).set_state(Chat.chatting)
         await save_chat_to_db(uid, partner_uid, "mutual")
+        asyncio.create_task(_notify_achievements(uid))
+        asyncio.create_task(_notify_achievements(partner_uid))
+        asyncio.create_task(_quest_progress(uid, "chat"))
+        asyncio.create_task(_quest_progress(partner_uid, "chat"))
 
         my_lang = await get_lang(uid)
         p_lang = await get_lang(partner_uid)
@@ -1321,6 +1400,8 @@ async def cmd_start(message: types.Message, state: FSMContext):
     if u.get("accepted_rules") and u.get("accepted_privacy"):
         # Streak + level check
         streak_info, level_info = await update_streak(uid)
+        asyncio.create_task(_notify_achievements(uid))
+        asyncio.create_task(_quest_progress(uid, "streak"))
         badge = await get_premium_badge(uid)
         online = get_online_count()
         online_text = f"\n🟢 {t(lang, 'online_count', count=online)}" if online > 0 else ""
@@ -1366,6 +1447,8 @@ async def accept_all(callback: types.CallbackQuery, state: FSMContext):
     lang = await get_lang(uid)
     await update_user(uid, accepted_privacy=True, accepted_rules=True, ab_group=get_ab_group(uid))
     await update_streak(uid)
+    asyncio.create_task(_notify_achievements(uid))
+    asyncio.create_task(_quest_progress(uid, "streak"))
     try:
         await callback.message.edit_text(t(lang, "rules_accepted"))
     except Exception: pass
@@ -1900,6 +1983,10 @@ async def anon_search(message: types.Message, state: FSMContext):
         await increment_user(partner, total_chats=1)
         asyncio.create_task(grant_referral_bonus(uid))
         asyncio.create_task(grant_referral_bonus(partner))
+        asyncio.create_task(_notify_achievements(uid))
+        asyncio.create_task(_notify_achievements(partner))
+        asyncio.create_task(_quest_progress(uid, "chat"))
+        asyncio.create_task(_quest_progress(partner, "chat"))
         p_lang = await get_lang(partner)
         await bot.send_message(uid, t(lang, "connected"), reply_markup=kb_chat(lang))
         await bot.send_message(partner, t(p_lang, "connected"), reply_markup=kb_chat(p_lang))
@@ -2145,6 +2232,8 @@ async def relay(message: types.Message, state: FSMContext):
                 return
             liked_chats.add(like_key)
             await increment_user(partner, likes=1)
+            asyncio.create_task(_notify_achievements(partner))
+            asyncio.create_task(_quest_progress(uid, "like"))
             await message.answer(t(lang, "like_sent"))
             try:
                 p_lang = await get_lang(partner)
@@ -2768,6 +2857,38 @@ async def set_search_gender(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer(t(lang, "settings_gender_saved"), reply_markup=kb_main(lang))
 
+# ====================== ЕЖЕДНЕВНЫЕ КВЕСТЫ ======================
+@dp.message(Command("quests"), StateFilter("*"))
+@dp.message(F.text.in_(_all("btn_quests")), StateFilter("*"))
+async def cmd_quests(message: types.Message, state: FSMContext):
+    if await needs_onboarding(message, state): return
+    uid = message.from_user.id
+    lang = await get_lang(uid)
+    quests = await generate_daily_quests(uid)
+    if not quests:
+        await message.answer(t(lang, "quest_empty"))
+        return
+    from constants import QUEST_POOL
+    name_map = {q["id"]: q["name_key"] for q in QUEST_POOL}
+    lines = [t(lang, "quest_title")]
+    all_done = True
+    for q in quests:
+        qid = q["quest_id"]
+        name = t(lang, name_map.get(qid, qid))
+        progress = q["progress"]
+        goal = q["goal"]
+        reward = q["reward"]
+        if q["claimed"]:
+            lines.append(f"  ✅ {name} ({progress}/{goal}) — +{reward}⚡")
+        else:
+            all_done = False
+            lines.append(f"  ⬜ {name} ({progress}/{goal}) — +{reward}⚡")
+    if all_done:
+        from constants import QUEST_ALL_DONE_BONUS
+        lines.append(f"\n🎉 {t(lang, 'quest_all_done', bonus=QUEST_ALL_DONE_BONUS)}")
+    await message.answer("\n".join(lines))
+
+
 # ====================== МАГАЗИН ЭНЕРГИИ ======================
 @dp.message(Command("energy"), StateFilter("*"))
 @dp.message(F.text.in_(_all("btn_energy_shop")), StateFilter("*"))
@@ -2846,11 +2967,30 @@ async def rate_chat(callback: types.CallbackQuery):
                     "INSERT INTO chat_ratings (uid, partner_uid, stars) VALUES ($1, $2, $3)",
                     uid, partner_uid, stars
                 )
-        try:
-            await callback.message.edit_text(t(lang, "rate_thanks", stars=stars))
-        except Exception:
-            pass
+        # Механика A: бонус энергии за оценку (до 5 раз/день)
+        u = await get_user(uid)
+        rate_today = u.get("rate_energy_today", 0) if u else 0
+        if rate_today < 5:
+            energy_used = u.get("ai_energy_used", 0) if u else 0
+            new_energy = max(energy_used - 2, 0)
+            await update_user(uid, ai_energy_used=new_energy, rate_energy_today=rate_today + 1)
+            try:
+                await callback.message.edit_text(
+                    t(lang, "rate_thanks", stars=stars) + "\n" + t(lang, "rate_energy_bonus"))
+            except Exception: pass
+        else:
+            try:
+                await callback.message.edit_text(t(lang, "rate_thanks", stars=stars))
+            except Exception: pass
         await callback.answer(t(lang, "rate_thanks", stars=stars))
+        # Проверяем ачивки после оценки
+        new_achs = await check_achievements(uid)
+        if new_achs:
+            for ach_id in new_achs:
+                try:
+                    await bot.send_message(uid, t(lang, f"ach_{ach_id}"))
+                except Exception: pass
+        asyncio.create_task(_quest_progress(uid, "rate"))
     except Exception:
         await callback.answer()
 
