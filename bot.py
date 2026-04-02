@@ -3,6 +3,7 @@ import os
 import aiohttp
 import random
 import logging
+from telegraph_pages import create_legal_pages, get_legal_url
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, StateFilter
@@ -12,7 +13,7 @@ from aiogram.fsm.storage.base import StorageKey
 from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
     InlineKeyboardMarkup, InlineKeyboardButton, BotCommand,
-    LabeledPrice, PreCheckoutQuery, BufferedInputFile, InputMediaDocument,
+    LabeledPrice, PreCheckoutQuery,
 )
 import asyncpg
 import moderation
@@ -1320,21 +1321,12 @@ async def cmd_start(message: types.Message, state: FSMContext):
         await log_ab_event(uid, "session_start")
         return
 
-    # Новый юзер — отправляем документы файлами + приветствие
-    privacy_text = t(lang, "privacy")
-    rules_text = t(lang, "rules")
-    try:
-        media = [
-            InputMediaDocument(
-                media=BufferedInputFile(privacy_text.encode("utf-8"), filename="MatchMe_Privacy.txt"),
-            ),
-            InputMediaDocument(
-                media=BufferedInputFile(rules_text.encode("utf-8"), filename="MatchMe_Rules.txt"),
-            ),
-        ]
-        await bot.send_media_group(uid, media)
-    except Exception:
-        pass
+    # Новый юзер — отправляем условия со ссылкой на полную версию
+    legal_url = get_legal_url(lang)
+    await message.answer(
+        t(lang, "privacy", legal_url=legal_url),
+        disable_web_page_preview=True,
+    )
 
     name = u.get("name", tg_name)
     await message.answer(
@@ -1380,24 +1372,16 @@ async def switch_lang_onboarding(callback: types.CallbackQuery, state: FSMContex
     u = await get_user(uid)
     name = u.get("name", "User") if u else "User"
 
-    # Пересылаем документы на новом языке
-    try:
-        privacy_text = t(new_lang, "privacy")
-        rules_text = t(new_lang, "rules")
-        media = [
-            InputMediaDocument(
-                media=BufferedInputFile(privacy_text.encode("utf-8"), filename="MatchMe_Privacy.txt"),
-            ),
-            InputMediaDocument(
-                media=BufferedInputFile(rules_text.encode("utf-8"), filename="MatchMe_Rules.txt"),
-            ),
-        ]
-        await bot.send_media_group(uid, media)
-    except Exception: pass
-
-    # Обновляем приветствие
+    # Отправляем условия на новом языке со ссылкой
+    legal_url = get_legal_url(new_lang)
     try:
         await callback.message.edit_text(
+            t(new_lang, "privacy", legal_url=legal_url),
+            disable_web_page_preview=True,
+        )
+    except Exception: pass
+    try:
+        await callback.message.answer(
             t(new_lang, "welcome_intro", name=name),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=t(new_lang, "btn_accept_all"), callback_data="accept:all")],
@@ -1418,7 +1402,8 @@ async def choose_language(message: types.Message, state: FSMContext):
     lang = LANG_BUTTONS[message.text]
     await update_user(uid, lang=lang)
     await state.clear()
-    await message.answer(t(lang, "privacy"), reply_markup=kb_privacy(lang))
+    legal_url = get_legal_url(lang)
+    await message.answer(t(lang, "privacy", legal_url=legal_url), reply_markup=kb_privacy(lang), disable_web_page_preview=True)
 
 @dp.message(StateFilter(LangSelect.choosing))
 async def lang_other(message: types.Message):
@@ -2787,6 +2772,12 @@ async def ad_click_handler(callback: types.CallbackQuery):
 # ====================== ЗАПУСК ======================
 async def main():
     await init_db()
+    # Create Telegraph legal pages on startup
+    try:
+        legal_urls = await create_legal_pages()
+        logger.info(f"Telegraph legal pages ready: {legal_urls}")
+    except Exception as e:
+        logger.error(f"Failed to create Telegraph pages: {e}")
     db.init(db_pool, ADMIN_ID)
     moderation.init(bot, db_pool, ADMIN_ID)
     await moderation.migrate_db()

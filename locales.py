@@ -13,17 +13,18 @@ TEXTS = {
             "Choose language / Elige idioma"
         ),
         "privacy": (
-            "🔒 Политика конфиденциальности MatchMe\n\n"
-            "Что собираем: Telegram ID, имя, возраст, пол — для подбора собеседников.\n"
-            "Данные НЕ передаются третьим лицам. Переписка НЕ хранится постоянно.\n\n"
-            "🛡 Конфиденциальность чатов:\n"
-            "Все чаты в боте полностью конфиденциальны и защищены.\n"
-            "Мы не предоставляем доступ к вашим перепискам третьим лицам.\n"
-            "Модерация чатов осуществляется исключительно ИИ-модератором.\n"
-            "Ни администраторы, ни владелец бота не просматривают личные чаты пользователей.\n\n"
-            "Возраст: минимум 16 лет. 16-17 — Общение и Флирт. 18+ — все режимы.\n"
-            "Удаление данных: /reset или написать администратору.\n\n"
-            "Принимая условия ты соглашаешься с политикой конфиденциальности."
+            "📋 Условия использования и Политика конфиденциальности MatchMe\n\n"
+            "Используя бота, вы принимаете наши Условия:\n\n"
+            "• Минимальный возраст: 16 лет (18+ для всех режимов)\n"
+            "• Указание ложного возраста = бессрочный бан\n"
+            "• Мы собираем: Telegram ID, имя, возраст, пол\n"
+            "• Переписка НЕ хранится. Модерация — только AI\n"
+            "• Все покупки окончательны, возврат невозможен\n"
+            "• AI-персонажи вымышлены, это не реальные люди\n"
+            "• Сервис предоставляется «как есть»\n\n"
+            "📄 Полная версия: {legal_url}\n"
+            "💬 Поддержка: @MatchMeMaster_bot\n\n"
+            "Нажимая «Принять», вы соглашаетесь с Условиями и Политикой конфиденциальности."
         ),
         "privacy_accepted": "✅ Политика конфиденциальности принята!",
         "privacy_declined": (
@@ -42,15 +43,15 @@ TEXTS = {
         "channel_skip": "Окей! Можешь подписаться позже через /premium 😊",
         "rules": (
             "📜 Правила MatchMe\n\n"
-            "Разрешено: общение, флирт, ролевые игры (18+), лайки собеседникам.\n"
-            "Возраст: 16-17 — Общение и Флирт. 18+ — все режимы. Ложный возраст = перм бан.\n\n"
+            "Разрешено: общение, флирт, ролевые игры (18+), лайки.\n"
+            "Возраст: 16-17 — Общение и Флирт. 18+ — все режимы.\n\n"
             "❌ Запрещено:\n"
             "• Реклама, спам, мошенничество — бан\n"
             "• Интим-услуги, контент с несовершеннолетними — перм бан\n"
             "• Пошлые темы без согласия в «Общении» — бан\n"
             "• Угрозы, оскорбления, ложные жалобы — бан\n\n"
-            "Нарушения: предупреждение → бан 3ч → бан 24ч → перм бан.\n\n"
-            "Нажми ✅ Принять правила для продолжения."
+            "Ложный возраст = перм бан. Вы несёте полную ответственность за свои действия.\n\n"
+            "Нарушения: предупреждение → бан 3ч → бан 24ч → перм бан."
         ),
         "rules_accepted": "✅ Правила приняты! Добро пожаловать в MatchMe! 🎉",
         "rules_choose_lang": "👆 Выбери язык чтобы продолжить.",
@@ -61,7 +62,6 @@ TEXTS = {
             "Представь: ты открываешь чат — и через 10 секунд уже болтаешь с кем-то новым.\n"
             "Никто не знает кто ты. Ты не знаешь кого встретишь.\n"
             "Вот в этом и кайф.\n\n"
-            "📄 Выше — правила и политика конфиденциальности.\n"
             "Жми кнопку и погнали!"
         ),
         "btn_accept_all": "✅ Принимаю",
@@ -742,17 +742,18 @@ TEXTS = {
             "Выбери язык / Elige idioma"
         ),
         "privacy": (
-            "🔒 MatchMe Privacy Policy\n\n"
-            "What we collect: Telegram ID, name, age, gender — for matching.\n"
-            "Data is NOT shared with third parties. Messages are NOT stored permanently.\n\n"
-            "🛡 Chat confidentiality:\n"
-            "All chats are fully confidential and protected.\n"
-            "We do not grant access to your conversations to third parties.\n"
-            "Chat moderation is performed exclusively by an AI moderator.\n"
-            "Neither admins nor the bot owner read private chats.\n\n"
-            "Age: minimum 16. Ages 16-17 — Chat and Flirt only. 18+ — all modes.\n"
-            "Data deletion: /reset or contact the admin.\n\n"
-            "By accepting, you agree to the privacy policy."
+            "📋 MatchMe Terms of Service & Privacy Policy\n\n"
+            "By using the bot, you accept our Terms:\n\n"
+            "• Minimum age: 16 (18+ for all modes)\n"
+            "• Providing false age = permanent ban\n"
+            "• We collect: Telegram ID, name, age, gender\n"
+            "• Messages are NOT stored. Moderation — AI only\n"
+            "• All purchases are final, no refunds\n"
+            "• AI characters are fictional, not real people\n"
+            "• Service provided \"as is\"\n\n"
+            "📄 Full version: {legal_url}\n"
+            "💬 Support: @MatchMeMaster_bot\n\n"
+            "By pressing \"Accept\", you agree to the Terms of Service & Privacy Policy."
         ),
         "privacy_accepted": "✅ Privacy policy accepted!",
         "privacy_declined": (
@@ -772,14 +773,14 @@ TEXTS = {
         "rules": (
             "📜 MatchMe Rules\n\n"
             "Allowed: chatting, flirting, role-play (18+), liking people.\n"
-            "Age: 16-17 — Chat & Flirt. 18+ — all modes. Fake age = permanent ban.\n\n"
+            "Age: 16-17 — Chat & Flirt. 18+ — all modes.\n\n"
             "❌ Prohibited:\n"
             "• Advertising, spam, fraud — ban\n"
             "• Adult services, content with minors — permanent ban\n"
             "• Sexual topics without consent in Chat mode — ban\n"
             "• Threats, insults, false reports — ban\n\n"
-            "Violations: warning → 3h ban → 24h ban → permanent ban.\n\n"
-            "Press ✅ Accept rules to continue."
+            "Fake age = permanent ban. You bear full responsibility for your actions.\n\n"
+            "Violations: warning → 3h ban → 24h ban → permanent ban."
         ),
         "rules_accepted": "✅ Rules accepted! Welcome to MatchMe! 🎉",
         "rules_choose_lang": "👆 Choose a language to continue.",
@@ -790,7 +791,6 @@ TEXTS = {
             "Imagine: you open a chat — and in 10 seconds you're already talking to someone new.\n"
             "Nobody knows who you are. You don't know who you'll meet.\n"
             "That's the whole point.\n\n"
-            "📄 Above — rules and privacy policy.\n"
             "Hit the button and let's go!"
         ),
         "btn_accept_all": "✅ I accept",
@@ -1484,17 +1484,18 @@ TEXTS = {
             "Choose language / Выбери язык"
         ),
         "privacy": (
-            "🔒 Política de privacidad de MatchMe\n\n"
-            "Qué recopilamos: ID de Telegram, nombre, edad, género — para emparejar.\n"
-            "Los datos NO se comparten con terceros. Los mensajes NO se almacenan permanentemente.\n\n"
-            "🛡 Confidencialidad del chat:\n"
-            "Todos los chats son completamente confidenciales y están protegidos.\n"
-            "No otorgamos acceso a tus conversaciones a terceros.\n"
-            "La moderación del chat la realiza exclusivamente un moderador de IA.\n"
-            "Ni los administradores ni el propietario del bot leen los chats privados.\n\n"
-            "Edad: mínimo 16 años. 16-17 — Chat y Coqueteo. 18+ — todos los modos.\n"
-            "Eliminación de datos: /reset o contacta al administrador.\n\n"
-            "Al aceptar, aceptas la política de privacidad."
+            "📋 MatchMe — Términos de Servicio y Política de Privacidad\n\n"
+            "Al usar el bot, aceptas nuestros Términos:\n\n"
+            "• Edad mínima: 16 años (18+ para todos los modos)\n"
+            "• Edad falsa = ban permanente\n"
+            "• Recopilamos: ID de Telegram, nombre, edad, género\n"
+            "• Los mensajes NO se almacenan. Moderación — solo IA\n"
+            "• Todas las compras son definitivas, sin reembolsos\n"
+            "• Los personajes IA son ficticios, no personas reales\n"
+            "• Servicio proporcionado «tal cual»\n\n"
+            "📄 Versión completa: {legal_url}\n"
+            "💬 Soporte: @MatchMeMaster_bot\n\n"
+            "Al presionar «Aceptar», aceptas los Términos de Servicio y la Política de Privacidad."
         ),
         "privacy_accepted": "✅ ¡Política de privacidad aceptada!",
         "privacy_declined": (
@@ -1514,14 +1515,14 @@ TEXTS = {
         "rules": (
             "📜 Reglas de MatchMe\n\n"
             "Permitido: chatear, coquetear, juegos de rol (18+), dar likes.\n"
-            "Edad: 16-17 — Chat y Coqueteo. 18+ — todos los modos. Edad falsa = ban permanente.\n\n"
+            "Edad: 16-17 — Chat y Coqueteo. 18+ — todos los modos.\n\n"
             "❌ Prohibido:\n"
             "• Publicidad, spam, fraude — ban\n"
             "• Servicios para adultos, contenido con menores — ban permanente\n"
             "• Temas sexuales sin consentimiento en modo Chat — ban\n"
             "• Amenazas, insultos, denuncias falsas — ban\n\n"
-            "Violaciones: advertencia → ban 3h → ban 24h → ban permanente.\n\n"
-            "Presiona ✅ Aceptar reglas para continuar."
+            "Edad falsa = ban permanente. Asumes toda la responsabilidad por tus acciones.\n\n"
+            "Violaciones: advertencia → ban 3h → ban 24h → ban permanente."
         ),
         "rules_accepted": "✅ ¡Reglas aceptadas! ¡Bienvenido a MatchMe! 🎉",
         "rules_choose_lang": "👆 Elige un idioma para continuar.",
@@ -1532,7 +1533,6 @@ TEXTS = {
             "Imagina: abres un chat — y en 10 segundos ya estás hablando con alguien nuevo.\n"
             "Nadie sabe quién eres. No sabes a quién conocerás.\n"
             "Esa es la gracia.\n\n"
-            "📄 Arriba — reglas y política de privacidad.\n"
             "¡Dale al botón y vamos!"
         ),
         "btn_accept_all": "✅ Acepto",

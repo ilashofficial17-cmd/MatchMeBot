@@ -1,2 +1,3 @@
 __pycache__/
 *.pyc
+.telegraph_cache.json
