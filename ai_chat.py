@@ -735,7 +735,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         # Показываем последнее сообщение персонажа чтобы юзер видел где остановились
         last_assistant = next((m for m in reversed(db_history) if m["role"] == "assistant"), None)
         if last_assistant:
-            await callback.message.answer(f"{char['emoji']} {last_assistant['content']}")
+            await callback.message.answer(last_assistant['content'])
     else:
         notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
         greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u, notes=notes)
@@ -743,7 +743,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
             _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
             if _save_ai_message:
                 await _save_ai_message(uid, char_id, "assistant", greeting)
-            await callback.message.answer(f"{char['emoji']} {greeting}")
+            await callback.message.answer(greeting)
     await callback.answer()
 
 
@@ -821,7 +821,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
                 session["history"].append({"role": "assistant", "content": greeting})
                 if _save_ai_message:
                     await _save_ai_message(uid, char_id, "assistant", greeting)
-                await message.answer(f"{char['emoji']} {greeting}")
+                await message.answer(greeting)
         return
     # Обработка фото — vision через GPT-4o-mini
     if message.photo and not txt:
@@ -855,9 +855,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
                 "en": "Sorry, I can't see the photo 😅 Tell me what's in it?",
                 "es": "Perdón, no puedo ver la foto 😅 ¿Dime qué hay en ella?",
             }
-            char_id = _ai_sessions[uid]["character"]
-            emoji = AI_CHARACTERS[char_id]["emoji"]
-            await message.answer(f"{emoji} {photo_fallbacks.get(lang, photo_fallbacks['en'])}")
+            await message.answer(photo_fallbacks.get(lang, photo_fallbacks['en']))
             return
 
     # Обработка голосовых — транскрипция через Gemini Flash
@@ -890,9 +888,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
                 "en": "Couldn't hear that 😅 Could you type it?",
                 "es": "No pude escuchar 😅 ¿Puedes escribirlo?",
             }
-            char_id = _ai_sessions[uid]["character"]
-            emoji = AI_CHARACTERS[char_id]["emoji"]
-            await message.answer(f"{emoji} {voice_fallbacks.get(lang, voice_fallbacks['en'])}")
+            await message.answer(voice_fallbacks.get(lang, voice_fallbacks['en']))
             return
 
     if uid not in _ai_sessions:
@@ -957,7 +953,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     await _update_user(uid, ai_energy_used=new_energy)
     energy_left = max(max_energy - new_energy, 0)
     low_warning = f"\n\n{t(lang, 'ai_energy_low')}" if 0 < energy_left <= 5 else ""
-    await message.answer(f"{char['emoji']} {response}{low_warning}")
+    await message.answer(f"{response}{low_warning}")
     # Content sending logic
     cur_msg = session["msg_count"]
     is_hot = _is_hot_photo_request(txt, lang)
@@ -1087,7 +1083,7 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
     if db_history:
         last_assistant = next((m for m in reversed(db_history) if m["role"] == "assistant"), None)
         if last_assistant:
-            await callback.message.answer(f"{char['emoji']} {last_assistant['content']}")
+            await callback.message.answer(last_assistant['content'])
     else:
         notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
         greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u, notes=notes)
@@ -1095,5 +1091,5 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
             _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
             if _save_ai_message:
                 await _save_ai_message(uid, char_id, "assistant", greeting)
-            await callback.message.answer(f"{char['emoji']} {greeting}")
+            await callback.message.answer(greeting)
     await callback.answer()

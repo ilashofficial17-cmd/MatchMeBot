@@ -766,6 +766,7 @@ async def set_commands():
         BotCommand(command="stats", description="Моя статистика"),
         BotCommand(command="reset", description="Сбросить профиль"),
         BotCommand(command="ai", description="ИИ чат"),
+        BotCommand(command="energy", description="Магазин энергии"),
         BotCommand(command="help", description="Помощь"),
         BotCommand(command="admin", description="Админ панель"),
         BotCommand(command="referral", description="Пригласи друга"),
@@ -782,6 +783,7 @@ async def set_commands():
         BotCommand(command="stats", description="My stats"),
         BotCommand(command="reset", description="Reset profile"),
         BotCommand(command="ai", description="AI chat"),
+        BotCommand(command="energy", description="Energy shop"),
         BotCommand(command="help", description="Help"),
         BotCommand(command="admin", description="Admin panel"),
         BotCommand(command="referral", description="Invite a friend"),
@@ -798,6 +800,7 @@ async def set_commands():
         BotCommand(command="stats", description="Mis estadísticas"),
         BotCommand(command="reset", description="Restablecer perfil"),
         BotCommand(command="ai", description="Chat IA"),
+        BotCommand(command="energy", description="Tienda de energía"),
         BotCommand(command="help", description="Ayuda"),
         BotCommand(command="admin", description="Panel de admin"),
         BotCommand(command="referral", description="Invitar amigo"),
@@ -1018,7 +1021,7 @@ async def notify_no_partner(uid):
             char_id = random.choice(candidates)
             char = ai_chat.AI_CHARACTERS[char_id]
             lang = await get_lang(uid)
-            name = f"{char['emoji']} {t(lang, char['name_key'])}"
+            name = t(lang, char['name_key'])
             await bot.send_message(uid,
                 t(lang, "no_partner_wait", name=name),
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
@@ -2763,6 +2766,7 @@ async def set_search_gender(message: types.Message, state: FSMContext):
     await message.answer(t(lang, "settings_gender_saved"), reply_markup=kb_main(lang))
 
 # ====================== МАГАЗИН ЭНЕРГИИ ======================
+@dp.message(Command("energy"), StateFilter("*"))
 @dp.message(F.text.in_(_all("btn_energy_shop")), StateFilter("*"))
 async def cmd_energy_shop(message: types.Message, state: FSMContext):
     if await needs_onboarding(message, state): return
