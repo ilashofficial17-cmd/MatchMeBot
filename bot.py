@@ -932,7 +932,9 @@ async def do_find(uid, state):
     partner = None
     async with pairing_lock:
         if uid in active_chats:
-            return False
+            for q in get_all_queues():
+                q.discard(uid)
+            return True
         for cand_pid, _, _, _, cand_q in candidates:
             if cand_pid not in active_chats and cand_pid in cand_q:
                 partner = cand_pid
@@ -1074,6 +1076,8 @@ async def end_chat(uid, state, go_next=False):
 
     if go_next and partner:
         await asyncio.sleep(0.5)
+        if uid in active_chats:
+            return
         u = await get_user(uid)
         if u and u.get("mode"):
             lang = (u.get("lang") or "ru")
@@ -1871,6 +1875,7 @@ async def anon_search(message: types.Message, state: FSMContext):
     partner = None
     async with pairing_lock:
         if uid in active_chats:
+            waiting_anon.discard(uid)
             return
         for pid in anon_candidates:
             if pid not in active_chats and pid in waiting_anon:
