@@ -50,6 +50,20 @@ LEVEL_NAMES = {
 }
 STREAK_BONUSES = {3: 5, 7: 10, 14: 15, 30: 20}
 
+# ====================== ACHIEVEMENTS ======================
+# Каждая ачивка: field — поле users для проверки, threshold — порог, energy — бонус
+ACHIEVEMENTS = {
+    "first_chat":    {"field": "total_chats",  "threshold": 1,   "energy": 10},
+    "chats_10":      {"field": "total_chats",  "threshold": 10,  "energy": 15},
+    "chats_50":      {"field": "total_chats",  "threshold": 50,  "energy": 25},
+    "streak_3":      {"field": "streak_days",  "threshold": 3,   "energy": 10},
+    "streak_7":      {"field": "streak_days",  "threshold": 7,   "energy": 20},
+    "streak_30":     {"field": "streak_days",  "threshold": 30,  "energy": 50},
+    "first_like":    {"field": "likes",        "threshold": 1,   "energy": 5},
+    "likes_50":      {"field": "likes",        "threshold": 50,  "energy": 25},
+    "first_ai_chat": {"field": "ai_energy_used", "threshold": 1, "energy": 5},
+}
+
 
 # ====================== STOP WORDS ======================
 STOP_WORDS = [

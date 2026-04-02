@@ -147,6 +147,7 @@ async def init_db():
             ("ab_group", "TEXT DEFAULT NULL"),
             ("winback_stage", "INTEGER DEFAULT 0"),
             ("premium_expired_at", "TIMESTAMP DEFAULT NULL"),
+            ("rate_energy_today", "INTEGER DEFAULT 0"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
@@ -283,6 +284,19 @@ async def init_db():
             await conn.execute("CREATE INDEX IF NOT EXISTS chat_ratings_uid ON chat_ratings(uid)")
         except Exception: pass
 
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS achievements (
+                uid BIGINT NOT NULL,
+                achievement_id TEXT NOT NULL,
+                unlocked_at TIMESTAMP DEFAULT NOW(),
+                energy_claimed BOOLEAN DEFAULT FALSE,
+                PRIMARY KEY (uid, achievement_id)
+            )
+        """)
+        try:
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_achievements_uid ON achievements(uid)")
+        except Exception: pass
+
         await conn.execute(
             """INSERT INTO users (uid, premium_until, show_premium, accepted_privacy, accepted_rules)
                VALUES ($1, 'permanent', TRUE, TRUE, TRUE)
@@ -363,6 +377,7 @@ get_ai_notes = db.get_ai_notes
 save_ai_notes = db.save_ai_notes
 get_premium_tier = db.get_premium_tier
 is_premium = db.is_premium
+check_achievements = db.check_achievements
 
 
 # ====================== SOCIAL PROOF ======================
@@ -418,6 +433,21 @@ async def update_streak(uid):
     streak_changed = bonus if bonus else (streak if streak != u.get("streak_days", 0) else None)
     level_changed = new_level if new_level > old_level else None
     return streak_changed, level_changed
+
+
+async def _notify_achievements(uid):
+    """Проверяет ачивки и отправляет уведомления о новых."""
+    try:
+        new_achs = await check_achievements(uid)
+        if new_achs:
+            lang = await get_lang(uid)
+            for ach_id in new_achs:
+                try:
+                    await bot.send_message(uid, t(lang, f"ach_{ach_id}"))
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 
 # ====================== A/B TESTING ======================
@@ -961,6 +991,8 @@ async def do_find(uid, state):
         await increment_user(partner, total_chats=1)
         asyncio.create_task(grant_referral_bonus(uid))
         asyncio.create_task(grant_referral_bonus(partner))
+        asyncio.create_task(_notify_achievements(uid))
+        asyncio.create_task(_notify_achievements(partner))
         my_lang = (u.get("lang") or "ru") if u else "ru"
         p_lang = (pu.get("lang") or "ru") if pu else "ru"
         p_badge = await get_premium_badge(partner)
@@ -1229,6 +1261,8 @@ async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
         pkey = StorageKey(bot_id=bot.id, chat_id=partner_uid, user_id=partner_uid)
         await FSMContext(dp.storage, key=pkey).set_state(Chat.chatting)
         await save_chat_to_db(uid, partner_uid, "mutual")
+        asyncio.create_task(_notify_achievements(uid))
+        asyncio.create_task(_notify_achievements(partner_uid))
 
         my_lang = await get_lang(uid)
         p_lang = await get_lang(partner_uid)
@@ -1321,6 +1355,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
     if u.get("accepted_rules") and u.get("accepted_privacy"):
         # Streak + level check
         streak_info, level_info = await update_streak(uid)
+        asyncio.create_task(_notify_achievements(uid))
         badge = await get_premium_badge(uid)
         online = get_online_count()
         online_text = f"\n🟢 {t(lang, 'online_count', count=online)}" if online > 0 else ""
@@ -1366,6 +1401,7 @@ async def accept_all(callback: types.CallbackQuery, state: FSMContext):
     lang = await get_lang(uid)
     await update_user(uid, accepted_privacy=True, accepted_rules=True, ab_group=get_ab_group(uid))
     await update_streak(uid)
+    asyncio.create_task(_notify_achievements(uid))
     try:
         await callback.message.edit_text(t(lang, "rules_accepted"))
     except Exception: pass
@@ -1900,6 +1936,8 @@ async def anon_search(message: types.Message, state: FSMContext):
         await increment_user(partner, total_chats=1)
         asyncio.create_task(grant_referral_bonus(uid))
         asyncio.create_task(grant_referral_bonus(partner))
+        asyncio.create_task(_notify_achievements(uid))
+        asyncio.create_task(_notify_achievements(partner))
         p_lang = await get_lang(partner)
         await bot.send_message(uid, t(lang, "connected"), reply_markup=kb_chat(lang))
         await bot.send_message(partner, t(p_lang, "connected"), reply_markup=kb_chat(p_lang))
@@ -2145,6 +2183,7 @@ async def relay(message: types.Message, state: FSMContext):
                 return
             liked_chats.add(like_key)
             await increment_user(partner, likes=1)
+            asyncio.create_task(_notify_achievements(partner))
             await message.answer(t(lang, "like_sent"))
             try:
                 p_lang = await get_lang(partner)
@@ -2846,11 +2885,29 @@ async def rate_chat(callback: types.CallbackQuery):
                     "INSERT INTO chat_ratings (uid, partner_uid, stars) VALUES ($1, $2, $3)",
                     uid, partner_uid, stars
                 )
-        try:
-            await callback.message.edit_text(t(lang, "rate_thanks", stars=stars))
-        except Exception:
-            pass
+        # Механика A: бонус энергии за оценку (до 5 раз/день)
+        u = await get_user(uid)
+        rate_today = u.get("rate_energy_today", 0) if u else 0
+        if rate_today < 5:
+            energy_used = u.get("ai_energy_used", 0) if u else 0
+            new_energy = max(energy_used - 2, 0)
+            await update_user(uid, ai_energy_used=new_energy, rate_energy_today=rate_today + 1)
+            try:
+                await callback.message.edit_text(
+                    t(lang, "rate_thanks", stars=stars) + "\n" + t(lang, "rate_energy_bonus"))
+            except Exception: pass
+        else:
+            try:
+                await callback.message.edit_text(t(lang, "rate_thanks", stars=stars))
+            except Exception: pass
         await callback.answer(t(lang, "rate_thanks", stars=stars))
+        # Проверяем ачивки после оценки
+        new_achs = await check_achievements(uid)
+        if new_achs:
+            for ach_id in new_achs:
+                try:
+                    await bot.send_message(uid, t(lang, f"ach_{ach_id}"))
+                except Exception: pass
     except Exception:
         await callback.answer()
 

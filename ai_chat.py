@@ -909,7 +909,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     energy_used = u.get("ai_energy_used", 0) if u else 0
     reset_time = u.get("ai_messages_reset") if u else None
     if reset_time and (datetime.now() - reset_time).total_seconds() > 86400:
-        await _update_user(uid, ai_energy_used=0, ai_messages_reset=datetime.now())
+        await _update_user(uid, ai_energy_used=0, ai_messages_reset=datetime.now(), rate_energy_today=0)
         energy_used = 0
     if energy_used + cost > max_energy:
         if reset_time:
@@ -954,6 +954,16 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     energy_left = max(max_energy - new_energy, 0)
     low_warning = f"\n\n{t(lang, 'ai_energy_low')}" if 0 < energy_left <= 5 else ""
     await message.answer(f"{response}{low_warning}")
+    # Проверяем ачивки после AI-сообщения
+    try:
+        from db import check_achievements
+        new_achs = await check_achievements(uid)
+        if new_achs:
+            for ach_id in new_achs:
+                try:
+                    await message.answer(t(lang, f"ach_{ach_id}"))
+                except Exception: pass
+    except Exception: pass
     # Content sending logic
     cur_msg = session["msg_count"]
     is_hot = _is_hot_photo_request(txt, lang)

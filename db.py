@@ -146,3 +146,40 @@ async def get_premium_tier(uid):
 
 async def is_premium(uid):
     return (await get_premium_tier(uid)) is not None
+
+
+async def check_achievements(uid):
+    """Проверяет и разблокирует новые ачивки. Возвращает список новых achievement_id."""
+    from constants import ACHIEVEMENTS
+    if not _db_pool:
+        return []
+    u = await get_user(uid)
+    if not u:
+        return []
+    new_achievements = []
+    async with _db_pool.acquire() as conn:
+        existing = await conn.fetch(
+            "SELECT achievement_id FROM achievements WHERE uid=$1", uid
+        )
+        existing_ids = {r["achievement_id"] for r in existing}
+        for ach_id, ach in ACHIEVEMENTS.items():
+            if ach_id in existing_ids:
+                continue
+            value = u.get(ach["field"], 0) or 0
+            if value >= ach["threshold"]:
+                await conn.execute(
+                    "INSERT INTO achievements (uid, achievement_id, energy_claimed) "
+                    "VALUES ($1, $2, TRUE) ON CONFLICT DO NOTHING",
+                    uid, ach_id
+                )
+                # Начисляем энергию (уменьшаем ai_energy_used)
+                energy_used = u.get("ai_energy_used", 0) or 0
+                new_energy = max(energy_used - ach["energy"], 0)
+                await conn.execute(
+                    "UPDATE users SET ai_energy_used=$2 WHERE uid=$1",
+                    uid, new_energy
+                )
+                # Обновляем локальную копию для корректного расчёта следующих ачивок
+                u["ai_energy_used"] = new_energy
+                new_achievements.append(ach_id)
+    return new_achievements
