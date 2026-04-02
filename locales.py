@@ -208,7 +208,8 @@ TEXTS = {
             "👤 {name}{badge}\n"
             "━━━━━━━━━━━━━━━\n"
             "{age}  ·  {gender}  ·  {mode}\n"
-            "🎯 {interests}\n\n"
+            "🎯 {interests}\n"
+            "━━━━━━━━━━━━━━━\n"
             "⭐ {rating}  ·  👍 {likes}  ·  💬 {chats} чатов\n"
             "{level_info}\n"
             "{streak_info}\n"
@@ -291,22 +292,13 @@ TEXTS = {
         "reset_back": "Возврат в меню.",
         # Тексты — помощь
         "help_text": (
-            "Как тут всё устроено:\n\n"
-            "🔍 Найти собеседника\n"
-            "🎲 Случайный чат — мгновенный анонимный поиск\n"
-            "🔍 Подбор по анкете — с учётом режима и интересов\n"
-            "🤖 ИИ чат — если хочешь поболтать прямо сейчас\n\n"
-            "💬 Во время чата\n"
-            "⏭ Следующий — переключиться на другого\n"
-            "🎲 Тема — подкинет о чём поговорить\n"
-            "👍 Лайк — если человек понравился\n"
-            "❌ Стоп — завершить разговор\n"
-            "🚩 Жалоба — если что-то не так\n\n"
-            "📊 /stats — твоя статистика\n"
-            "⭐ /premium — подписка\n"
-            "⚡ Магазин энергии — купи энергию для ИИ чата\n"
-            "/reset — начать профиль заново\n"
-            "Что-то сломалось? Жми /start"
+            "❓ Как пользоваться MatchMe\n\n"
+            "🎲 Случайный чат — анонимный поиск за секунды\n"
+            "🔍 Подбор по анкете — режим + интересы\n"
+            "🤖 ИИ чат — персонажи с характером, всегда онлайн\n\n"
+            "В чате: ⏭ Следующий · 🎲 Тема · 👍 Лайк · ❌ Стоп · 🚩 Жалоба\n\n"
+            "/stats · /premium · /reset\n"
+            "🆘 Сломалось? → /start"
         ),
         "unavailable": "⚠️ Сейчас недоступно — {reason}.",
         "no_partner_wait": (
@@ -402,10 +394,11 @@ TEXTS = {
         "hardban": "🚫 Перманентный бан за нарушение правил.",
         # AI чат
         "ai_menu": (
-            "🤖 <b>ИИ чат</b>\n\n"
-            "⚡ Энергия: <b>{energy_left}</b>/{energy_max}\n\n"
-            "✅ Basic — 1 ⚡   ⭐ VIP — 2 ⚡   💎 VIP+ — 3 ⚡\n\n"
-            "Выбери персонажа:"
+            "🤖 <b>ИИ Чат</b>\n"
+            "━━━━━━━━━━━━━━━\n"
+            "⚡ <b>{energy_left}</b> / {energy_max}\n\n"
+            "Basic · 1⚡   VIP ⭐ · 2⚡   VIP+ 💎 · 3⚡\n\n"
+            "Выбери персонажа 👇"
         ),
         "ai_select_char": "Выбери персонажа:",
         "ai_char_not_found": "Персонаж не найден.",
@@ -521,9 +514,9 @@ TEXTS = {
         "char_vip_locked": "🔒 Только для VIP+",
         "btn_ai_info": "📋 Описание персонажей",
         # Заголовки блоков ИИ
-        "ai_block_simple": "💬 Общение",
-        "ai_block_flirt": "💋 Флирт",
-        "ai_block_kink": "🔥 Kink",
+        "ai_block_simple": "── 💬 Общение ──",
+        "ai_block_flirt": "── 💋 Флирт ──",
+        "ai_block_kink": "── 🔥 Kink ──",
         # Premium кнопки
         "prem_header": "── Premium ──",
         "prem_compare": "❓ Подробнее о Premium",
@@ -723,10 +716,10 @@ TEXTS = {
         "level_4": "Легенда",
         "level_5": "Мастер общения",
         # Profile extras
-        "profile_level": "📊 Уровень: {level} — {name}",
-        "profile_streak": "🔥 Стрик: {days} дн.",
-        "profile_progress": "📈 До след. уровня: {current}/{next} чатов ({pct}%)",
-        "profile_progress_max": "📈 Максимальный уровень!",
+        "profile_level": "🏅 {name}  ·  ур. {level}",
+        "profile_streak": "🔥 {days} дн. подряд",
+        "profile_progress": "   └ {current}/{next} · {pct}%",
+        "profile_progress_max": "🏆 Максимальный уровень!",
         # Chat rating
         "rate_chat": "Как тебе этот чат?",
         "rate_thanks": "Спасибо за оценку! ⭐{stars}",
@@ -959,7 +952,8 @@ TEXTS = {
             "👤 {name}{badge}\n"
             "━━━━━━━━━━━━━━━\n"
             "{age}  ·  {gender}  ·  {mode}\n"
-            "🎯 {interests}\n\n"
+            "🎯 {interests}\n"
+            "━━━━━━━━━━━━━━━\n"
             "⭐ {rating}  ·  👍 {likes}  ·  💬 {chats} chats\n"
             "{level_info}\n"
             "{streak_info}\n"
@@ -1042,22 +1036,13 @@ TEXTS = {
         "reset_back": "Back to menu.",
         # Help
         "help_text": (
-            "How it all works:\n\n"
-            "🔍 Find a partner\n"
-            "🎲 Random chat — instant anonymous match\n"
-            "🔍 Match by profile — filtered by mode & interests\n"
-            "🤖 AI chat — talk to someone right now\n\n"
-            "💬 During a chat\n"
-            "⏭ Next — switch to another person\n"
-            "🎲 Topic — get a conversation starter\n"
-            "👍 Like — if you enjoyed the person\n"
-            "❌ Stop — end the conversation\n"
-            "🚩 Report — if something's wrong\n\n"
-            "📊 /stats — your stats\n"
-            "⭐ /premium — subscription\n"
-            "⚡ Energy Shop — buy energy for AI chat\n"
-            "/reset — start your profile over\n"
-            "Something broken? Hit /start"
+            "❓ How MatchMe works\n\n"
+            "🎲 Random Chat — anonymous match in seconds\n"
+            "🔍 Profile Match — filtered by mode & interests\n"
+            "🤖 AI Chat — characters with personality, always online\n\n"
+            "In chat: ⏭ Next · 🎲 Topic · 👍 Like · ❌ Stop · 🚩 Report\n\n"
+            "/stats · /premium · /reset\n"
+            "🆘 Something broken? → /start"
         ),
         "unavailable": "⚠️ Not available right now — {reason}.",
         "no_partner_wait": (
@@ -1166,10 +1151,11 @@ TEXTS = {
         "hardban": "🚫 Permanent ban for violating the rules.",
         # AI chat
         "ai_menu": (
-            "🤖 <b>AI Chat</b>\n\n"
-            "⚡ Energy: <b>{energy_left}</b>/{energy_max}\n\n"
-            "✅ Basic — 1 ⚡   ⭐ VIP — 2 ⚡   💎 VIP+ — 3 ⚡\n\n"
-            "Pick a character:"
+            "🤖 <b>AI Chat</b>\n"
+            "━━━━━━━━━━━━━━━\n"
+            "⚡ <b>{energy_left}</b> / {energy_max}\n\n"
+            "Basic · 1⚡   VIP ⭐ · 2⚡   VIP+ 💎 · 3⚡\n\n"
+            "Pick a character 👇"
         ),
         "ai_select_char": "Choose a character:",
         "ai_char_not_found": "Character not found.",
@@ -1285,9 +1271,9 @@ TEXTS = {
         "char_vip_locked": "🔒 VIP+ only",
         "btn_ai_info": "📋 Character descriptions",
         # AI block headers
-        "ai_block_simple": "💬 Chat",
-        "ai_block_flirt": "💋 Flirt",
-        "ai_block_kink": "🔥 Kink",
+        "ai_block_simple": "── 💬 Chat ──",
+        "ai_block_flirt": "── 💋 Flirt ──",
+        "ai_block_kink": "── 🔥 Kink ──",
         # Premium buttons
         "prem_header": "── Premium ──",
         "prem_compare": "❓ More about Premium",
@@ -1487,10 +1473,10 @@ TEXTS = {
         "level_4": "Legend",
         "level_5": "Chat master",
         # Profile extras
-        "profile_level": "📊 Level: {level} — {name}",
-        "profile_streak": "🔥 Streak: {days} days",
-        "profile_progress": "📈 Next level: {current}/{next} chats ({pct}%)",
-        "profile_progress_max": "📈 Max level reached!",
+        "profile_level": "🏅 {name}  ·  lv. {level}",
+        "profile_streak": "🔥 {days}-day streak",
+        "profile_progress": "   └ {current}/{next} · {pct}%",
+        "profile_progress_max": "🏆 Max level reached!",
         # Chat rating
         "rate_chat": "How was this chat?",
         "rate_thanks": "Thanks for rating! ⭐{stars}",
@@ -1723,7 +1709,8 @@ TEXTS = {
             "👤 {name}{badge}\n"
             "━━━━━━━━━━━━━━━\n"
             "{age}  ·  {gender}  ·  {mode}\n"
-            "🎯 {interests}\n\n"
+            "🎯 {interests}\n"
+            "━━━━━━━━━━━━━━━\n"
             "⭐ {rating}  ·  👍 {likes}  ·  💬 {chats} chats\n"
             "{level_info}\n"
             "{streak_info}\n"
@@ -1806,22 +1793,13 @@ TEXTS = {
         "reset_back": "Volver al menú.",
         # Ayuda
         "help_text": (
-            "Cómo funciona todo:\n\n"
-            "🔍 Encontrar compañero\n"
-            "🎲 Chat aleatorio — búsqueda anónima instantánea\n"
-            "🔍 Buscar por perfil — filtrado por modo e intereses\n"
-            "🤖 Chat IA — habla con alguien ahora mismo\n\n"
-            "💬 Durante el chat\n"
-            "⏭ Siguiente — cambiar de persona\n"
-            "🎲 Tema — te sugiere de qué hablar\n"
-            "👍 Me gusta — si te cayó bien\n"
-            "❌ Parar — terminar la conversación\n"
-            "🚩 Reportar — si algo va mal\n\n"
-            "📊 /stats — tus estadísticas\n"
-            "⭐ /premium — suscripción\n"
-            "⚡ Tienda de Energía — compra energía para el chat IA\n"
-            "/reset — empezar tu perfil de nuevo\n"
-            "¿Algo roto? Toca /start"
+            "❓ Cómo funciona MatchMe\n\n"
+            "🎲 Chat Aleatorio — encuentro anónimo en segundos\n"
+            "🔍 Búsqueda por Perfil — filtrado por modo e intereses\n"
+            "🤖 Chat IA — personajes con carácter, siempre en línea\n\n"
+            "En el chat: ⏭ Siguiente · 🎲 Tema · 👍 Like · ❌ Parar · 🚩 Reportar\n\n"
+            "/stats · /premium · /reset\n"
+            "🆘 ¿Algo roto? → /start"
         ),
         "unavailable": "⚠️ No disponible ahora — {reason}.",
         "no_partner_wait": (
@@ -1917,10 +1895,11 @@ TEXTS = {
         "hardban": "🚫 Ban permanente por violar las reglas.",
         # Chat IA
         "ai_menu": (
-            "🤖 <b>Chat IA</b>\n\n"
-            "⚡ Energía: <b>{energy_left}</b>/{energy_max}\n\n"
-            "✅ Basic — 1 ⚡   ⭐ VIP — 2 ⚡   💎 VIP+ — 3 ⚡\n\n"
-            "Elige un personaje:"
+            "🤖 <b>Chat IA</b>\n"
+            "━━━━━━━━━━━━━━━\n"
+            "⚡ <b>{energy_left}</b> / {energy_max}\n\n"
+            "Basic · 1⚡   VIP ⭐ · 2⚡   VIP+ 💎 · 3⚡\n\n"
+            "Elige un personaje 👇"
         ),
         "ai_select_char": "Elige un personaje:",
         "ai_char_not_found": "Personaje no encontrado.",
@@ -2036,9 +2015,9 @@ TEXTS = {
         "char_vip_locked": "🔒 Solo VIP+",
         "btn_ai_info": "📋 Descripción de personajes",
         # Encabezados de bloques IA
-        "ai_block_simple": "💬 Charla",
-        "ai_block_flirt": "💋 Coqueteo",
-        "ai_block_kink": "🔥 Kink",
+        "ai_block_simple": "── 💬 Charla ──",
+        "ai_block_flirt": "── 💋 Coqueteo ──",
+        "ai_block_kink": "── 🔥 Kink ──",
         # Botones Premium
         "prem_header": "── Premium ──",
         "prem_compare": "❓ Más sobre Premium",
@@ -2238,10 +2217,10 @@ TEXTS = {
         "level_4": "Leyenda",
         "level_5": "Maestro del chat",
         # Profile extras
-        "profile_level": "📊 Nivel: {level} — {name}",
-        "profile_streak": "🔥 Racha: {days} días",
-        "profile_progress": "📈 Siguiente nivel: {current}/{next} chats ({pct}%)",
-        "profile_progress_max": "📈 ¡Nivel máximo alcanzado!",
+        "profile_level": "🏅 {name}  ·  nv. {level}",
+        "profile_streak": "🔥 {days} días seguidos",
+        "profile_progress": "   └ {current}/{next} · {pct}%",
+        "profile_progress_max": "🏆 ¡Nivel máximo!",
         # Chat rating
         "rate_chat": "¿Cómo estuvo este chat?",
         "rate_thanks": "¡Gracias por calificar! ⭐{stars}",
