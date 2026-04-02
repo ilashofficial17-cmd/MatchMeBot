@@ -110,7 +110,6 @@ def kb_channel_bonus(lang="ru"):
 
 
 def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
-    is_premium = user_tier in ("premium", "plus")
     buttons = []
     # Блок 1 — Общение
     buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_simple"), callback_data="noop")])
@@ -132,25 +131,19 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
         InlineKeyboardButton(text=t(lang, "char_diana"), callback_data="aichar:diana"),
         InlineKeyboardButton(text=t(lang, "char_leon"), callback_data="aichar:leon"),
     ])
-    # Блок 3 — Kink (VIP+)
+    # Блок 3 — Kink
     buttons.append([InlineKeyboardButton(text=t(lang, "ai_block_kink"), callback_data="noop")])
-    if is_premium:
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_lilit"), callback_data="aichar:lilit"),
-            InlineKeyboardButton(text=t(lang, "char_eva"), callback_data="aichar:eva"),
-        ])
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_damir"), callback_data="aichar:damir"),
-            InlineKeyboardButton(text=t(lang, "char_ars"), callback_data="aichar:ars"),
-        ])
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "char_master"), callback_data="aichar:master"),
-        ])
-    else:
-        # Одна кнопка вместо 5 заблокированных
-        buttons.append([
-            InlineKeyboardButton(text=t(lang, "ai_unlock_vip_plus"), callback_data="aichar:vip_plus_locked"),
-        ])
+    buttons.append([
+        InlineKeyboardButton(text=t(lang, "char_lilit"), callback_data="aichar:lilit"),
+        InlineKeyboardButton(text=t(lang, "char_eva"), callback_data="aichar:eva"),
+    ])
+    buttons.append([
+        InlineKeyboardButton(text=t(lang, "char_damir"), callback_data="aichar:damir"),
+        InlineKeyboardButton(text=t(lang, "char_ars"), callback_data="aichar:ars"),
+    ])
+    buttons.append([
+        InlineKeyboardButton(text=t(lang, "char_master"), callback_data="aichar:master"),
+    ])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_ai_info"), callback_data="aichar:info")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
