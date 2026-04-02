@@ -21,6 +21,7 @@ def kb_main(lang="ru"):
         [KeyboardButton(text=t(lang, "btn_search")), KeyboardButton(text=t(lang, "btn_find"))],
         [KeyboardButton(text=t(lang, "btn_ai_chat")), KeyboardButton(text=t(lang, "btn_profile"))],
         [KeyboardButton(text=t(lang, "btn_settings")), KeyboardButton(text=t(lang, "btn_help"))],
+        [KeyboardButton(text=t(lang, "btn_energy_shop"))],
     ], resize_keyboard=True)
 
 
@@ -145,6 +146,7 @@ def kb_ai_characters(user_tier=None, mode="simple", lang="ru"):
     buttons.append([
         InlineKeyboardButton(text=t(lang, "char_master"), callback_data="aichar:master"),
     ])
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_buy_energy"), callback_data="energy_shop")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_ai_info"), callback_data="aichar:info")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="aichar:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)

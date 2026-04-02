@@ -594,7 +594,7 @@ async def _get_ai_recommendations(uid: int, lang: str, mode: str) -> str:
             for r in favorites:
                 char = AI_CHARACTERS.get(r["character_id"])
                 if char:
-                    fav_parts.append(f"{char['emoji']} {t(lang, char['name_key'])}")
+                    fav_parts.append(t(lang, char['name_key']))
             text = ""
             if fav_parts:
                 text = t(lang, "ai_your_favorites") + " " + ", ".join(fav_parts) + "\n"
@@ -607,7 +607,7 @@ async def _get_ai_recommendations(uid: int, lang: str, mode: str) -> str:
             ]
             if untried:
                 cid, char = random.choice(untried)
-                text += t(lang, "ai_recommended", emoji=char["emoji"], name=t(lang, char["name_key"]))
+                text += t(lang, "ai_recommended", name=t(lang, char["name_key"]))
             return text
     except Exception:
         return ""

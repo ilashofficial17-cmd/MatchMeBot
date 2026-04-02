@@ -306,6 +306,7 @@ TEXTS = {
             "🚩 Жалоба — если что-то не так\n\n"
             "📊 /stats — твоя статистика\n"
             "⭐ /premium — подписка\n"
+            "⚡ Магазин энергии — купи энергию для ИИ чата\n"
             "/reset — начать профиль заново\n"
             "Что-то сломалось? Жми /start"
         ),
@@ -434,6 +435,7 @@ TEXTS = {
         "energy_purchased": "⚡ +{amount} энергии зачислено! Продолжай общение.",
         "energy_pack_not_found": "Пакет не найден.",
         "btn_buy_energy": "⚡ Купить энергию",
+        "btn_energy_shop": "⚡ Магазин энергии",
         "ai_unavailable": "😔 ИИ временно недоступен.",
         "ai_no_funds": "💳 ИИ временно недоступен — нет средств на балансе.",
         "ai_error": "😔 ИИ временно недоступен. Попробуй позже.",
@@ -738,7 +740,7 @@ TEXTS = {
             "Заполни короткую анкету — и вперёд!"
         ),
         # Smart recommendation
-        "ai_recommended": "💡 Тебе может понравиться {emoji} {name} — попробуй!",
+        "ai_recommended": "💡 Тебе может понравиться {name} — попробуй!",
         "ai_your_favorites": "⭐ Твои любимые:",
         # After-chat combined message
         "chat_ended_rate": "Чат завершён — как тебе собеседник?",
@@ -1048,6 +1050,7 @@ TEXTS = {
             "🚩 Report — if something's wrong\n\n"
             "📊 /stats — your stats\n"
             "⭐ /premium — subscription\n"
+            "⚡ Energy Shop — buy energy for AI chat\n"
             "/reset — start your profile over\n"
             "Something broken? Hit /start"
         ),
@@ -1189,6 +1192,7 @@ TEXTS = {
         "energy_purchased": "⚡ +{amount} energy added! Keep chatting.",
         "energy_pack_not_found": "Pack not found.",
         "btn_buy_energy": "⚡ Buy Energy",
+        "btn_energy_shop": "⚡ Energy Shop",
         "ai_unavailable": "😔 AI is temporarily unavailable.",
         "ai_no_funds": "💳 AI temporarily unavailable — no balance.",
         "ai_error": "😔 AI temporarily unavailable. Try again later.",
@@ -1493,7 +1497,7 @@ TEXTS = {
             "Fill out a quick profile — and let's go!"
         ),
         # Smart recommendation
-        "ai_recommended": "💡 You might like {emoji} {name} — try it!",
+        "ai_recommended": "💡 You might like {name} — try it!",
         "ai_your_favorites": "⭐ Your favorites:",
         # After-chat combined message
         "chat_ended_rate": "Chat's over — how was your partner?",
@@ -1803,6 +1807,7 @@ TEXTS = {
             "🚩 Reportar — si algo va mal\n\n"
             "📊 /stats — tus estadísticas\n"
             "⭐ /premium — suscripción\n"
+            "⚡ Tienda de Energía — compra energía para el chat IA\n"
             "/reset — empezar tu perfil de nuevo\n"
             "¿Algo roto? Toca /start"
         ),
@@ -1931,6 +1936,7 @@ TEXTS = {
         "energy_purchased": "⚡ +{amount} energía añadida. ¡Sigue chateando!",
         "energy_pack_not_found": "Paquete no encontrado.",
         "btn_buy_energy": "⚡ Comprar Energía",
+        "btn_energy_shop": "⚡ Tienda de Energía",
         "ai_unavailable": "😔 La IA no está disponible temporalmente.",
         "ai_no_funds": "💳 IA no disponible temporalmente — sin saldo.",
         "ai_error": "😔 IA no disponible. Inténtalo más tarde.",
@@ -2235,7 +2241,7 @@ TEXTS = {
             "Llena un perfil rápido — ¡y adelante!"
         ),
         # Smart recommendation
-        "ai_recommended": "💡 Te puede gustar {emoji} {name} — ¡pruébalo!",
+        "ai_recommended": "💡 Te puede gustar {name} — ¡pruébalo!",
         "ai_your_favorites": "⭐ Tus favoritos:",
         # After-chat combined message
         "chat_ended_rate": "Chat terminado — ¿qué te pareció tu compañero?",

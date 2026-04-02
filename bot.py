@@ -2762,6 +2762,29 @@ async def set_search_gender(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer(t(lang, "settings_gender_saved"), reply_markup=kb_main(lang))
 
+# ====================== МАГАЗИН ЭНЕРГИИ ======================
+@dp.message(F.text.in_(_all("btn_energy_shop")), StateFilter("*"))
+async def cmd_energy_shop(message: types.Message, state: FSMContext):
+    if await needs_onboarding(message, state): return
+    uid = message.from_user.id
+    lang = await get_lang(uid)
+    u = await get_user(uid)
+    from ai_chat import DAILY_ENERGY, get_energy_info
+    user_tier = await get_premium_tier(uid)
+    ai_bonus = u.get("ai_bonus", 0) if u else 0
+    _, max_energy = get_energy_info("basic", user_tier, ai_bonus)
+    energy_used = u.get("ai_energy_used", 0) if u else 0
+    from datetime import datetime as _dt
+    reset_time = u.get("ai_messages_reset") if u else None
+    if reset_time and (_dt.now() - reset_time).total_seconds() > 86400:
+        energy_used = 0
+    energy_left = max(max_energy - energy_used, 0)
+    await message.answer(
+        t(lang, "energy_shop_title", left=energy_left, max=max_energy),
+        reply_markup=kb_energy_shop(lang)
+    )
+
+
 # ====================== ПОМОЩЬ ======================
 @dp.message(F.text.in_(_all("btn_help")), StateFilter("*"))
 @dp.message(Command("help"), StateFilter("*"))
