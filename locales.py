@@ -209,7 +209,7 @@ TEXTS = {
         "profile_text": (
             "👤 {name}{badge}\n"
             "━━━━━━━━━━━━━━━\n"
-            "{age} лет  ·  {gender}  ·  {mode}\n"
+            "{age}  ·  {gender}  ·  {mode}\n"
             "🎯 {interests}\n\n"
             "⭐ {rating}  ·  👍 {likes}  ·  💬 {chats} чатов\n"
             "{level_info}\n"
@@ -220,6 +220,7 @@ TEXTS = {
         ),
         "profile_upgrade": "",
         "not_set": "✏️ Не указано",
+        "age_suffix": "лет",
         "premium_eternal": "{tier} (вечный)",
         "premium_until_date": "{tier} до {until}",
         "premium_none": "Нет",
@@ -942,7 +943,7 @@ TEXTS = {
         "profile_text": (
             "👤 {name}{badge}\n"
             "━━━━━━━━━━━━━━━\n"
-            "{age} y.o.  ·  {gender}  ·  {mode}\n"
+            "{age}  ·  {gender}  ·  {mode}\n"
             "🎯 {interests}\n\n"
             "⭐ {rating}  ·  👍 {likes}  ·  💬 {chats} chats\n"
             "{level_info}\n"
@@ -953,6 +954,7 @@ TEXTS = {
         ),
         "profile_upgrade": "",
         "not_set": "✏️ Not set",
+        "age_suffix": "y.o.",
         "premium_eternal": "{tier} (lifetime)",
         "premium_until_date": "{tier} until {until}",
         "premium_none": "None",
@@ -1688,7 +1690,7 @@ TEXTS = {
         "profile_text": (
             "👤 {name}{badge}\n"
             "━━━━━━━━━━━━━━━\n"
-            "{age} años  ·  {gender}  ·  {mode}\n"
+            "{age}  ·  {gender}  ·  {mode}\n"
             "🎯 {interests}\n\n"
             "⭐ {rating}  ·  👍 {likes}  ·  💬 {chats} chats\n"
             "{level_info}\n"
@@ -1699,6 +1701,7 @@ TEXTS = {
         ),
         "profile_upgrade": "",
         "not_set": "✏️ No indicado",
+        "age_suffix": "años",
         "premium_eternal": "{tier} (de por vida)",
         "premium_until_date": "{tier} hasta {until}",
         "premium_none": "Ninguno",
