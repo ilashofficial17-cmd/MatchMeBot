@@ -801,6 +801,19 @@ TEXTS = {
         "chat_ended_rate": "Чат завершён — как тебе собеседник?",
         # AI character unlock
         "ai_unlock_vip_plus": "🔒 Открыть 5 VIP+ персонажей",
+        # Support
+        "support_welcome": "👋 Привет! Это бот поддержки MatchMe.\nВыбери что тебя интересует:",
+        "support_bug_btn": "🐛 Сообщить об ошибке",
+        "support_appeal_btn": "🔓 Обжаловать бан",
+        "support_describe_bug": "Опиши ошибку подробно — что делал, что произошло:",
+        "support_describe_appeal": "Опиши почему считаешь что бан несправедлив:",
+        "support_not_banned": "Ты не в бане 🤷 Если что-то не работает — выбери «Сообщить об ошибке».",
+        "support_ticket_created": "✅ Спасибо! Тикет #{id} создан. Мы разберёмся.",
+        "support_appeal_created": "✅ Запрос #{id} принят. Админ рассмотрит.",
+        "support_resolved": "✅ Твой тикет #{id} решён!",
+        "support_rejected": "Тикет #{id} рассмотрен.",
+        "support_reply": "💬 Ответ по тикету #{id}:\n{text}",
+        "support_unbanned": "🔓 Ты разбанен! Можешь снова пользоваться ботом.",
     },
 
     "en": {
@@ -1613,6 +1626,19 @@ TEXTS = {
         "chat_ended_rate": "Chat's over — how was your partner?",
         # AI character unlock
         "ai_unlock_vip_plus": "🔒 Unlock 5 VIP+ characters",
+        # Support
+        "support_welcome": "👋 Hi! This is MatchMe support bot.\nChoose what you need:",
+        "support_bug_btn": "🐛 Report a bug",
+        "support_appeal_btn": "🔓 Appeal a ban",
+        "support_describe_bug": "Describe the bug in detail — what you did, what happened:",
+        "support_describe_appeal": "Explain why you think the ban is unfair:",
+        "support_not_banned": "You're not banned 🤷 If something doesn't work — choose 'Report a bug'.",
+        "support_ticket_created": "✅ Thanks! Ticket #{id} created. We'll look into it.",
+        "support_appeal_created": "✅ Request #{id} accepted. Admin will review it.",
+        "support_resolved": "✅ Your ticket #{id} is resolved!",
+        "support_rejected": "Ticket #{id} reviewed.",
+        "support_reply": "💬 Reply to ticket #{id}:\n{text}",
+        "support_unbanned": "🔓 You're unbanned! You can use the bot again.",
     },
 
     "es": {
@@ -2412,6 +2438,19 @@ TEXTS = {
         "chat_ended_rate": "Chat terminado — ¿qué te pareció tu compañero?",
         # AI character unlock
         "ai_unlock_vip_plus": "🔒 Desbloquear 5 personajes VIP+",
+        # Support
+        "support_welcome": "👋 ¡Hola! Este es el bot de soporte de MatchMe.\nElige lo que necesitas:",
+        "support_bug_btn": "🐛 Reportar un error",
+        "support_appeal_btn": "🔓 Apelar un baneo",
+        "support_describe_bug": "Describe el error en detalle — qué hiciste, qué pasó:",
+        "support_describe_appeal": "Explica por qué crees que el baneo es injusto:",
+        "support_not_banned": "No estás baneado 🤷 Si algo no funciona — elige «Reportar un error».",
+        "support_ticket_created": "✅ ¡Gracias! Ticket #{id} creado. Lo revisaremos.",
+        "support_appeal_created": "✅ Solicitud #{id} aceptada. El admin la revisará.",
+        "support_resolved": "✅ ¡Tu ticket #{id} está resuelto!",
+        "support_rejected": "Ticket #{id} revisado.",
+        "support_reply": "💬 Respuesta al ticket #{id}:\n{text}",
+        "support_unbanned": "🔓 ¡Estás desbaneado! Puedes usar el bot de nuevo.",
     },
 }
 

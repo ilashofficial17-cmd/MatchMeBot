@@ -60,6 +60,21 @@ async def init_db():
             )
         """)
 
+        # Таблица тикетов саппорта
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS support_tickets (
+                id SERIAL PRIMARY KEY,
+                uid BIGINT NOT NULL,
+                username TEXT,
+                type TEXT NOT NULL,
+                message TEXT NOT NULL,
+                status TEXT DEFAULT 'open',
+                admin_reply TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                resolved_at TIMESTAMP
+            )
+        """)
+
 
 async def get_stat(key, default=0):
     """Читает значение из bot_stats."""

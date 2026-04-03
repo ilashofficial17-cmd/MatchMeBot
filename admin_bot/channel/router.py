@@ -142,10 +142,13 @@ async def cmd_start(message: types.Message):
             reply_markup=kb_admin()
         )
     else:
+        # Саппорт-меню для обычных юзеров
+        from admin_bot.support.router import kb_support, _get_user_lang
+        lang = await _get_user_lang(message.from_user.id)
+        from locales import t
         await message.answer(
-            f"Этот бот управляет каналом {CHANNEL_ID}.\n"
-            f"Для знакомств: @{BOT_USERNAME}",
-            reply_markup=ReplyKeyboardRemove()
+            t(lang, "support_welcome"),
+            reply_markup=kb_support(lang)
         )
 
 
