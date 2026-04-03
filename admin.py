@@ -1002,161 +1002,193 @@ async def admin_user_action(callback: types.CallbackQuery):
 
 
 # ====================== ТАЙМЕР НЕАКТИВНОСТИ ======================
-async def inactivity_checker():
-    while True:
-        await asyncio.sleep(60)
-        now = datetime.now()
+async def _inactivity_tick(_cleanup_counter):
+    """Одна итерация inactivity_checker. Вызывается из цикла с try/except."""
+    now = datetime.now()
 
-        # Авто-тема при тишине (2 мин без сообщений)
-        if _get_chat_topics:
-            for uid, partner in list(_active_chats.items()):
-                if uid < partner:
-                    chat_key = (min(uid, partner), max(uid, partner))
-                    if chat_key in _auto_topic_sent:
-                        continue
-                    last = max(
-                        _last_msg_time.get(uid, now - timedelta(minutes=10)),
-                        _last_msg_time.get(partner, now - timedelta(minutes=10))
-                    )
-                    silence = (now - last).total_seconds()
-                    if 120 < silence < 300:  # 2-5 мин тишины
-                        _auto_topic_sent.add(chat_key)
-                        try:
-                            uid_lang = await _get_lang(uid)
-                            p_lang = await _get_lang(partner)
-                            topics = _get_chat_topics(uid_lang)
-                            idx = random.randrange(len(topics))
-                            topic = topics[idx]
-                            await _bot.send_message(uid, t(uid_lang, "auto_topic", topic=topic))
-                            p_topics = _get_chat_topics(p_lang)
-                            p_topic = p_topics[idx] if idx < len(p_topics) else topic
-                            await _bot.send_message(partner, t(p_lang, "auto_topic", topic=p_topic))
-                        except Exception:
-                            pass
-
-        # Завершаем неактивные чаты
-        to_end = []
+    # Авто-тема при тишине (2 мин без сообщений)
+    if _get_chat_topics:
         for uid, partner in list(_active_chats.items()):
             if uid < partner:
-                last = max(_last_msg_time.get(uid, now - timedelta(minutes=10)), _last_msg_time.get(partner, now - timedelta(minutes=10)))
-                if (now - last).total_seconds() > 420:
-                    to_end.append((uid, partner))
-        for uid, partner in to_end:
-            async with _pairing_lock:
-                _active_chats.pop(uid, None)
-                _active_chats.pop(partner, None)
-            await _remove_chat_from_db(uid, partner)
-            _clear_chat_log(uid, partner)
-            _auto_topic_sent.discard((min(uid, partner), max(uid, partner)))
-            for chat_uid in (uid, partner):
-                try:
-                    key = StorageKey(bot_id=_bot.id, chat_id=chat_uid, user_id=chat_uid)
-                    await FSMContext(_dp.storage, key=key).clear()
-                except Exception:
-                    pass
-            try:
-                uid_lang = await _get_lang(uid)
-                await _bot.send_message(uid, t(uid_lang, "inactivity_end"), reply_markup=kb_main(uid_lang))
-            except Exception: pass
-            try:
-                p_lang = await _get_lang(partner)
-                await _bot.send_message(partner, t(p_lang, "inactivity_end"), reply_markup=kb_main(p_lang))
-            except Exception: pass
+                chat_key = (min(uid, partner), max(uid, partner))
+                if chat_key in _auto_topic_sent:
+                    continue
+                last = max(
+                    _last_msg_time.get(uid, now - timedelta(minutes=10)),
+                    _last_msg_time.get(partner, now - timedelta(minutes=10))
+                )
+                silence = (now - last).total_seconds()
+                if 120 < silence < 300:  # 2-5 мин тишины
+                    _auto_topic_sent.add(chat_key)
+                    try:
+                        uid_lang = await _get_lang(uid)
+                        p_lang = await _get_lang(partner)
+                        topics = _get_chat_topics(uid_lang)
+                        idx = random.randrange(len(topics))
+                        topic = topics[idx]
+                        await _bot.send_message(uid, t(uid_lang, "auto_topic", topic=topic))
+                        p_topics = _get_chat_topics(p_lang)
+                        p_topic = p_topics[idx] if idx < len(p_topics) else topic
+                        await _bot.send_message(partner, t(p_lang, "auto_topic", topic=p_topic))
+                    except Exception:
+                        pass
 
-        # Завершаем неактивные AI чаты (10 мин)
-        ai_to_end = []
-        for uid_key in list(_ai_sessions.keys()):
-            last_ai = _last_ai_msg.get(uid_key)
-            if last_ai and (now - last_ai).total_seconds() > 600:
-                ai_to_end.append(uid_key)
-        for uid_key in ai_to_end:
-            _ai_sessions.pop(uid_key, None)
-            _last_ai_msg.pop(uid_key, None)
+    # Завершаем неактивные чаты
+    to_end = []
+    for uid, partner in list(_active_chats.items()):
+        if uid < partner:
+            last = max(_last_msg_time.get(uid, now - timedelta(minutes=10)), _last_msg_time.get(partner, now - timedelta(minutes=10)))
+            if (now - last).total_seconds() > 420:
+                to_end.append((uid, partner))
+    for uid, partner in to_end:
+        async with _pairing_lock:
+            _active_chats.pop(uid, None)
+            _active_chats.pop(partner, None)
+        await _remove_chat_from_db(uid, partner)
+        _clear_chat_log(uid, partner)
+        _auto_topic_sent.discard((min(uid, partner), max(uid, partner)))
+        for chat_uid in (uid, partner):
             try:
-                key = StorageKey(bot_id=_bot.id, chat_id=uid_key, user_id=uid_key)
+                key = StorageKey(bot_id=_bot.id, chat_id=chat_uid, user_id=chat_uid)
                 await FSMContext(_dp.storage, key=key).clear()
-            except Exception: pass
-            try:
-                ai_lang = await _get_lang(uid_key)
-                await _bot.send_message(uid_key, t(ai_lang, "inactivity_ai_end"), reply_markup=kb_main(ai_lang))
-            except Exception: pass
-
-        # Обновляем bot_stats для admin_bot (live-данные)
+            except Exception:
+                pass
         try:
-            online_pairs = len(_active_chats) // 2
-            searching_count = sum(len(q) for q in _get_all_queues())
-            ai_sessions_count = len(_ai_sessions)
-            async with _db_pool.acquire() as conn:
-                await conn.execute(
-                    "INSERT INTO bot_stats (key, value, updated_at) VALUES ('online_pairs', $1, NOW()) "
-                    "ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()", online_pairs
-                )
-                await conn.execute(
-                    "INSERT INTO bot_stats (key, value, updated_at) VALUES ('searching_count', $1, NOW()) "
-                    "ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()", searching_count
-                )
-                await conn.execute(
-                    "INSERT INTO bot_stats (key, value, updated_at) VALUES ('ai_sessions_count', $1, NOW()) "
-                    "ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()", ai_sessions_count
-                )
-        except Exception:
-            pass
-
-        # Polling admin_commands — исполняем pending команды от admin_bot
+            uid_lang = await _get_lang(uid)
+            await _bot.send_message(uid, t(uid_lang, "inactivity_end"), reply_markup=kb_main(uid_lang))
+        except Exception: pass
         try:
-            async with _db_pool.acquire() as conn:
-                rows = await conn.fetch("SELECT * FROM admin_commands WHERE status='pending'")
-                for row in rows:
-                    if row['command'] == 'kick':
-                        uid = row['target_uid']
-                        if uid in _active_chats:
-                            partner = _active_chats[uid]
-                            async with _pairing_lock:
-                                _active_chats.pop(uid, None)
-                                _active_chats.pop(partner, None)
-                            await _remove_chat_from_db(uid, partner)
-                            _clear_chat_log(uid, partner)
-                            for chat_uid in (uid, partner):
-                                try:
-                                    key = StorageKey(bot_id=_bot.id, chat_id=chat_uid, user_id=chat_uid)
-                                    await FSMContext(_dp.storage, key=key).clear()
-                                except Exception:
-                                    pass
+            p_lang = await _get_lang(partner)
+            await _bot.send_message(partner, t(p_lang, "inactivity_end"), reply_markup=kb_main(p_lang))
+        except Exception: pass
+
+    # Завершаем неактивные AI чаты (10 мин)
+    ai_to_end = []
+    for uid_key in list(_ai_sessions.keys()):
+        last_ai = _last_ai_msg.get(uid_key)
+        if last_ai and (now - last_ai).total_seconds() > 600:
+            ai_to_end.append(uid_key)
+    for uid_key in ai_to_end:
+        _ai_sessions.pop(uid_key, None)
+        _last_ai_msg.pop(uid_key, None)
+        try:
+            key = StorageKey(bot_id=_bot.id, chat_id=uid_key, user_id=uid_key)
+            await FSMContext(_dp.storage, key=key).clear()
+        except Exception: pass
+        try:
+            ai_lang = await _get_lang(uid_key)
+            await _bot.send_message(uid_key, t(ai_lang, "inactivity_ai_end"), reply_markup=kb_main(ai_lang))
+        except Exception: pass
+
+    # Обновляем bot_stats для admin_bot (live-данные)
+    try:
+        online_pairs = len(_active_chats) // 2
+        searching_count = sum(len(q) for q in _get_all_queues())
+        ai_sessions_count = len(_ai_sessions)
+        async with _db_pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO bot_stats (key, value, updated_at) VALUES ('online_pairs', $1, NOW()) "
+                "ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()", online_pairs
+            )
+            await conn.execute(
+                "INSERT INTO bot_stats (key, value, updated_at) VALUES ('searching_count', $1, NOW()) "
+                "ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()", searching_count
+            )
+            await conn.execute(
+                "INSERT INTO bot_stats (key, value, updated_at) VALUES ('ai_sessions_count', $1, NOW()) "
+                "ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()", ai_sessions_count
+            )
+    except Exception:
+        pass
+
+    # Polling admin_commands — исполняем pending команды от admin_bot
+    try:
+        async with _db_pool.acquire() as conn:
+            rows = await conn.fetch("SELECT * FROM admin_commands WHERE status='pending'")
+            for row in rows:
+                if row['command'] == 'kick':
+                    uid = row['target_uid']
+                    if uid in _active_chats:
+                        partner = _active_chats[uid]
+                        async with _pairing_lock:
+                            _active_chats.pop(uid, None)
+                            _active_chats.pop(partner, None)
+                        await _remove_chat_from_db(uid, partner)
+                        _clear_chat_log(uid, partner)
+                        for chat_uid in (uid, partner):
                             try:
-                                uid_lang = await _get_lang(uid)
-                                await _bot.send_message(uid, t(uid_lang, "inactivity_end"), reply_markup=kb_main(uid_lang))
+                                key = StorageKey(bot_id=_bot.id, chat_id=chat_uid, user_id=chat_uid)
+                                await FSMContext(_dp.storage, key=key).clear()
                             except Exception:
                                 pass
-                            try:
-                                p_lang = await _get_lang(partner)
-                                await _bot.send_message(partner, t(p_lang, "inactivity_end"), reply_markup=kb_main(p_lang))
-                            except Exception:
-                                pass
-                    await conn.execute(
-                        "UPDATE admin_commands SET status='executed', executed_at=NOW() WHERE id=$1",
-                        row['id']
-                    )
-        except Exception:
-            pass
+                        try:
+                            uid_lang = await _get_lang(uid)
+                            await _bot.send_message(uid, t(uid_lang, "inactivity_end"), reply_markup=kb_main(uid_lang))
+                        except Exception:
+                            pass
+                        try:
+                            p_lang = await _get_lang(partner)
+                            await _bot.send_message(partner, t(p_lang, "inactivity_end"), reply_markup=kb_main(p_lang))
+                        except Exception:
+                            pass
+                await conn.execute(
+                    "UPDATE admin_commands SET status='executed', executed_at=NOW() WHERE id=$1",
+                    row['id']
+                )
+    except Exception:
+        pass
 
-        # Очистка памяти: удаляем старые записи msg_count и last_msg_time
+    # Очистка памяти: удаляем старые записи msg_count и last_msg_time
+    for uid_key in list(_last_msg_time.keys()):
+        last_time = _last_msg_time.get(uid_key)
+        if last_time and uid_key not in _active_chats and (now - last_time).total_seconds() > 600:
+            _last_msg_time.pop(uid_key, None)
+            _msg_count.pop(uid_key, None)
+
+    # Очистка мёртвых душ из очередей (по last_seen)
+    async with _pairing_lock:
+        for q in _get_all_queues():
+            for uid_key in list(q):
+                if uid_key in _active_chats:
+                    q.discard(uid_key)
+
+    # Очистка просроченных mutual_likes
+    for uid_key in list(_mutual_likes.keys()):
+        if not _mutual_likes[uid_key]:
+            del _mutual_likes[uid_key]
+
+    # Расширенная очистка раз в час (каждые 60 циклов)
+    _cleanup_counter += 1
+    if _cleanup_counter >= 60:
+        _cleanup_counter = 0
+        # chat_logs: удалить записи юзеров не в active_chats
+        for uid_key in list(_chat_logs.keys()):
+            if uid_key not in _active_chats:
+                _chat_logs.pop(uid_key, None)
+        # last_msg_time: удалить записи старше 30 минут (не в чате)
         for uid_key in list(_last_msg_time.keys()):
-            last_time = _last_msg_time.get(uid_key)
-            if last_time and uid_key not in _active_chats and (now - last_time).total_seconds() > 600:
+            lt = _last_msg_time.get(uid_key)
+            if lt and uid_key not in _active_chats and (now - lt).total_seconds() > 1800:
                 _last_msg_time.pop(uid_key, None)
                 _msg_count.pop(uid_key, None)
+        # AI sessions: удалить сессии старше 2 часов
+        for uid_key in list(_last_ai_msg.keys()):
+            lt = _last_ai_msg.get(uid_key)
+            if lt and (now - lt).total_seconds() > 7200:
+                _ai_sessions.pop(uid_key, None)
+                _last_ai_msg.pop(uid_key, None)
 
-        # Очистка мёртвых душ из очередей (по last_seen)
-        async with _pairing_lock:
-            for q in _get_all_queues():
-                for uid_key in list(q):
-                    if uid_key in _active_chats:
-                        q.discard(uid_key)
+    return _cleanup_counter
 
-        # Очистка просроченных mutual_likes
-        for uid_key in list(_mutual_likes.keys()):
-            if not _mutual_likes[uid_key]:
-                del _mutual_likes[uid_key]
+
+async def inactivity_checker():
+    _cleanup_counter = 0
+    while True:
+        await asyncio.sleep(60)
+        try:
+            _cleanup_counter = await _inactivity_tick(_cleanup_counter)
+        except Exception as e:
+            logger.error(f"inactivity_checker error: {e}", exc_info=True)
 
 
 # ====================== НАПОМИНАНИЯ + AI REFILL ======================
