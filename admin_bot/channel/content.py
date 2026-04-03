@@ -8,7 +8,8 @@ import logging
 import aiohttp
 
 from admin_bot.config import (
-    ANTHROPIC_API_KEY, CHANNEL_STYLE_PROMPT, BOT_USERNAME,
+    OPEN_ROUTER_KEY, OPEN_ROUTER_URL, CHANNEL_AI_MODEL,
+    CHANNEL_STYLE_PROMPT, BOT_USERNAME,
     MODE_NAMES, MILESTONE_THRESHOLDS, POLL_BANK, ADMIN_ID,
 )
 import admin_bot.db as _db
@@ -21,47 +22,45 @@ last_milestone_threshold = 0
 
 
 async def ask_claude_channel(system_prompt: str, user_prompt: str) -> str:
-    """Отправляет запрос к Claude API для генерации контента канала."""
-    if not ANTHROPIC_API_KEY:
+    """Отправляет запрос к OpenRouter (Gemini Flash) для генерации контента канала."""
+    if not OPEN_ROUTER_KEY:
         return None
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                "https://api.anthropic.com/v1/messages",
+                OPEN_ROUTER_URL,
                 headers={
-                    "x-api-key": ANTHROPIC_API_KEY,
-                    "anthropic-version": "2023-06-01",
+                    "Authorization": f"Bearer {OPEN_ROUTER_KEY}",
                     "Content-Type": "application/json",
+                    "HTTP-Referer": "https://t.me/MatchMeBot",
                 },
                 json={
-                    "model": "claude-sonnet-4-6",
+                    "model": CHANNEL_AI_MODEL,
                     "max_tokens": 300,
-                    "system": system_prompt,
-                    "messages": [{"role": "user", "content": user_prompt}],
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
                 },
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    content = data.get("content", [])
-                    if content and len(content) > 0:
-                        return content[0].get("text")
-                    return None
+                    return data["choices"][0]["message"]["content"]
                 else:
-                    logger.warning(f"Claude API error: status={resp.status}")
+                    logger.warning(f"OpenRouter channel error: status={resp.status}")
                     if resp.status in (401, 402, 429):
                         try:
                             from admin_bot.main import admin_bot
                             await admin_bot.send_message(
                                 ADMIN_ID,
-                                f"⚠️ Claude API ошибка {resp.status}!\n"
-                                f"{'Нет денег на балансе' if resp.status == 402 else 'Проблема с ключом' if resp.status == 401 else 'Превышен лимит запросов'}\n"
+                                f"⚠️ OpenRouter channel ошибка {resp.status}!\n"
                                 f"AI-контент канала временно недоступен."
                             )
                         except Exception:
                             pass
     except Exception as e:
-        logger.error(f"Claude API error: {e}")
+        logger.error(f"OpenRouter channel error: {e}")
     return None
 
 
