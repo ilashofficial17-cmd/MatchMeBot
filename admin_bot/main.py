@@ -13,7 +13,8 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
 from admin_bot.config import CHANNEL_BOT_TOKEN, BOT_TOKEN
-from admin_bot.db import init_db, db_pool
+from admin_bot.db import init_db
+import admin_bot.db as _db
 
 # Routers
 from admin_bot.channel.router import router as channel_router
@@ -80,10 +81,10 @@ async def main():
     await init_db()
     await set_commands()
     asyncio.create_task(channel_poster())
-    if main_bot and db_pool:
-        asyncio.create_task(reminder_task(main_bot, db_pool))
-        asyncio.create_task(winback_task(main_bot, db_pool))
-        asyncio.create_task(streak_and_ai_push_task(main_bot, db_pool))
+    if main_bot and _db.db_pool:
+        asyncio.create_task(reminder_task(main_bot, _db.db_pool))
+        asyncio.create_task(winback_task(main_bot, _db.db_pool))
+        asyncio.create_task(streak_and_ai_push_task(main_bot, _db.db_pool))
     logger.info("MatchMe Admin Bot запущен! (channel + admin + moderation + support + tasks)")
     await dp.start_polling(admin_bot)
 

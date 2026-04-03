@@ -12,7 +12,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 
 from admin_bot.config import ADMIN_ID, BOT_USERNAME, CHANNEL_ID
-from admin_bot.db import db_pool
+import admin_bot.db as _db
 from locales import t
 
 logger = logging.getLogger("admin-bot")
@@ -47,7 +47,7 @@ async def support_callback(callback: types.CallbackQuery, state: FSMContext):
     elif action == "ban_appeal":
         lang = await _get_user_lang(uid)
         # Check if user is banned
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             row = await conn.fetchrow("SELECT ban_until FROM users WHERE uid=$1", uid)
         if not row or not row["ban_until"]:
             await callback.message.answer(t(lang, "support_not_banned"))
@@ -69,7 +69,7 @@ async def receive_bug_report(message: types.Message, state: FSMContext):
     username = message.from_user.username or ""
     await state.clear()
 
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "INSERT INTO support_tickets (uid, username, type, message) "
             "VALUES ($1, $2, 'bug', $3) RETURNING id",
@@ -100,7 +100,7 @@ async def receive_ban_appeal(message: types.Message, state: FSMContext):
     username = message.from_user.username or ""
     await state.clear()
 
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "INSERT INTO support_tickets (uid, username, type, message) "
             "VALUES ($1, $2, 'ban_appeal', $3) RETURNING id",
@@ -122,7 +122,7 @@ async def receive_ban_appeal(message: types.Message, state: FSMContext):
 # ====================== ADMIN SUPPORT VIEW ======================
 async def show_admin_tickets(callback: types.CallbackQuery):
     """Список открытых тикетов (вызывается из admin:support)."""
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id, uid, username, type, message, created_at "
             "FROM support_tickets WHERE status='open' ORDER BY created_at ASC LIMIT 20"
@@ -157,7 +157,7 @@ async def support_admin_action(callback: types.CallbackQuery, state: FSMContext)
     ticket_id = int(parts[2])
 
     if action == "view":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             row = await conn.fetchrow("SELECT * FROM support_tickets WHERE id=$1", ticket_id)
         if not row:
             await callback.message.answer("Тикет не найден.")
@@ -182,7 +182,7 @@ async def support_admin_action(callback: types.CallbackQuery, state: FSMContext)
         await callback.message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
     elif action == "resolve":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             row = await conn.fetchrow("SELECT uid FROM support_tickets WHERE id=$1", ticket_id)
             await conn.execute(
                 "UPDATE support_tickets SET status='resolved', resolved_at=NOW() WHERE id=$1", ticket_id
@@ -197,7 +197,7 @@ async def support_admin_action(callback: types.CallbackQuery, state: FSMContext)
                 pass
 
     elif action == "reject":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             row = await conn.fetchrow("SELECT uid FROM support_tickets WHERE id=$1", ticket_id)
             await conn.execute(
                 "UPDATE support_tickets SET status='rejected', resolved_at=NOW() WHERE id=$1", ticket_id
@@ -218,7 +218,7 @@ async def support_admin_action(callback: types.CallbackQuery, state: FSMContext)
         await callback.message.answer(f"💬 Введи ответ для тикета #{ticket_id}:")
 
     elif action == "unban":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             row = await conn.fetchrow("SELECT uid FROM support_tickets WHERE id=$1", ticket_id)
             if row:
                 await conn.execute("UPDATE users SET ban_until=NULL WHERE uid=$1", row["uid"])
@@ -257,7 +257,7 @@ async def handle_support_reply(message: types.Message, state: FSMContext):
         await message.answer("Пустой ответ, попробуй заново.")
         return
 
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         row = await conn.fetchrow("SELECT uid FROM support_tickets WHERE id=$1", ticket_id)
         await conn.execute(
             "UPDATE support_tickets SET admin_reply=$1 WHERE id=$2",
@@ -278,7 +278,7 @@ async def handle_support_reply(message: types.Message, state: FSMContext):
 
 async def _get_user_lang(uid: int) -> str:
     try:
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             row = await conn.fetchrow("SELECT lang FROM users WHERE uid=$1", uid)
         return (row["lang"] or "ru") if row and row.get("lang") else "ru"
     except Exception:

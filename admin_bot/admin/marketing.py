@@ -11,7 +11,7 @@ from aiogram.filters import StateFilter
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from admin_bot.config import ADMIN_ID
-from admin_bot.db import db_pool
+import admin_bot.db as _db
 
 logger = logging.getLogger("admin-bot")
 
@@ -130,7 +130,7 @@ async def marketing_handler(callback: types.CallbackQuery):
         if days > 0:
             period_cond = f"AND created_at > NOW() - INTERVAL '{days} days'"
             period_label = f"за {days} дн."
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             rows = await conn.fetch(f"""
                 SELECT ad_key, source, COUNT(*) as cnt
                 FROM ad_events
@@ -184,7 +184,7 @@ async def marketing_handler(callback: types.CallbackQuery):
     elif action == "ai_stats":
         from admin_bot.db import get_stat
         ai_sessions = await get_stat("ai_sessions_count", 0)
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             total_ai_msgs = await conn.fetchval("SELECT COUNT(*) FROM ai_history WHERE role='user'") or 0
             unique_ai_users = await conn.fetchval("SELECT COUNT(DISTINCT uid) FROM ai_history") or 0
             char_stats = await conn.fetch("""
@@ -219,7 +219,7 @@ async def marketing_handler(callback: types.CallbackQuery):
         await callback.message.answer(text)
 
     elif action == "revenue":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             total_premiums = await conn.fetchval(
                 "SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL AND premium_until != 'permanent'"
             ) or 0
@@ -242,7 +242,7 @@ async def marketing_handler(callback: types.CallbackQuery):
         await callback.message.answer(text)
 
     elif action == "ratings":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             total_ratings = await conn.fetchval("SELECT COUNT(*) FROM chat_ratings") or 0
             avg_rating = await conn.fetchval("SELECT ROUND(AVG(stars)::numeric, 2) FROM chat_ratings") or 0
             dist = await conn.fetch("SELECT stars, COUNT(*) as cnt FROM chat_ratings GROUP BY stars ORDER BY stars")
@@ -264,7 +264,7 @@ async def marketing_handler(callback: types.CallbackQuery):
 
     elif action == "ab_prices":
         text = ""
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             for group in ("A", "B"):
                 shown = await conn.fetchval(
                     "SELECT COUNT(*) FROM ab_events WHERE ab_group=$1 AND event_type='price_shown'", group
@@ -288,7 +288,7 @@ async def marketing_handler(callback: types.CallbackQuery):
         await callback.message.answer(text)
 
     elif action == "cohorts":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             text = "📊 Когортный анализ LTV\n\n"
             for weeks_ago in range(4):
                 start_iv = timedelta(days=(weeks_ago + 1) * 7)

@@ -11,7 +11,8 @@ from admin_bot.config import (
     ANTHROPIC_API_KEY, CHANNEL_STYLE_PROMPT, BOT_USERNAME,
     MODE_NAMES, MILESTONE_THRESHOLDS, POLL_BANK, ADMIN_ID,
 )
-from admin_bot.db import db_pool, get_stat, set_stat
+import admin_bot.db as _db
+from admin_bot.db import get_stat, set_stat
 
 logger = logging.getLogger("admin-bot")
 
@@ -66,7 +67,7 @@ async def ask_claude_channel(system_prompt: str, user_prompt: str) -> str:
 
 async def generate_daily_stats():
     try:
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             total = await conn.fetchval("SELECT COUNT(*) FROM users")
             new_today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '24 hours'")
             active = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '24 hours'")
@@ -159,7 +160,7 @@ async def generate_poll():
 async def generate_milestone():
     global last_milestone_threshold
     try:
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             total = await conn.fetchval("SELECT COUNT(*) FROM users")
         current = 0
         for t in MILESTONE_THRESHOLDS:
@@ -188,7 +189,7 @@ async def generate_milestone():
 
 async def generate_weekly_recap():
     try:
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             total = await conn.fetchval("SELECT COUNT(*) FROM users")
             new_week = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days'")
             active_week = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '7 days'")

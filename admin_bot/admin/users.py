@@ -11,7 +11,7 @@ from aiogram.filters import StateFilter
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from admin_bot.config import ADMIN_ID
-from admin_bot.db import db_pool
+import admin_bot.db as _db
 from locales import t
 
 logger = logging.getLogger("admin-bot")
@@ -20,7 +20,7 @@ router = Router()
 
 
 async def _get_lang(uid: int) -> str:
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         row = await conn.fetchrow("SELECT lang FROM users WHERE uid=$1", uid)
     return (row["lang"] or "ru") if row and row.get("lang") else "ru"
 
@@ -38,7 +38,7 @@ async def admin_user_action(callback: types.CallbackQuery):
 
     if action == "ban3":
         until = (datetime.now() + timedelta(hours=3)).isoformat()
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.execute("UPDATE users SET ban_until=$1 WHERE uid=$2", until, target_uid)
         await callback.answer("✅ Бан 3ч")
         try:
@@ -49,7 +49,7 @@ async def admin_user_action(callback: types.CallbackQuery):
 
     elif action == "ban24":
         until = (datetime.now() + timedelta(hours=24)).isoformat()
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.execute("UPDATE users SET ban_until=$1 WHERE uid=$2", until, target_uid)
         await callback.answer("✅ Бан 24ч")
         try:
@@ -59,7 +59,7 @@ async def admin_user_action(callback: types.CallbackQuery):
             pass
 
     elif action == "banperm":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.execute("UPDATE users SET ban_until='permanent' WHERE uid=$1", target_uid)
         await callback.answer("✅ Перм бан")
         try:
@@ -69,7 +69,7 @@ async def admin_user_action(callback: types.CallbackQuery):
             pass
 
     elif action == "unban":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.execute("UPDATE users SET ban_until=NULL WHERE uid=$1", target_uid)
         await callback.answer("✅ Разбан")
         try:
@@ -79,7 +79,7 @@ async def admin_user_action(callback: types.CallbackQuery):
             pass
 
     elif action == "warn":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.execute("UPDATE users SET warn_count=warn_count+1 WHERE uid=$1", target_uid)
         await callback.answer("✅ Предупреждение")
         try:
@@ -90,7 +90,7 @@ async def admin_user_action(callback: types.CallbackQuery):
 
     elif action == "kick":
         # Кик через admin_commands — основной бот подхватит за 60с
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.execute(
                 "INSERT INTO admin_commands (command, target_uid) VALUES ('kick', $1)",
                 target_uid,
@@ -100,7 +100,7 @@ async def admin_user_action(callback: types.CallbackQuery):
 
     elif action == "premium":
         until = (datetime.now() + timedelta(days=30)).isoformat()
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.execute("UPDATE users SET premium_until=$1 WHERE uid=$2", until, target_uid)
         await callback.answer("✅ Premium 30д")
         try:
@@ -110,7 +110,7 @@ async def admin_user_action(callback: types.CallbackQuery):
             pass
 
     elif action == "unpremium":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.execute("UPDATE users SET premium_until=NULL WHERE uid=$1", target_uid)
         await callback.answer("✅ Premium забран")
         try:
@@ -120,10 +120,10 @@ async def admin_user_action(callback: types.CallbackQuery):
             pass
 
     elif action == "shadowtoggle":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             row = await conn.fetchrow("SELECT shadow_ban FROM users WHERE uid=$1", target_uid)
         current = row["shadow_ban"] if row else False
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.execute("UPDATE users SET shadow_ban=$1 WHERE uid=$2", not current, target_uid)
         if current:
             await callback.answer("✅ Shadow ban снят")
@@ -145,7 +145,7 @@ async def admin_user_action(callback: types.CallbackQuery):
 
     elif action == "confirmdelete":
         # Kick from chat via admin_commands
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.execute(
                 "INSERT INTO admin_commands (command, target_uid) VALUES ('kick', $1)",
                 target_uid,

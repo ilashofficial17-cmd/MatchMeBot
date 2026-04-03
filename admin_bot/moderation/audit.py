@@ -10,7 +10,7 @@ from aiogram.filters import StateFilter
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from admin_bot.config import ADMIN_ID
-from admin_bot.db import db_pool
+import admin_bot.db as _db
 
 logger = logging.getLogger("admin-bot")
 
@@ -18,7 +18,7 @@ router = Router()
 
 
 async def get_audit_log(limit: int = 10, offset: int = 0) -> list:
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id, to_uid, from_uid, reason, admin_action, decided_by, "
             "ai_reasoning, ai_confidence, decision_details, created_at "
@@ -30,12 +30,12 @@ async def get_audit_log(limit: int = 10, offset: int = 0) -> list:
 
 
 async def get_audit_total() -> int:
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         return await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=TRUE")
 
 
 async def get_decision_detail(complaint_id: int) -> dict | None:
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM complaints_log WHERE id=$1", complaint_id)
     return dict(row) if row else None
 

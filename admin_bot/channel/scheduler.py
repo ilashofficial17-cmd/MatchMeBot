@@ -8,7 +8,8 @@ import logging
 from datetime import datetime
 
 from admin_bot.config import CHANNEL_ID, CHANNEL_SCHEDULE, MILESTONE_THRESHOLDS
-from admin_bot.db import db_pool, get_stat, set_stat
+import admin_bot.db as _db
+from admin_bot.db import get_stat, set_stat
 from admin_bot.channel.content import (
     CHANNEL_GENERATORS, generate_poll, generate_milestone,
     last_milestone_threshold,
@@ -31,7 +32,7 @@ async def channel_poster():
     try:
         content_module.last_milestone_threshold = await get_stat("last_milestone_threshold", 0)
         if content_module.last_milestone_threshold == 0:
-            async with db_pool.acquire() as conn:
+            async with _db.db_pool.acquire() as conn:
                 total = await conn.fetchval("SELECT COUNT(*) FROM users")
             for t in MILESTONE_THRESHOLDS:
                 if total >= t:

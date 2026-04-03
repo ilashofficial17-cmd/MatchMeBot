@@ -14,7 +14,8 @@ from aiogram.types import (
 )
 
 from admin_bot.config import ADMIN_ID, ANTHROPIC_API_KEY, VENICE_API_KEY, CHANNEL_ID, BOT_USERNAME
-from admin_bot.db import db_pool, get_stat, set_stat
+import admin_bot.db as _db
+from admin_bot.db import get_stat, set_stat
 from admin_bot.channel.content import CHANNEL_GENERATORS, generate_poll, ask_claude_channel
 from admin_bot.channel.scheduler import last_channel_post
 
@@ -95,7 +96,7 @@ async def check_api_status(message: types.Message):
         results.append(f"🔴 Venice API — недоступен ({e})")
     # PostgreSQL
     try:
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
         results.append("🟢 PostgreSQL — активна ✅")
     except Exception:
@@ -105,7 +106,7 @@ async def check_api_status(message: types.Message):
 
 async def show_channel_stats(message: types.Message):
     try:
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             total = await conn.fetchval("SELECT COUNT(*) FROM users")
             new_today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '24 hours'")
             active = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '24 hours'")

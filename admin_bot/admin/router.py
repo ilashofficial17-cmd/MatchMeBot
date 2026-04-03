@@ -13,7 +13,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from admin_bot.config import ADMIN_ID
-from admin_bot.db import db_pool, get_stat
+import admin_bot.db as _db
+from admin_bot.db import get_stat
 
 logger = logging.getLogger("admin-bot")
 
@@ -29,13 +30,13 @@ class AdminState(StatesGroup):
 
 
 async def get_pending_complaints():
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         return await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE") or 0
 
 
 async def get_open_tickets():
     try:
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             return await conn.fetchval("SELECT COUNT(*) FROM support_tickets WHERE status='open'") or 0
     except Exception:
         return 0
@@ -112,7 +113,7 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
     action = callback.data.split(":", 1)[1]
 
     if action == "stats":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             total = await conn.fetchval("SELECT COUNT(*) FROM users")
             today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '24 hours'")
             banned = await conn.fetchval("SELECT COUNT(*) FROM users WHERE ban_until IS NOT NULL")
@@ -135,7 +136,7 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
         )
 
     elif action == "retention":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             total = await conn.fetchval("SELECT COUNT(*) FROM users") or 0
             new_today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE") or 0
             new_week = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days'") or 0
@@ -234,7 +235,7 @@ async def handle_update_notify(callback: types.CallbackQuery):
     from admin_bot.main import main_bot
     from locales import t
     sent = 0
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         all_users = await conn.fetch("SELECT uid, lang FROM users WHERE last_seen > NOW() - INTERVAL '7 days'")
     for row in all_users:
         try:
@@ -259,7 +260,7 @@ async def admin_find_user(message: types.Message, state: FSMContext):
         return
     await state.clear()
     target_uid = int(txt)
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         u = await conn.fetchrow("SELECT * FROM users WHERE uid=$1", target_uid)
     if not u:
         await message.answer(f"❌ Пользователь {target_uid} не найден.")
@@ -299,7 +300,7 @@ async def show_chat_log(callback: types.CallbackQuery):
     action = parts[1]
     complaint_id = int(parts[2])
     if action == "show":
-        async with db_pool.acquire() as conn:
+        async with _db.db_pool.acquire() as conn:
             row = await conn.fetchrow("SELECT chat_log FROM complaints_log WHERE id=$1", complaint_id)
         if not row or not row["chat_log"]:
             await callback.message.answer("📄 Пусто.")

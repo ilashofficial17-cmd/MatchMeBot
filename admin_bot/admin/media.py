@@ -11,7 +11,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from admin_bot.config import ADMIN_ID
-from admin_bot.db import db_pool
+import admin_bot.db as _db
 from admin_bot.admin.router import AdminState
 
 logger = logging.getLogger("admin-bot")
@@ -46,7 +46,7 @@ async def show_char_media_list(callback: types.CallbackQuery):
     if row:
         buttons.append(row)
     has_media = set()
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         rows = await conn.fetch("SELECT character_id FROM ai_character_media WHERE gif_file_id IS NOT NULL")
         has_media = {r["character_id"] for r in rows}
     info = f"🖼 Медиа персонажей\n\nЗагружено: {len(has_media)}/{len(chars)}\n\nВыбери персонажа:"
@@ -64,7 +64,7 @@ async def char_media_select(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("Персонаж не найден", show_alert=True)
         return
     char = chars[char_id]
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT gif_file_id, photo_file_id, blurred_file_id, hot_photo_file_id, hot_gif_file_id "
             "FROM ai_character_media WHERE character_id=$1",
@@ -121,7 +121,7 @@ async def char_media_upload(message: types.Message, state: FSMContext):
     if message.animation:
         file_id = message.animation.file_id
         if caption == "hot":
-            async with db_pool.acquire() as conn:
+            async with _db.db_pool.acquire() as conn:
                 await conn.execute("""
                     INSERT INTO ai_character_media (character_id, hot_gif_file_id, updated_at)
                     VALUES ($1, $2, NOW())
@@ -134,7 +134,7 @@ async def char_media_upload(message: types.Message, state: FSMContext):
                 parse_mode="HTML"
             )
         else:
-            async with db_pool.acquire() as conn:
+            async with _db.db_pool.acquire() as conn:
                 await conn.execute("""
                     INSERT INTO ai_character_media (character_id, gif_file_id, updated_at)
                     VALUES ($1, $2, NOW())
@@ -149,7 +149,7 @@ async def char_media_upload(message: types.Message, state: FSMContext):
     elif message.photo:
         file_id = message.photo[-1].file_id
         if caption == "hot":
-            async with db_pool.acquire() as conn:
+            async with _db.db_pool.acquire() as conn:
                 await conn.execute("""
                     INSERT INTO ai_character_media (character_id, hot_photo_file_id, updated_at)
                     VALUES ($1, $2, NOW())
@@ -162,7 +162,7 @@ async def char_media_upload(message: types.Message, state: FSMContext):
                 parse_mode="HTML"
             )
         else:
-            async with db_pool.acquire() as conn:
+            async with _db.db_pool.acquire() as conn:
                 await conn.execute("""
                     INSERT INTO ai_character_media (character_id, photo_file_id, updated_at)
                     VALUES ($1, $2, NOW())
@@ -194,7 +194,7 @@ async def char_media_view(callback: types.CallbackQuery, state: FSMContext):
     if field not in _FIELD_LABELS:
         await callback.answer("Неизвестный слот", show_alert=True)
         return
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         row = await conn.fetchrow(
             f"SELECT {field} FROM ai_character_media WHERE character_id=$1",
             char_id
@@ -225,7 +225,7 @@ async def char_media_delete(callback: types.CallbackQuery, state: FSMContext):
     if field not in _FIELD_LABELS:
         await callback.answer("Неизвестный слот", show_alert=True)
         return
-    async with db_pool.acquire() as conn:
+    async with _db.db_pool.acquire() as conn:
         await conn.execute(
             f"UPDATE ai_character_media SET {field}=NULL, updated_at=NOW() WHERE character_id=$1",
             char_id
