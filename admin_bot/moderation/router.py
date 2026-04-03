@@ -52,6 +52,28 @@ async def show_complaints(callback: types.CallbackQuery):
             )
 
 
+async def show_complaints_msg(message: types.Message):
+    """Показать жалобы (вызывается из reply-кнопки)."""
+    from admin_bot.admin.router import kb_complaint_action
+    async with _db.db_pool.acquire() as conn:
+        rows = await conn.fetch("SELECT * FROM complaints_log WHERE reviewed=FALSE ORDER BY created_at ASC LIMIT 5")
+    if not rows:
+        await message.answer("✅ Нет жалоб.")
+    else:
+        for r in rows:
+            ru = await _get_user(r["from_uid"])
+            pu = await _get_user(r["to_uid"])
+            has_log = bool(r.get("chat_log"))
+            stop_words_found = bool(r.get("stop_words_found"))
+            await message.answer(
+                f"🚩 Жалоба #{r['id']}\n\n"
+                f"👤 От: {r['from_uid']} ({ru.get('name','?') if ru else '?'})\n"
+                f"👤 На: {r['to_uid']} ({pu.get('name','?') if pu else '?'})\n"
+                f"📋 {r['reason']} | 🕐 {r['created_at'].strftime('%d.%m %H:%M')}",
+                reply_markup=kb_complaint_action(r["id"], r["to_uid"], r["from_uid"], has_log, stop_words_found)
+            )
+
+
 @router.callback_query(F.data.startswith("cadm:"), StateFilter("*"))
 async def admin_complaint_action(callback: types.CallbackQuery):
     if callback.from_user.id != ADMIN_ID:

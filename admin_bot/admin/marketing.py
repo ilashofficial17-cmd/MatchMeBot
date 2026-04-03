@@ -1,6 +1,6 @@
 """
-Admin Bot — маркетинг: mkt:* хэндлеры.
-Перенесено из admin.py.
+Admin Bot — маркетинг: reply-кнопки секции Маркетинг.
+Кнопки: 💰 Доходы, 🎨 Креативы, 📊 Реклама, 🧪 A/B тесты, 📅 Когорты.
 """
 
 import logging
@@ -17,29 +17,146 @@ logger = logging.getLogger("admin-bot")
 
 router = Router()
 
-# AI_CHARACTERS для аналитики
-try:
-    from ai_characters import AI_CHARACTERS
-except ImportError:
-    AI_CHARACTERS = {}
+
+# ====================== СЕКЦИЯ: МАРКЕТИНГ (reply buttons) ======================
+@router.message(F.text == "💰 Доходы")
+async def btn_revenue(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    async with _db.db_pool.acquire() as conn:
+        total_premiums = await conn.fetchval(
+            "SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL AND premium_until != 'permanent'"
+        ) or 0
+        purchases_total = await conn.fetchval("SELECT COUNT(*) FROM ab_events WHERE event_type = 'purchase'") or 0
+        purchases_week = await conn.fetchval(
+            "SELECT COUNT(*) FROM ab_events WHERE event_type = 'purchase' AND created_at > NOW() - INTERVAL '7 days'"
+        ) or 0
+        gifts_total = await conn.fetchval("SELECT COUNT(*) FROM ab_events WHERE event_type = 'gift_sent'") or 0
+        gifts_week = await conn.fetchval(
+            "SELECT COUNT(*) FROM ab_events WHERE event_type = 'gift_sent' AND created_at > NOW() - INTERVAL '7 days'"
+        ) or 0
+        trials_total = await conn.fetchval("SELECT COUNT(*) FROM ab_events WHERE event_type = 'trial_activated'") or 0
+        trials_conv = await conn.fetchval("SELECT COUNT(*) FROM ab_events WHERE event_type = 'trial_shown'") or 1
+    text = f"💰 Доходы MatchMe\n\n"
+    text += f"💎 Активных Premium: {total_premiums}\n\n"
+    text += f"🛒 Покупки:\n  Всего: {purchases_total}\n  За 7 дней: {purchases_week}\n\n"
+    text += f"🎁 Подарки:\n  Всего: {gifts_total}\n  За 7 дней: {gifts_week}\n\n"
+    text += f"🎟 Триалы:\n  Активировано: {trials_total}\n  Показано: {trials_conv}\n"
+    text += f"  Конверсия: {round(trials_total / max(trials_conv, 1) * 100, 1)}%"
+    await message.answer(text)
 
 
-async def show_marketing_menu(callback: types.CallbackQuery):
-    await callback.message.answer(
-        "📢 Маркетинг MatchMe",
+@router.message(F.text == "🎨 Креативы")
+async def btn_creatives(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer(
+        "📋 Выбери язык для просмотра креативов:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📋 Креативы рекламы", callback_data="mkt:creatives")],
-            [InlineKeyboardButton(text="📊 Аналитика рекламы", callback_data="mkt:ad_stats")],
-            [InlineKeyboardButton(text="🤖 Аналитика AI-чатов", callback_data="mkt:ai_stats")],
-            [InlineKeyboardButton(text="💰 Доходы", callback_data="mkt:revenue")],
-            [InlineKeyboardButton(text="⭐ Оценки чатов", callback_data="mkt:ratings")],
-            [InlineKeyboardButton(text="🔬 A/B тест цен", callback_data="mkt:ab_prices")],
-            [InlineKeyboardButton(text="📊 Когорты LTV", callback_data="mkt:cohorts")],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")],
+            [
+                InlineKeyboardButton(text="🇷🇺 RU", callback_data="mkt:cr:ru"),
+                InlineKeyboardButton(text="🇬🇧 EN", callback_data="mkt:cr:en"),
+                InlineKeyboardButton(text="🇪🇸 ES", callback_data="mkt:cr:es"),
+            ],
+            [InlineKeyboardButton(text="📊 Все (сводка)", callback_data="mkt:cr:all")],
         ])
     )
 
 
+@router.message(F.text == "📊 Реклама")
+async def btn_ad_stats(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer(
+        "📊 Аналитика рекламы — выбери период:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Сегодня", callback_data="mkt:ads:1"),
+                InlineKeyboardButton(text="7 дней", callback_data="mkt:ads:7"),
+                InlineKeyboardButton(text="30 дней", callback_data="mkt:ads:30"),
+            ],
+            [InlineKeyboardButton(text="Всё время", callback_data="mkt:ads:0")],
+        ])
+    )
+
+
+@router.message(F.text == "🧪 A/B тесты")
+async def btn_ab_tests(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    text = ""
+    async with _db.db_pool.acquire() as conn:
+        for group in ("A", "B"):
+            shown = await conn.fetchval(
+                "SELECT COUNT(*) FROM ab_events WHERE ab_group=$1 AND event_type='price_shown'", group
+            ) or 0
+            purchased = await conn.fetchval(
+                "SELECT COUNT(*) FROM ab_events WHERE ab_group=$1 AND event_type='purchase'", group
+            ) or 0
+            trials = await conn.fetchval(
+                "SELECT COUNT(*) FROM ab_events WHERE ab_group=$1 AND event_type='trial_activated'", group
+            ) or 0
+            users_total = await conn.fetchval(
+                "SELECT COUNT(*) FROM users WHERE ab_group=$1", group
+            ) or 0
+            if group == "A":
+                text = f"🔬 A/B тест цен\n\nГруппа A (полная цена):\n"
+            else:
+                text += f"\nГруппа B (скидка 15%):\n"
+            conv = round(purchased / max(shown, 1) * 100, 1)
+            text += f"  Юзеров: {users_total}\n  Показов цен: {shown}\n"
+            text += f"  Покупок: {purchased} (конверсия: {conv}%)\n  Триалов: {trials}\n"
+    await message.answer(text)
+
+
+@router.message(F.text == "📅 Когорты")
+async def btn_cohorts(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    async with _db.db_pool.acquire() as conn:
+        text = "📊 Когортный анализ LTV\n\n"
+        for weeks_ago in range(4):
+            start_iv = timedelta(days=(weeks_ago + 1) * 7)
+            end_iv = timedelta(days=weeks_ago * 7)
+            cohort_size = await conn.fetchval("""
+                SELECT COUNT(*) FROM users
+                WHERE created_at >= NOW() - $1::interval AND created_at < NOW() - $2::interval
+            """, start_iv, end_iv) or 0
+            if cohort_size == 0:
+                continue
+            purchases = await conn.fetchval("""
+                SELECT COUNT(*) FROM ab_events e JOIN users u ON e.uid = u.uid
+                WHERE u.created_at >= NOW() - $1::interval AND u.created_at < NOW() - $2::interval
+                AND e.event_type = 'purchase'
+            """, start_iv, end_iv) or 0
+            gifts = await conn.fetchval("""
+                SELECT COUNT(*) FROM ab_events e JOIN users u ON e.uid = u.uid
+                WHERE u.created_at >= NOW() - $1::interval AND u.created_at < NOW() - $2::interval
+                AND e.event_type = 'gift_sent'
+            """, start_iv, end_iv) or 0
+            active_now = await conn.fetchval("""
+                SELECT COUNT(*) FROM users
+                WHERE created_at >= NOW() - $1::interval AND created_at < NOW() - $2::interval
+                AND last_seen > NOW() - INTERVAL '7 days'
+            """, start_iv, end_iv) or 0
+            avg_chats = await conn.fetchval("""
+                SELECT ROUND(AVG(total_chats)::numeric, 1) FROM users
+                WHERE created_at >= NOW() - $1::interval AND created_at < NOW() - $2::interval
+                AND total_chats > 0
+            """, start_iv, end_iv) or 0
+            retention = round(active_now / max(cohort_size, 1) * 100)
+            conv_pct = round(purchases / max(cohort_size, 1) * 100, 1)
+            week_label = f"Неделя -{weeks_ago + 1}" if weeks_ago > 0 else "Эта неделя"
+            text += f"📅 {week_label} ({cohort_size} юзеров):\n"
+            text += f"  Retention: {active_now}/{cohort_size} ({retention}%)\n"
+            text += f"  Покупок: {purchases} (конв. {conv_pct}%)\n"
+            text += f"  Подарков: {gifts}\n  Ср. чатов: {avg_chats}\n\n"
+        if "📅" not in text:
+            text += "Нет данных. Когорты начнут формироваться по мере регистрации юзеров."
+    await message.answer(text)
+
+
+# ====================== INLINE CALLBACKS (для действий внутри результатов) ======================
 @router.callback_query(F.data.startswith("mkt:"), StateFilter("*"))
 async def marketing_handler(callback: types.CallbackQuery):
     if callback.from_user.id != ADMIN_ID:
@@ -47,22 +164,8 @@ async def marketing_handler(callback: types.CallbackQuery):
         return
     action = callback.data.split(":", 1)[1]
 
-    if action == "creatives":
-        await callback.message.answer(
-            "📋 Выбери язык для просмотра креативов:",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [
-                    InlineKeyboardButton(text="🇷🇺 RU", callback_data="mkt:cr:ru"),
-                    InlineKeyboardButton(text="🇬🇧 EN", callback_data="mkt:cr:en"),
-                    InlineKeyboardButton(text="🇪🇸 ES", callback_data="mkt:cr:es"),
-                ],
-                [InlineKeyboardButton(text="📊 Все (сводка)", callback_data="mkt:cr:all")],
-            ])
-        )
-
-    elif action.startswith("cr:"):
+    if action.startswith("cr:"):
         lang_filter = action.split(":")[1]
-        # Get partner ads from config if available
         try:
             from bot import PARTNER_ADS
         except ImportError:
@@ -109,19 +212,6 @@ async def marketing_handler(callback: types.CallbackQuery):
                     if i >= 14:
                         await callback.message.answer(f"... и ещё {len(ads) - 15}")
                         break
-
-    elif action == "ad_stats":
-        await callback.message.answer(
-            "📊 Аналитика рекламы — выбери период:",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [
-                    InlineKeyboardButton(text="Сегодня", callback_data="mkt:ads:1"),
-                    InlineKeyboardButton(text="7 дней", callback_data="mkt:ads:7"),
-                    InlineKeyboardButton(text="30 дней", callback_data="mkt:ads:30"),
-                ],
-                [InlineKeyboardButton(text="Всё время", callback_data="mkt:ads:0")],
-            ])
-        )
 
     elif action.startswith("ads:"):
         days = int(action.split(":")[1])
@@ -179,155 +269,6 @@ async def marketing_handler(callback: types.CallbackQuery):
                 text += f"    поиск: {data['search']} / AI: {data['ai_chat']}\n"
         else:
             text += "Нет данных за этот период."
-        await callback.message.answer(text)
-
-    elif action == "ai_stats":
-        from admin_bot.db import get_stat
-        ai_sessions = await get_stat("ai_sessions_count", 0)
-        async with _db.db_pool.acquire() as conn:
-            total_ai_msgs = await conn.fetchval("SELECT COUNT(*) FROM ai_history WHERE role='user'") or 0
-            unique_ai_users = await conn.fetchval("SELECT COUNT(DISTINCT uid) FROM ai_history") or 0
-            char_stats = await conn.fetch("""
-                SELECT character_id, COUNT(*) as msg_count, COUNT(DISTINCT uid) as user_count
-                FROM ai_history WHERE role = 'user'
-                GROUP BY character_id ORDER BY msg_count DESC
-            """)
-            char_stats_week = await conn.fetch("""
-                SELECT character_id, COUNT(*) as msg_count, COUNT(DISTINCT uid) as user_count
-                FROM ai_history WHERE role = 'user' AND created_at > NOW() - INTERVAL '7 days'
-                GROUP BY character_id ORDER BY msg_count DESC
-            """)
-        text = f"🤖 Аналитика AI-чатов\n\n"
-        text += f"Активных сессий: {ai_sessions}\n"
-        text += f"Всего сообщений: {total_ai_msgs}\nУник. пользователей: {unique_ai_users}\n\n"
-        if char_stats:
-            text += "📊 Популярность (всё время):\n"
-            for r in char_stats:
-                cid = r["character_id"]
-                char = AI_CHARACTERS.get(cid, {})
-                emoji = char.get("emoji", "")
-                name = cid.replace("_", " ").title()
-                text += f"  {emoji} {name}: {r['msg_count']} сообщ. / {r['user_count']} юзеров\n"
-        if char_stats_week:
-            text += f"\n📊 За 7 дней:\n"
-            for r in char_stats_week:
-                cid = r["character_id"]
-                char = AI_CHARACTERS.get(cid, {})
-                emoji = char.get("emoji", "")
-                name = cid.replace("_", " ").title()
-                text += f"  {emoji} {name}: {r['msg_count']} сообщ. / {r['user_count']} юзеров\n"
-        await callback.message.answer(text)
-
-    elif action == "revenue":
-        async with _db.db_pool.acquire() as conn:
-            total_premiums = await conn.fetchval(
-                "SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL AND premium_until != 'permanent'"
-            ) or 0
-            purchases_total = await conn.fetchval("SELECT COUNT(*) FROM ab_events WHERE event_type = 'purchase'") or 0
-            purchases_week = await conn.fetchval(
-                "SELECT COUNT(*) FROM ab_events WHERE event_type = 'purchase' AND created_at > NOW() - INTERVAL '7 days'"
-            ) or 0
-            gifts_total = await conn.fetchval("SELECT COUNT(*) FROM ab_events WHERE event_type = 'gift_sent'") or 0
-            gifts_week = await conn.fetchval(
-                "SELECT COUNT(*) FROM ab_events WHERE event_type = 'gift_sent' AND created_at > NOW() - INTERVAL '7 days'"
-            ) or 0
-            trials_total = await conn.fetchval("SELECT COUNT(*) FROM ab_events WHERE event_type = 'trial_activated'") or 0
-            trials_conv = await conn.fetchval("SELECT COUNT(*) FROM ab_events WHERE event_type = 'trial_shown'") or 1
-        text = f"💰 Доходы MatchMe\n\n"
-        text += f"💎 Активных Premium: {total_premiums}\n\n"
-        text += f"🛒 Покупки:\n  Всего: {purchases_total}\n  За 7 дней: {purchases_week}\n\n"
-        text += f"🎁 Подарки:\n  Всего: {gifts_total}\n  За 7 дней: {gifts_week}\n\n"
-        text += f"🎟 Триалы:\n  Активировано: {trials_total}\n  Показано: {trials_conv}\n"
-        text += f"  Конверсия: {round(trials_total / max(trials_conv, 1) * 100, 1)}%"
-        await callback.message.answer(text)
-
-    elif action == "ratings":
-        async with _db.db_pool.acquire() as conn:
-            total_ratings = await conn.fetchval("SELECT COUNT(*) FROM chat_ratings") or 0
-            avg_rating = await conn.fetchval("SELECT ROUND(AVG(stars)::numeric, 2) FROM chat_ratings") or 0
-            dist = await conn.fetch("SELECT stars, COUNT(*) as cnt FROM chat_ratings GROUP BY stars ORDER BY stars")
-            avg_week = await conn.fetchval(
-                "SELECT ROUND(AVG(stars)::numeric, 2) FROM chat_ratings WHERE created_at > NOW() - INTERVAL '7 days'"
-            ) or 0
-            total_week = await conn.fetchval(
-                "SELECT COUNT(*) FROM chat_ratings WHERE created_at > NOW() - INTERVAL '7 days'"
-            ) or 0
-        text = f"⭐ Оценки чатов\n\n"
-        text += f"Всего оценок: {total_ratings}\nСредняя: {avg_rating} ⭐\n"
-        text += f"За 7 дней: {total_week} оценок, ср. {avg_week} ⭐\n\n"
-        if dist:
-            text += "Распределение:\n"
-            for r in dist:
-                bar = "█" * r["cnt"] if r["cnt"] <= 20 else "█" * 20 + f"..{r['cnt']}"
-                text += f"  {'⭐' * r['stars']}: {r['cnt']} {bar}\n"
-        await callback.message.answer(text)
-
-    elif action == "ab_prices":
-        text = ""
-        async with _db.db_pool.acquire() as conn:
-            for group in ("A", "B"):
-                shown = await conn.fetchval(
-                    "SELECT COUNT(*) FROM ab_events WHERE ab_group=$1 AND event_type='price_shown'", group
-                ) or 0
-                purchased = await conn.fetchval(
-                    "SELECT COUNT(*) FROM ab_events WHERE ab_group=$1 AND event_type='purchase'", group
-                ) or 0
-                trials = await conn.fetchval(
-                    "SELECT COUNT(*) FROM ab_events WHERE ab_group=$1 AND event_type='trial_activated'", group
-                ) or 0
-                users_total = await conn.fetchval(
-                    "SELECT COUNT(*) FROM users WHERE ab_group=$1", group
-                ) or 0
-                if group == "A":
-                    text = f"🔬 A/B тест цен\n\nГруппа A (полная цена):\n"
-                else:
-                    text += f"\nГруппа B (скидка 15%):\n"
-                conv = round(purchased / max(shown, 1) * 100, 1)
-                text += f"  Юзеров: {users_total}\n  Показов цен: {shown}\n"
-                text += f"  Покупок: {purchased} (конверсия: {conv}%)\n  Триалов: {trials}\n"
-        await callback.message.answer(text)
-
-    elif action == "cohorts":
-        async with _db.db_pool.acquire() as conn:
-            text = "📊 Когортный анализ LTV\n\n"
-            for weeks_ago in range(4):
-                start_iv = timedelta(days=(weeks_ago + 1) * 7)
-                end_iv = timedelta(days=weeks_ago * 7)
-                cohort_size = await conn.fetchval("""
-                    SELECT COUNT(*) FROM users
-                    WHERE created_at >= NOW() - $1::interval AND created_at < NOW() - $2::interval
-                """, start_iv, end_iv) or 0
-                if cohort_size == 0:
-                    continue
-                purchases = await conn.fetchval("""
-                    SELECT COUNT(*) FROM ab_events e JOIN users u ON e.uid = u.uid
-                    WHERE u.created_at >= NOW() - $1::interval AND u.created_at < NOW() - $2::interval
-                    AND e.event_type = 'purchase'
-                """, start_iv, end_iv) or 0
-                gifts = await conn.fetchval("""
-                    SELECT COUNT(*) FROM ab_events e JOIN users u ON e.uid = u.uid
-                    WHERE u.created_at >= NOW() - $1::interval AND u.created_at < NOW() - $2::interval
-                    AND e.event_type = 'gift_sent'
-                """, start_iv, end_iv) or 0
-                active_now = await conn.fetchval("""
-                    SELECT COUNT(*) FROM users
-                    WHERE created_at >= NOW() - $1::interval AND created_at < NOW() - $2::interval
-                    AND last_seen > NOW() - INTERVAL '7 days'
-                """, start_iv, end_iv) or 0
-                avg_chats = await conn.fetchval("""
-                    SELECT ROUND(AVG(total_chats)::numeric, 1) FROM users
-                    WHERE created_at >= NOW() - $1::interval AND created_at < NOW() - $2::interval
-                    AND total_chats > 0
-                """, start_iv, end_iv) or 0
-                retention = round(active_now / max(cohort_size, 1) * 100)
-                conv_pct = round(purchases / max(cohort_size, 1) * 100, 1)
-                week_label = f"Неделя -{weeks_ago + 1}" if weeks_ago > 0 else "Эта неделя"
-                text += f"📅 {week_label} ({cohort_size} юзеров):\n"
-                text += f"  Retention: {active_now}/{cohort_size} ({retention}%)\n"
-                text += f"  Покупок: {purchases} (конв. {conv_pct}%)\n"
-                text += f"  Подарков: {gifts}\n  Ср. чатов: {avg_chats}\n\n"
-            if "📅" not in text:
-                text += "Нет данных. Когорты начнут формироваться по мере регистрации юзеров."
         await callback.message.answer(text)
 
     await callback.answer()

@@ -53,6 +53,27 @@ async def show_char_media_list(callback: types.CallbackQuery):
     await callback.message.answer(info, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
 
+async def show_char_media_list_msg(message: types.Message):
+    """Показать список персонажей (вызывается из reply-кнопки)."""
+    chars = AI_CHARACTERS
+    buttons = []
+    row = []
+    for cid, cdata in chars.items():
+        label = f"{cdata['emoji']} {cid}"
+        row.append(InlineKeyboardButton(text=label, callback_data=f"charmedia:{cid}"))
+        if len(row) == 3:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    has_media = set()
+    async with _db.db_pool.acquire() as conn:
+        rows = await conn.fetch("SELECT character_id FROM ai_character_media WHERE gif_file_id IS NOT NULL")
+        has_media = {r["character_id"] for r in rows}
+    info = f"🖼 Медиа персонажей\n\nЗагружено: {len(has_media)}/{len(chars)}\n\nВыбери персонажа:"
+    await message.answer(info, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+
+
 @router.callback_query(F.data.startswith("charmedia:"), StateFilter("*"))
 async def char_media_select(callback: types.CallbackQuery, state: FSMContext):
     if callback.from_user.id != ADMIN_ID:

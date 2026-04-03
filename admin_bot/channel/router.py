@@ -1,23 +1,25 @@
 """
-Admin Bot — хэндлеры канала (команды, кнопки, callback).
-Перенесено из channel_bot.py.
+Admin Bot — хэндлеры канала + главное меню навигации.
+Reply keyboard навигация: главное меню → разделы → действия.
 """
 
 import logging
 import aiohttp
+from datetime import datetime
 
 from aiogram import Router, types, F
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
-    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
 )
 
 from admin_bot.config import ADMIN_ID, ANTHROPIC_API_KEY, VENICE_API_KEY, CHANNEL_ID, BOT_USERNAME
 import admin_bot.db as _db
 from admin_bot.db import get_stat, set_stat
-from admin_bot.channel.content import CHANNEL_GENERATORS, generate_poll, ask_claude_channel
+from admin_bot.channel.content import CHANNEL_GENERATORS, generate_poll
 from admin_bot.channel.scheduler import last_channel_post
+from admin_bot.keyboards import kb_main_menu, kb_admin, kb_channel, kb_analytics, kb_marketing, kb_support_user
+from locales import t
 
 logger = logging.getLogger("admin-bot")
 
@@ -25,15 +27,6 @@ router = Router()
 
 # Кэш превью постов: msg_id -> (rubric, text, poll_data)
 channel_preview_cache = {}
-
-
-# ====================== КЛАВИАТУРЫ ======================
-def kb_admin():
-    return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="📝 Создать пост"), KeyboardButton(text="📢 Авто-постинг")],
-        [KeyboardButton(text="🔌 Статус API"), KeyboardButton(text="📊 Статистика")],
-        [KeyboardButton(text="📅 Расписание")],
-    ], resize_keyboard=True)
 
 
 def kb_post_types():
@@ -47,11 +40,117 @@ def kb_post_types():
     ])
 
 
+# ====================== /start ======================
+@router.message(Command("start"), StateFilter("*"))
+async def cmd_start(message: types.Message, state=None):
+    if message.from_user.id == ADMIN_ID:
+        await message.answer(
+            t("ru", "admin_main_menu"),
+            reply_markup=kb_main_menu()
+        )
+    else:
+        # Саппорт-меню для обычных юзеров
+        from admin_bot.support.router import _get_user_lang
+        lang = await _get_user_lang(message.from_user.id)
+        await message.answer(
+            t(lang, "support_welcome"),
+            reply_markup=kb_support_user(lang)
+        )
+
+
+# ====================== ГЛАВНОЕ МЕНЮ (reply buttons) ======================
+@router.message(F.text == "🛡 Админка")
+async def nav_admin(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer(t("ru", "admin_section_admin"), reply_markup=kb_admin())
+
+
+@router.message(F.text == "📢 Канал")
+async def nav_channel(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer(t("ru", "admin_section_channel"), reply_markup=kb_channel())
+
+
+@router.message(F.text == "📊 Аналитика")
+async def nav_analytics(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer(t("ru", "admin_section_analytics"), reply_markup=kb_analytics())
+
+
+@router.message(F.text == "🎯 Маркетинг")
+async def nav_marketing(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer(t("ru", "admin_section_marketing"), reply_markup=kb_marketing())
+
+
+@router.message(F.text == "⬅️ Назад")
+async def nav_back(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer(t("ru", "admin_main_menu"), reply_markup=kb_main_menu())
+
+
+# ====================== КАНАЛ: reply buttons ======================
+@router.message(F.text == "📝 Создать пост")
+async def btn_post(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer("📢 Выбери тип поста:", reply_markup=kb_post_types())
+
+
+@router.message(F.text == "⚡ Авто-постинг")
+async def btn_toggle(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    current = await get_stat("channel_poster_enabled", 1)
+    new_val = 0 if current else 1
+    await set_stat("channel_poster_enabled", new_val)
+    status = "✅ ВКЛ" if new_val else "❌ ВЫКЛ"
+    await message.answer(f"📢 Авто-постинг: {status}")
+
+
+@router.message(F.text == "📅 Расписание")
+async def btn_schedule(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    enabled = await get_stat("channel_poster_enabled", 1)
+    status = "✅ ВКЛ" if enabled else "❌ ВЫКЛ"
+    await message.answer(
+        f"📅 Расписание авто-постинга ({status})\n\n"
+        f"12:00 — 💡 Совет по общению\n"
+        f"13:00 — 🔥 Пик активности\n"
+        f"15:00 — 😂 Шутка / мем\n"
+        f"18:00 — 📋 Опрос (через день)\n"
+        f"19:00 — 📈 Итоги недели (воскресенье)\n"
+        f"20:00 — 🔥 Пик активности\n"
+        f"21:00 — 📊 Статистика дня\n\n"
+        f"Milestone — при достижении порогов юзеров"
+    )
+
+
+@router.message(F.text == "🔌 Статус API")
+async def btn_status(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await check_api_status(message)
+
+
+@router.message(F.text == "📢 Канал стат")
+async def btn_channel_stats(message: types.Message):
+    """Кнопка аналитики канала из раздела Аналитика."""
+    if message.from_user.id != ADMIN_ID:
+        return
+    await show_channel_stats(message)
+
+
 # ====================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======================
 async def check_api_status(message: types.Message):
     await message.answer("⏳ Проверяю API...")
     results = []
-    # Claude API
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -77,7 +176,6 @@ async def check_api_status(message: types.Message):
                     results.append(f"🟡 Claude API — ошибка {resp.status}")
     except Exception as e:
         results.append(f"🔴 Claude API — недоступен ({e})")
-    # Venice API
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -94,7 +192,6 @@ async def check_api_status(message: types.Message):
                     results.append(f"🟡 Venice API — ошибка {resp.status}")
     except Exception as e:
         results.append(f"🔴 Venice API — недоступен ({e})")
-    # PostgreSQL
     try:
         async with _db.db_pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
@@ -129,30 +226,7 @@ async def show_channel_stats(message: types.Message):
         await message.answer(f"❌ Ошибка: {e}")
 
 
-# ====================== КОМАНДЫ ======================
-@router.message(Command("start"))
-async def cmd_start(message: types.Message):
-    if message.from_user.id == ADMIN_ID:
-        enabled = await get_stat("channel_poster_enabled", 1)
-        status = "✅ ВКЛ" if enabled else "❌ ВЫКЛ"
-        await message.answer(
-            f"📢 MatchMe Channel Manager\n\n"
-            f"Канал: {CHANNEL_ID}\n"
-            f"Авто-постинг: {status}\n\n"
-            f"Используй кнопки ниже или команды из меню.",
-            reply_markup=kb_admin()
-        )
-    else:
-        # Саппорт-меню для обычных юзеров
-        from admin_bot.support.router import kb_support, _get_user_lang
-        lang = await _get_user_lang(message.from_user.id)
-        from locales import t
-        await message.answer(
-            t(lang, "support_welcome"),
-            reply_markup=kb_support(lang)
-        )
-
-
+# ====================== КОМАНДЫ (legacy, чтобы /post /toggle /status /stats /schedule продолжали работать) ======================
 @router.message(Command("post"))
 async def cmd_post(message: types.Message):
     if message.from_user.id != ADMIN_ID:
@@ -189,60 +263,7 @@ async def cmd_stats(message: types.Message):
 async def cmd_schedule(message: types.Message):
     if message.from_user.id != ADMIN_ID:
         return
-    enabled = await get_stat("channel_poster_enabled", 1)
-    status = "✅ ВКЛ" if enabled else "❌ ВЫКЛ"
-    schedule_text = (
-        f"📅 Расписание авто-постинга ({status})\n\n"
-        f"12:00 — 💡 Совет по общению\n"
-        f"13:00 — 🔥 Пик активности\n"
-        f"15:00 — 😂 Шутка / мем\n"
-        f"18:00 — 📋 Опрос (через день)\n"
-        f"19:00 — 📈 Итоги недели (воскресенье)\n"
-        f"20:00 — 🔥 Пик активности\n"
-        f"21:00 — 📊 Статистика дня\n\n"
-        f"Milestone — при достижении порогов юзеров"
-    )
-    await message.answer(schedule_text)
-
-
-# ====================== КНОПКИ REPLY ======================
-@router.message(F.text == "📝 Создать пост")
-async def btn_post(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    await message.answer("📢 Выбери тип поста:", reply_markup=kb_post_types())
-
-
-@router.message(F.text == "📢 Авто-постинг")
-async def btn_toggle(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    current = await get_stat("channel_poster_enabled", 1)
-    new_val = 0 if current else 1
-    await set_stat("channel_poster_enabled", new_val)
-    status = "✅ ВКЛ" if new_val else "❌ ВЫКЛ"
-    await message.answer(f"📢 Авто-постинг: {status}")
-
-
-@router.message(F.text == "🔌 Статус API")
-async def btn_status(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    await check_api_status(message)
-
-
-@router.message(F.text == "📊 Статистика")
-async def btn_stats(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    await show_channel_stats(message)
-
-
-@router.message(F.text == "📅 Расписание")
-async def btn_schedule(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    await cmd_schedule(message)
+    await btn_schedule(message)
 
 
 # ====================== INLINE CALLBACKS ======================
@@ -296,7 +317,6 @@ async def admin_channel_send(callback: types.CallbackQuery):
             await admin_bot.send_poll(CHANNEL_ID, question=question, options=options, is_anonymous=True)
         else:
             await admin_bot.send_message(CHANNEL_ID, text)
-        from datetime import datetime
         last_channel_post[rubric] = datetime.now()
         try:
             await callback.message.edit_text(f"✅ Опубликовано в {CHANNEL_ID}!")

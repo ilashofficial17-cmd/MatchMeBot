@@ -1,6 +1,6 @@
 """
-Admin Bot — главная админ-панель: /admin, stats, retention, online, find, notify_update.
-Перенесено из admin.py.
+Admin Bot — главная админ-панель: reply-кнопки + inline действия.
+Секции: Админка (🔍🚩📋📩🖼🔧), Аналитика (👥📈👁🤖⭐).
 """
 
 import asyncio
@@ -22,43 +22,17 @@ router = Router()
 
 MODE_NAMES = {"simple": "Общение 💬", "flirt": "Флирт 💋", "kink": "Kink 🔥"}
 
+# AI_CHARACTERS для аналитики
+try:
+    from ai_characters import AI_CHARACTERS
+except ImportError:
+    AI_CHARACTERS = {}
+
 
 class AdminState(StatesGroup):
     waiting_user_id = State()
     waiting_char_gif = State()
     waiting_support_reply = State()
-
-
-async def get_pending_complaints():
-    async with _db.db_pool.acquire() as conn:
-        return await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE") or 0
-
-
-async def get_open_tickets():
-    try:
-        async with _db.db_pool.acquire() as conn:
-            return await conn.fetchval("SELECT COUNT(*) FROM support_tickets WHERE status='open'") or 0
-    except Exception:
-        return 0
-
-
-async def kb_admin_main():
-    pending = await get_pending_complaints()
-    badge = f" ({pending})" if pending > 0 else ""
-    tickets = await get_open_tickets()
-    ticket_badge = f" ({tickets})" if tickets > 0 else ""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats")],
-        [InlineKeyboardButton(text="📈 Retention", callback_data="admin:retention")],
-        [InlineKeyboardButton(text=f"🚩 Жалобы{badge}", callback_data="admin:complaints")],
-        [InlineKeyboardButton(text="📋 Аудит-лог", callback_data="admin:audit")],
-        [InlineKeyboardButton(text="👥 Онлайн", callback_data="admin:online")],
-        [InlineKeyboardButton(text="🔍 Найти пользователя", callback_data="admin:find")],
-        [InlineKeyboardButton(text="🔧 Уведомить об обновлении", callback_data="admin:notify_update")],
-        [InlineKeyboardButton(text="🖼 Медиа персонажей", callback_data="admin:char_media")],
-        [InlineKeyboardButton(text="📢 Маркетинг", callback_data="admin:marketing")],
-        [InlineKeyboardButton(text=f"📩 Саппорт{ticket_badge}", callback_data="admin:support")],
-    ])
 
 
 def kb_user_actions(target_uid, is_shadow=False):
@@ -97,141 +71,228 @@ def kb_complaint_action(complaint_id, accused_uid, reporter_uid, has_log=False, 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-# ====================== /admin ======================
+# ====================== СЕКЦИЯ: АДМИНКА (reply buttons) ======================
+@router.message(F.text == "🔍 Найти юзера")
+async def btn_find_user(message: types.Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await state.set_state(AdminState.waiting_user_id)
+    await message.answer("🔍 Введи Telegram ID:")
+
+
+@router.message(F.text == "🚩 Жалобы")
+async def btn_complaints(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    from admin_bot.moderation.router import show_complaints_msg
+    await show_complaints_msg(message)
+
+
+@router.message(F.text == "📋 Аудит")
+async def btn_audit(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    from admin_bot.moderation.audit import show_audit_log_msg
+    await show_audit_log_msg(message)
+
+
+@router.message(F.text == "📩 Саппорт")
+async def btn_support(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    from admin_bot.support.router import show_admin_tickets_msg
+    await show_admin_tickets_msg(message)
+
+
+@router.message(F.text == "🖼 Медиа")
+async def btn_media(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    from admin_bot.admin.media import show_char_media_list_msg
+    await show_char_media_list_msg(message)
+
+
+@router.message(F.text == "🔧 Уведомление")
+async def btn_notify(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer(
+        "Через сколько минут?",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="1 мин", callback_data="upd:1"),
+             InlineKeyboardButton(text="2 мин", callback_data="upd:2")],
+            [InlineKeyboardButton(text="5 мин", callback_data="upd:5"),
+             InlineKeyboardButton(text="🔴 Сейчас", callback_data="upd:0")],
+        ])
+    )
+
+
+# ====================== СЕКЦИЯ: АНАЛИТИКА (reply buttons) ======================
+@router.message(F.text == "👥 Общая")
+async def btn_stats(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    async with _db.db_pool.acquire() as conn:
+        total = await conn.fetchval("SELECT COUNT(*) FROM users")
+        today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '24 hours'")
+        banned = await conn.fetchval("SELECT COUNT(*) FROM users WHERE ban_until IS NOT NULL")
+        premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL")
+        total_complaints = await conn.fetchval("SELECT COUNT(*) FROM complaints_log")
+        pending = await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE")
+    online_now = await get_stat("online_pairs", 0)
+    in_search = await get_stat("searching_count", 0)
+    ai_sessions = await get_stat("ai_sessions_count", 0)
+    await message.answer(
+        f"📊 Статистика MatchMe:\n\n"
+        f"👥 Всего: {total}\n"
+        f"🟢 За 24ч: {today}\n"
+        f"⭐ Premium: {premiums}\n"
+        f"💬 В чатах: {online_now} пар\n"
+        f"🤖 С ИИ: {ai_sessions}\n"
+        f"🔍 В поиске: {in_search}\n"
+        f"🚫 Забанено: {banned}\n"
+        f"🚩 Жалоб: {total_complaints} (⏳{pending})"
+    )
+
+
+@router.message(F.text == "📈 Retention")
+async def btn_retention(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    async with _db.db_pool.acquire() as conn:
+        total = await conn.fetchval("SELECT COUNT(*) FROM users") or 0
+        new_today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE") or 0
+        new_week = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days'") or 0
+        d1 = await conn.fetchval(
+            "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 1 AND last_seen::date >= CURRENT_DATE"
+        ) or 0
+        d1_base = await conn.fetchval(
+            "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 1"
+        ) or 1
+        d7 = await conn.fetchval(
+            "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 7 AND last_seen > NOW() - INTERVAL '24 hours'"
+        ) or 0
+        d7_base = await conn.fetchval(
+            "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 7"
+        ) or 1
+        d30 = await conn.fetchval(
+            "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 30 AND last_seen > NOW() - INTERVAL '7 days'"
+        ) or 0
+        d30_base = await conn.fetchval(
+            "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 30"
+        ) or 1
+        premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL") or 0
+        avg_chats = await conn.fetchval("SELECT ROUND(AVG(total_chats)::numeric, 1) FROM users WHERE total_chats > 0") or 0
+    prem_pct = round(premiums / max(total, 1) * 100, 1)
+    await message.answer(
+        f"📈 Retention MatchMe:\n\n"
+        f"📥 Новые сегодня: {new_today}\n"
+        f"📥 Новые за неделю: {new_week}\n\n"
+        f"📊 D1: {d1}/{d1_base} ({round(d1/max(d1_base,1)*100)}%)\n"
+        f"📊 D7: {d7}/{d7_base} ({round(d7/max(d7_base,1)*100)}%)\n"
+        f"📊 D30: {d30}/{d30_base} ({round(d30/max(d30_base,1)*100)}%)\n\n"
+        f"💎 Premium конверсия: {premiums}/{total} ({prem_pct}%)\n"
+        f"💬 Ср. чатов на юзера: {avg_chats}"
+    )
+
+
+@router.message(F.text == "👁 Онлайн")
+async def btn_online(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    online_now = await get_stat("online_pairs", 0)
+    ai_sessions = await get_stat("ai_sessions_count", 0)
+    in_search = await get_stat("searching_count", 0)
+    await message.answer(
+        f"👥 Онлайн:\n\n"
+        f"💬 В чатах: {online_now} пар\n"
+        f"🤖 С ИИ: {ai_sessions}\n"
+        f"🔍 В поиске: {in_search}"
+    )
+
+
+@router.message(F.text == "🤖 AI чаты")
+async def btn_ai_stats(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    ai_sessions = await get_stat("ai_sessions_count", 0)
+    async with _db.db_pool.acquire() as conn:
+        total_ai_msgs = await conn.fetchval("SELECT COUNT(*) FROM ai_history WHERE role='user'") or 0
+        unique_ai_users = await conn.fetchval("SELECT COUNT(DISTINCT uid) FROM ai_history") or 0
+        char_stats = await conn.fetch("""
+            SELECT character_id, COUNT(*) as msg_count, COUNT(DISTINCT uid) as user_count
+            FROM ai_history WHERE role = 'user'
+            GROUP BY character_id ORDER BY msg_count DESC
+        """)
+        char_stats_week = await conn.fetch("""
+            SELECT character_id, COUNT(*) as msg_count, COUNT(DISTINCT uid) as user_count
+            FROM ai_history WHERE role = 'user' AND created_at > NOW() - INTERVAL '7 days'
+            GROUP BY character_id ORDER BY msg_count DESC
+        """)
+    text = f"🤖 Аналитика AI-чатов\n\n"
+    text += f"Активных сессий: {ai_sessions}\n"
+    text += f"Всего сообщений: {total_ai_msgs}\nУник. пользователей: {unique_ai_users}\n\n"
+    if char_stats:
+        text += "📊 Популярность (всё время):\n"
+        for r in char_stats:
+            cid = r["character_id"]
+            char = AI_CHARACTERS.get(cid, {})
+            emoji = char.get("emoji", "")
+            name = cid.replace("_", " ").title()
+            text += f"  {emoji} {name}: {r['msg_count']} сообщ. / {r['user_count']} юзеров\n"
+    if char_stats_week:
+        text += f"\n📊 За 7 дней:\n"
+        for r in char_stats_week:
+            cid = r["character_id"]
+            char = AI_CHARACTERS.get(cid, {})
+            emoji = char.get("emoji", "")
+            name = cid.replace("_", " ").title()
+            text += f"  {emoji} {name}: {r['msg_count']} сообщ. / {r['user_count']} юзеров\n"
+    await message.answer(text)
+
+
+@router.message(F.text == "⭐ Оценки")
+async def btn_ratings(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    async with _db.db_pool.acquire() as conn:
+        total_ratings = await conn.fetchval("SELECT COUNT(*) FROM chat_ratings") or 0
+        avg_rating = await conn.fetchval("SELECT ROUND(AVG(stars)::numeric, 2) FROM chat_ratings") or 0
+        dist = await conn.fetch("SELECT stars, COUNT(*) as cnt FROM chat_ratings GROUP BY stars ORDER BY stars")
+        avg_week = await conn.fetchval(
+            "SELECT ROUND(AVG(stars)::numeric, 2) FROM chat_ratings WHERE created_at > NOW() - INTERVAL '7 days'"
+        ) or 0
+        total_week = await conn.fetchval(
+            "SELECT COUNT(*) FROM chat_ratings WHERE created_at > NOW() - INTERVAL '7 days'"
+        ) or 0
+    text = f"⭐ Оценки чатов\n\n"
+    text += f"Всего оценок: {total_ratings}\nСредняя: {avg_rating} ⭐\n"
+    text += f"За 7 дней: {total_week} оценок, ср. {avg_week} ⭐\n\n"
+    if dist:
+        text += "Распределение:\n"
+        for r in dist:
+            bar = "█" * r["cnt"] if r["cnt"] <= 20 else "█" * 20 + f"..{r['cnt']}"
+            text += f"  {'⭐' * r['stars']}: {r['cnt']} {bar}\n"
+    await message.answer(text)
+
+
+# ====================== LEGACY COMMANDS ======================
 @router.message(Command("admin"), StateFilter("*"))
 async def admin_panel(message: types.Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
-    await message.answer("🛡 Админ панель MatchMe", reply_markup=await kb_admin_main())
+    from admin_bot.keyboards import kb_main_menu
+    from locales import t
+    await message.answer(t("ru", "admin_main_menu"), reply_markup=kb_main_menu())
 
 
-@router.callback_query(F.data.startswith("admin:"), StateFilter("*"))
-async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
-    if callback.from_user.id != ADMIN_ID:
-        await callback.answer("Нет доступа", show_alert=True)
-        return
-    action = callback.data.split(":", 1)[1]
-
-    if action == "stats":
-        async with _db.db_pool.acquire() as conn:
-            total = await conn.fetchval("SELECT COUNT(*) FROM users")
-            today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '24 hours'")
-            banned = await conn.fetchval("SELECT COUNT(*) FROM users WHERE ban_until IS NOT NULL")
-            premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL")
-            total_complaints = await conn.fetchval("SELECT COUNT(*) FROM complaints_log")
-            pending = await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE")
-        online_now = await get_stat("online_pairs", 0)
-        in_search = await get_stat("searching_count", 0)
-        ai_sessions = await get_stat("ai_sessions_count", 0)
-        await callback.message.answer(
-            f"📊 Статистика MatchMe:\n\n"
-            f"👥 Всего: {total}\n"
-            f"🟢 За 24ч: {today}\n"
-            f"⭐ Premium: {premiums}\n"
-            f"💬 В чатах: {online_now} пар\n"
-            f"🤖 С ИИ: {ai_sessions}\n"
-            f"🔍 В поиске: {in_search}\n"
-            f"🚫 Забанено: {banned}\n"
-            f"🚩 Жалоб: {total_complaints} (⏳{pending})"
-        )
-
-    elif action == "retention":
-        async with _db.db_pool.acquire() as conn:
-            total = await conn.fetchval("SELECT COUNT(*) FROM users") or 0
-            new_today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE") or 0
-            new_week = await conn.fetchval("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days'") or 0
-            d1 = await conn.fetchval(
-                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 1 AND last_seen::date >= CURRENT_DATE"
-            ) or 0
-            d1_base = await conn.fetchval(
-                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 1"
-            ) or 1
-            d7 = await conn.fetchval(
-                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 7 AND last_seen > NOW() - INTERVAL '24 hours'"
-            ) or 0
-            d7_base = await conn.fetchval(
-                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 7"
-            ) or 1
-            d30 = await conn.fetchval(
-                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 30 AND last_seen > NOW() - INTERVAL '7 days'"
-            ) or 0
-            d30_base = await conn.fetchval(
-                "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 30"
-            ) or 1
-            premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL") or 0
-            avg_chats = await conn.fetchval("SELECT ROUND(AVG(total_chats)::numeric, 1) FROM users WHERE total_chats > 0") or 0
-        prem_pct = round(premiums / max(total, 1) * 100, 1)
-        await callback.message.answer(
-            f"📈 Retention MatchMe:\n\n"
-            f"📥 Новые сегодня: {new_today}\n"
-            f"📥 Новые за неделю: {new_week}\n\n"
-            f"📊 D1: {d1}/{d1_base} ({round(d1/max(d1_base,1)*100)}%)\n"
-            f"📊 D7: {d7}/{d7_base} ({round(d7/max(d7_base,1)*100)}%)\n"
-            f"📊 D30: {d30}/{d30_base} ({round(d30/max(d30_base,1)*100)}%)\n\n"
-            f"💎 Premium конверсия: {premiums}/{total} ({prem_pct}%)\n"
-            f"💬 Ср. чатов на юзера: {avg_chats}"
-        )
-
-    elif action == "complaints":
-        # Delegate to moderation router
-        from admin_bot.moderation.router import show_complaints
-        await show_complaints(callback)
-
-    elif action == "online":
-        online_now = await get_stat("online_pairs", 0)
-        ai_sessions = await get_stat("ai_sessions_count", 0)
-        in_search = await get_stat("searching_count", 0)
-        await callback.message.answer(
-            f"👥 Онлайн:\n\n"
-            f"💬 В чатах: {online_now} пар\n"
-            f"🤖 С ИИ: {ai_sessions}\n"
-            f"🔍 В поиске: {in_search}"
-        )
-
-    elif action == "find":
-        await state.set_state(AdminState.waiting_user_id)
-        await callback.message.answer("🔍 Введи Telegram ID:")
-
-    elif action == "char_media":
-        from admin_bot.admin.media import show_char_media_list
-        await show_char_media_list(callback)
-
-    elif action == "notify_update":
-        await callback.message.answer(
-            "Через сколько минут?",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="1 мин", callback_data="upd:1"),
-                 InlineKeyboardButton(text="2 мин", callback_data="upd:2")],
-                [InlineKeyboardButton(text="5 мин", callback_data="upd:5"),
-                 InlineKeyboardButton(text="🔴 Сейчас", callback_data="upd:0")],
-            ])
-        )
-
-    elif action == "audit":
-        from admin_bot.moderation.audit import show_audit_log
-        await show_audit_log(callback)
-
-    elif action == "marketing":
-        from admin_bot.admin.marketing import show_marketing_menu
-        await show_marketing_menu(callback)
-
-    elif action == "support":
-        from admin_bot.support.router import show_admin_tickets
-        await show_admin_tickets(callback)
-
-    elif action == "back":
-        await callback.message.edit_text("🛡 Админ панель MatchMe", reply_markup=await kb_admin_main())
-
-    await callback.answer()
-
-
+# ====================== INLINE CALLBACKS ======================
 @router.callback_query(F.data.startswith("upd:"), StateFilter("*"))
 async def handle_update_notify(callback: types.CallbackQuery):
     if callback.from_user.id != ADMIN_ID:
         await callback.answer("Нет доступа", show_alert=True)
         return
     minutes = int(callback.data.split(":")[1])
-    # Notify active users via main_bot
     from admin_bot.main import main_bot
     from locales import t
     sent = 0

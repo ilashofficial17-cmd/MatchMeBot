@@ -100,6 +100,26 @@ async def show_audit_log(callback: types.CallbackQuery, offset: int = 0):
         await callback.message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
 
+async def show_audit_log_msg(message: types.Message, offset: int = 0):
+    """Показать аудит-лог (вызывается из reply-кнопки)."""
+    total = await get_audit_total()
+    entries = await get_audit_log(limit=10, offset=offset)
+    if not entries:
+        await message.answer("📋 Аудит-лог пуст.")
+    else:
+        text = f"📋 Аудит-лог ({total} решений):\n\n"
+        text += "\n\n".join(format_audit_entry(e) for e in entries)
+        buttons = []
+        for e in entries:
+            buttons.append([InlineKeyboardButton(
+                text=f"#{e['id']} — подробнее",
+                callback_data=f"audit:detail:{e['id']}"
+            )])
+        if offset + 10 < total:
+            buttons.append([InlineKeyboardButton(text="➡️ Ещё", callback_data=f"audit:page:{offset+10}")])
+        await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+
+
 @router.callback_query(F.data.startswith("audit:"), StateFilter("*"))
 async def audit_handler(callback: types.CallbackQuery):
     if callback.from_user.id != ADMIN_ID:

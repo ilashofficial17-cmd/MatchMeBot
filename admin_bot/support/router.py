@@ -1,6 +1,6 @@
 """
 Admin Bot — саппорт-система: баг-репорты и обжалования банов.
-Для юзеров (не-админов) при /start + для админа (admin:support).
+Reply keyboard навигация для юзеров. Inline только для админ-действий.
 """
 
 import logging
@@ -9,10 +9,11 @@ from aiogram import Router, types, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from admin_bot.config import ADMIN_ID, BOT_USERNAME, CHANNEL_ID
 import admin_bot.db as _db
+from admin_bot.keyboards import kb_support_user
 from locales import t
 
 logger = logging.getLogger("admin-bot")
@@ -26,14 +27,76 @@ class SupportState(StatesGroup):
     waiting_admin_reply = State()
 
 
-def kb_support(lang="ru"):
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "support_bug_btn"), callback_data="support:bug")],
-        [InlineKeyboardButton(text=t(lang, "support_appeal_btn"), callback_data="support:ban_appeal")],
-    ])
+# ====================== USER REPLY BUTTONS ======================
+@router.message(F.text.in_({
+    t("ru", "support_bug_btn"),
+    t("en", "support_bug_btn"),
+    t("es", "support_bug_btn"),
+}))
+async def btn_bug_report(message: types.Message, state: FSMContext):
+    uid = message.from_user.id
+    if uid == ADMIN_ID:
+        return
+    lang = await _get_user_lang(uid)
+    await state.set_state(SupportState.waiting_bug_text)
+    await message.answer(t(lang, "support_describe_bug"))
 
 
-# ====================== SUPPORT CALLBACKS ======================
+@router.message(F.text.in_({
+    t("ru", "support_appeal_btn"),
+    t("en", "support_appeal_btn"),
+    t("es", "support_appeal_btn"),
+}))
+async def btn_ban_appeal(message: types.Message, state: FSMContext):
+    uid = message.from_user.id
+    if uid == ADMIN_ID:
+        return
+    lang = await _get_user_lang(uid)
+    async with _db.db_pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT ban_until FROM users WHERE uid=$1", uid)
+    if not row or not row["ban_until"]:
+        await message.answer(t(lang, "support_not_banned"))
+    else:
+        await state.set_state(SupportState.waiting_appeal_text)
+        await message.answer(t(lang, "support_describe_appeal"))
+
+
+@router.message(F.text.in_({
+    t("ru", "support_my_tickets_btn"),
+    t("en", "support_my_tickets_btn"),
+    t("es", "support_my_tickets_btn"),
+}))
+async def btn_my_tickets(message: types.Message):
+    uid = message.from_user.id
+    if uid == ADMIN_ID:
+        return
+    lang = await _get_user_lang(uid)
+    async with _db.db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT id, type, status, message, created_at, admin_reply "
+            "FROM support_tickets WHERE uid=$1 ORDER BY created_at DESC LIMIT 10",
+            uid,
+        )
+    if not rows:
+        await message.answer(t(lang, "support_no_tickets"), reply_markup=kb_support_user(lang))
+        return
+    text = ""
+    for r in rows:
+        icon = "🐛" if r["type"] == "bug" else "🔓"
+        status_icon = "✅" if r["status"] == "resolved" else "❌" if r["status"] == "rejected" else "⏳"
+        date = r["created_at"].strftime("%d.%m %H:%M")
+        preview = r["message"][:40].replace("\n", " ")
+        text += f"{icon} #{r['id']} {status_icon} — {preview}...\n   🕐 {date}\n"
+        if r.get("admin_reply"):
+            text += f"   💬 {r['admin_reply'][:50]}...\n"
+        text += "\n"
+    await message.answer(
+        t(lang, "support_ticket_list") + "\n\n" + text,
+        reply_markup=kb_support_user(lang),
+    )
+
+
+# ====================== LEGACY SUPPORT CALLBACKS (backward compat) ======================
 @router.callback_query(F.data.startswith("support:"), StateFilter("*"))
 async def support_callback(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
@@ -46,7 +109,6 @@ async def support_callback(callback: types.CallbackQuery, state: FSMContext):
 
     elif action == "ban_appeal":
         lang = await _get_user_lang(uid)
-        # Check if user is banned
         async with _db.db_pool.acquire() as conn:
             row = await conn.fetchrow("SELECT ban_until FROM users WHERE uid=$1", uid)
         if not row or not row["ban_until"]:
@@ -58,6 +120,7 @@ async def support_callback(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+# ====================== FSM: получение текста ======================
 @router.message(StateFilter(SupportState.waiting_bug_text))
 async def receive_bug_report(message: types.Message, state: FSMContext):
     uid = message.from_user.id
@@ -76,9 +139,8 @@ async def receive_bug_report(message: types.Message, state: FSMContext):
             uid, username, text[:2000],
         )
     ticket_id = row["id"]
-    await message.answer(t(lang, "support_ticket_created", id=ticket_id))
+    await message.answer(t(lang, "support_ticket_created", id=ticket_id), reply_markup=kb_support_user(lang))
 
-    # Notify admin
     from admin_bot.main import admin_bot
     try:
         await admin_bot.send_message(
@@ -107,7 +169,7 @@ async def receive_ban_appeal(message: types.Message, state: FSMContext):
             uid, username, text[:2000],
         )
     ticket_id = row["id"]
-    await message.answer(t(lang, "support_appeal_created", id=ticket_id))
+    await message.answer(t(lang, "support_appeal_created", id=ticket_id), reply_markup=kb_support_user(lang))
 
     from admin_bot.main import admin_bot
     try:
@@ -121,7 +183,7 @@ async def receive_ban_appeal(message: types.Message, state: FSMContext):
 
 # ====================== ADMIN SUPPORT VIEW ======================
 async def show_admin_tickets(callback: types.CallbackQuery):
-    """Список открытых тикетов (вызывается из admin:support)."""
+    """Список открытых тикетов (вызывается из admin:support callback)."""
     async with _db.db_pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id, uid, username, type, message, created_at "
@@ -143,8 +205,33 @@ async def show_admin_tickets(callback: types.CallbackQuery):
             text=f"#{r['id']} {icon} @{username}",
             callback_data=f"spt:view:{r['id']}"
         )])
-    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")])
     await callback.message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+
+
+async def show_admin_tickets_msg(message: types.Message):
+    """Список открытых тикетов (вызывается из reply-кнопки)."""
+    async with _db.db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT id, uid, username, type, message, created_at "
+            "FROM support_tickets WHERE status='open' ORDER BY created_at ASC LIMIT 20"
+        )
+    count = len(rows)
+    if not rows:
+        await message.answer("📩 Саппорт: нет открытых тикетов.")
+        return
+
+    text = f"📩 Саппорт ({count} открытых)\n\n"
+    buttons = []
+    for r in rows:
+        icon = "🐛" if r["type"] == "bug" else "🔓"
+        username = r["username"] or str(r["uid"])
+        preview = r["message"][:30].replace("\n", " ")
+        text += f"#{r['id']} {icon} @{username} — {preview}...\n"
+        buttons.append([InlineKeyboardButton(
+            text=f"#{r['id']} {icon} @{username}",
+            callback_data=f"spt:view:{r['id']}"
+        )])
+    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
 
 @router.callback_query(F.data.startswith("spt:"), StateFilter("*"))
@@ -235,12 +322,6 @@ async def support_admin_action(callback: types.CallbackQuery, state: FSMContext)
                 pass
 
     await callback.answer()
-
-
-@router.message(StateFilter("AdminState:waiting_support_reply"))
-async def receive_admin_reply_fallback(message: types.Message, state: FSMContext):
-    """Fallback — обрабатывается через AdminState в admin/router."""
-    pass
 
 
 async def handle_support_reply(message: types.Message, state: FSMContext):

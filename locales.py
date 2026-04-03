@@ -814,6 +814,15 @@ TEXTS = {
         "support_rejected": "Тикет #{id} рассмотрен.",
         "support_reply": "💬 Ответ по тикету #{id}:\n{text}",
         "support_unbanned": "🔓 Ты разбанен! Можешь снова пользоваться ботом.",
+        "support_my_tickets_btn": "📋 Мои тикеты",
+        "support_no_tickets": "У тебя пока нет тикетов.",
+        "support_ticket_list": "📋 Твои тикеты:",
+        # Admin navigation
+        "admin_main_menu": "🛡 Панель управления MatchMe",
+        "admin_section_admin": "🛡 Админка — выбери действие:",
+        "admin_section_channel": "📢 Канал — управление контентом:",
+        "admin_section_analytics": "📊 Аналитика — выбери раздел:",
+        "admin_section_marketing": "🎯 Маркетинг — выбери раздел:",
     },
 
     "en": {
@@ -1639,6 +1648,15 @@ TEXTS = {
         "support_rejected": "Ticket #{id} reviewed.",
         "support_reply": "💬 Reply to ticket #{id}:\n{text}",
         "support_unbanned": "🔓 You're unbanned! You can use the bot again.",
+        "support_my_tickets_btn": "📋 My tickets",
+        "support_no_tickets": "You don't have any tickets yet.",
+        "support_ticket_list": "📋 Your tickets:",
+        # Admin navigation
+        "admin_main_menu": "🛡 MatchMe Control Panel",
+        "admin_section_admin": "🛡 Admin — choose an action:",
+        "admin_section_channel": "📢 Channel — content management:",
+        "admin_section_analytics": "📊 Analytics — choose a section:",
+        "admin_section_marketing": "🎯 Marketing — choose a section:",
     },
 
     "es": {
@@ -2451,6 +2469,15 @@ TEXTS = {
         "support_rejected": "Ticket #{id} revisado.",
         "support_reply": "💬 Respuesta al ticket #{id}:\n{text}",
         "support_unbanned": "🔓 ¡Estás desbaneado! Puedes usar el bot de nuevo.",
+        "support_my_tickets_btn": "📋 Mis tickets",
+        "support_no_tickets": "Aún no tienes tickets.",
+        "support_ticket_list": "📋 Tus tickets:",
+        # Admin navigation
+        "admin_main_menu": "🛡 Panel de control MatchMe",
+        "admin_section_admin": "🛡 Admin — elige una acción:",
+        "admin_section_channel": "📢 Canal — gestión de contenido:",
+        "admin_section_analytics": "📊 Analítica — elige una sección:",
+        "admin_section_marketing": "🎯 Marketing — elige una sección:",
     },
 }
 
