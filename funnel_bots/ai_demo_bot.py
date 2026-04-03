@@ -8,6 +8,7 @@ import asyncio
 import logging
 import aiohttp
 
+import asyncpg
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -17,6 +18,7 @@ logger = logging.getLogger("ai-demo-bot")
 
 TOKEN = os.environ["FUNNEL_AI_TOKEN_RU"]
 OPEN_ROUTER_KEY = os.environ["OPEN_ROUTER"]
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 MODEL = "nousresearch/hermes-3-llama-3.1-70b"
 MAX_TOKENS = 120
@@ -61,9 +63,27 @@ KB_MAIN_BOT = InlineKeyboardMarkup(inline_keyboard=[
 
 # In-memory: {user_id: {"count": int, "history": [{"role", "content"}]}}
 users: dict = {}
+mia_gif_file_id: str | None = None
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
+
+
+async def load_mia_gif():
+    """Загрузить gif_file_id Мии из ai_character_media."""
+    global mia_gif_file_id
+    if not DATABASE_URL:
+        return
+    try:
+        conn = await asyncpg.connect(DATABASE_URL, timeout=10)
+        try:
+            mia_gif_file_id = await conn.fetchval(
+                "SELECT gif_file_id FROM ai_character_media WHERE character_id='mia'"
+            )
+        finally:
+            await conn.close()
+    except Exception as e:
+        logger.error(f"Failed to load Mia GIF: {e}")
 
 
 async def ask_openrouter(history: list[dict]) -> str:
@@ -105,6 +125,11 @@ async def cmd_start(message: types.Message):
         await message.answer(BLOCK_TEXT, reply_markup=KB_MAIN_BOT)
         return
 
+    if mia_gif_file_id:
+        try:
+            await bot.send_animation(uid, mia_gif_file_id)
+        except Exception:
+            pass
     await message.answer(WELCOME_TEXT)
 
 
@@ -145,7 +170,8 @@ async def handle_message(message: types.Message):
 
 
 async def main():
-    logger.info("AI Demo Bot (Мия) запущен!")
+    await load_mia_gif()
+    logger.info(f"AI Demo Bot (Мия) запущен! GIF: {'есть' if mia_gif_file_id else 'нет'}")
     await dp.start_polling(bot)
 
 
