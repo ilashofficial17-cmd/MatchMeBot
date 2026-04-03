@@ -4,6 +4,7 @@
 """
 
 import os
+import asyncio
 import aiohttp
 import logging
 
@@ -11,6 +12,19 @@ logger = logging.getLogger("matchme.ai_utils")
 
 OPEN_ROUTER_KEY = os.environ.get("OPEN_ROUTER")
 OPEN_ROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+# Semaphore: макс 10 одновременных запросов к API
+_api_semaphore = asyncio.Semaphore(10)
+
+# Singleton aiohttp session (переиспользуем TCP-соединения)
+_http_session: aiohttp.ClientSession | None = None
+
+
+async def _get_session() -> aiohttp.ClientSession:
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        _http_session = aiohttp.ClientSession()
+    return _http_session
 
 
 async def get_ai_answer(
@@ -48,7 +62,8 @@ async def get_ai_answer(
         ],
     }
     try:
-        async with aiohttp.ClientSession() as session:
+        async with _api_semaphore:
+            session = await _get_session()
             async with session.post(
                 OPEN_ROUTER_URL,
                 json=payload,
@@ -104,7 +119,8 @@ async def get_ai_chat_response(
     if temperature is not None:
         payload["temperature"] = temperature
     try:
-        async with aiohttp.ClientSession() as session:
+        async with _api_semaphore:
+            session = await _get_session()
             async with session.post(
                 OPEN_ROUTER_URL,
                 json=payload,
@@ -150,7 +166,8 @@ async def describe_image(image_base64: str, lang: str = "ru") -> str | None:
         ],
     }
     try:
-        async with aiohttp.ClientSession() as session:
+        async with _api_semaphore:
+            session = await _get_session()
             async with session.post(
                 OPEN_ROUTER_URL,
                 json=payload,
@@ -203,7 +220,8 @@ async def transcribe_voice(audio_base64: str, lang: str = "ru") -> str | None:
         }],
     }
     try:
-        async with aiohttp.ClientSession() as session:
+        async with _api_semaphore:
+            session = await _get_session()
             async with session.post(
                 OPEN_ROUTER_URL,
                 json=payload,
