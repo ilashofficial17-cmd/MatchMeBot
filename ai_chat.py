@@ -625,10 +625,6 @@ async def _show_ai_menu(message: types.Message, state: FSMContext, uid: int):
     if reset_time and (datetime.now() - reset_time).total_seconds() > 86400:
         energy_used = 0
     energy_left = max(max_energy - energy_used, 0)
-    # Smart recommendation
-    rec_text = await _get_ai_recommendations(uid, lang, mode)
-    if rec_text:
-        await message.answer(rec_text)
     await state.set_state(AIChat.choosing)
     await state.update_data(ai_show_mode=mode)
     await message.answer(
