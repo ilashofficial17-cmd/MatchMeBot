@@ -25,12 +25,14 @@ def setup(bot, get_user, update_user, get_lang):
     _get_lang = get_lang
 
 
-def _energy_bar(left: int, total: int) -> str:
+def _energy_bar(left: int, total: int, bonus: int = 0) -> str:
     """Visual energy bar."""
-    pct = left / total if total > 0 else 0
+    effective = total + bonus
+    pct = left / effective if effective > 0 else 0
     filled = round(pct * 10)
     bar = "▰" * filled + "▱" * (10 - filled)
-    return bar
+    bonus_hint = f"  (+{bonus})" if bonus > 0 else ""
+    return bar + bonus_hint
 
 
 @router.callback_query(F.data == "energy_shop", StateFilter("*"))
@@ -54,8 +56,10 @@ async def energy_shop_show(callback: types.CallbackQuery):
     reset_time = u.get("ai_messages_reset") if u else None
     if reset_time and (datetime.now() - reset_time).total_seconds() > 86400:
         energy_used = 0
-    energy_left = max(max_energy - energy_used, 0)
-    bar = _energy_bar(energy_left, max_energy)
+    bonus = u.get("bonus_energy", 0) if u else 0
+    effective_max = max_energy + bonus
+    energy_left = max(effective_max - energy_used, 0)
+    bar = _energy_bar(energy_left, effective_max)
     # Calculate reset time remaining
     if reset_time:
         elapsed = (datetime.now() - reset_time).total_seconds()
@@ -66,7 +70,7 @@ async def energy_shop_show(callback: types.CallbackQuery):
         hrs, mins = 24, 0
     await callback.message.answer(
         t(lang, "energy_shop_title",
-          left=energy_left, max=max_energy, bar=bar,
+          left=energy_left, max=effective_max, bar=bar,
           hours=hrs, mins=mins),
         reply_markup=kb_energy_shop(lang),
         parse_mode="HTML",

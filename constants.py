@@ -50,6 +50,8 @@ LEVEL_NAMES = {
 }
 STREAK_BONUSES = {3: 5, 7: 10, 14: 15, 30: 20}
 
+MAX_BONUS_ENERGY = 500
+
 # ====================== ACHIEVEMENTS ======================
 # Каждая ачивка: field — поле users для проверки, threshold — порог, energy — бонус
 ACHIEVEMENTS = {

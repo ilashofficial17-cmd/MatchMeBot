@@ -172,15 +172,15 @@ async def check_achievements(uid):
                     "VALUES ($1, $2, TRUE) ON CONFLICT DO NOTHING",
                     uid, ach_id
                 )
-                # Начисляем энергию (уменьшаем ai_energy_used)
-                energy_used = u.get("ai_energy_used", 0) or 0
-                new_energy = max(energy_used - ach["energy"], 0)
+                # Начисляем энергию в bonus_energy (персистентный баланс)
+                from constants import MAX_BONUS_ENERGY
+                current_bonus = u.get("bonus_energy", 0) or 0
+                new_bonus = min(current_bonus + ach["energy"], MAX_BONUS_ENERGY)
                 await conn.execute(
-                    "UPDATE users SET ai_energy_used=$2 WHERE uid=$1",
-                    uid, new_energy
+                    "UPDATE users SET bonus_energy=$2 WHERE uid=$1",
+                    uid, new_bonus
                 )
-                # Обновляем локальную копию для корректного расчёта следующих ачивок
-                u["ai_energy_used"] = new_energy
+                u["bonus_energy"] = new_bonus
                 new_achievements.append(ach_id)
     return new_achievements
 
@@ -247,10 +247,14 @@ async def increment_quest(uid, quest_type):
                 "WHERE uid=$1 AND quest_date=$2 AND quest_id=$3",
                 uid, today, target_id
             )
-            # Начисляем энергию
+            # Начисляем энергию в bonus_energy
+            from constants import MAX_BONUS_ENERGY
+            u_bonus = await conn.fetchrow("SELECT bonus_energy FROM users WHERE uid=$1", uid)
+            cur_bonus = (u_bonus["bonus_energy"] if u_bonus else 0) or 0
+            new_bonus = min(cur_bonus + row["reward"], MAX_BONUS_ENERGY)
             await conn.execute(
-                "UPDATE users SET ai_energy_used = GREATEST(ai_energy_used - $2, 0) WHERE uid=$1",
-                uid, row["reward"]
+                "UPDATE users SET bonus_energy=$2 WHERE uid=$1",
+                uid, new_bonus
             )
             claimed_ids.append(row["quest_id"])
             # Проверяем: все 3 квеста выполнены? Бонус
@@ -263,10 +267,13 @@ async def increment_quest(uid, quest_type):
                 # Проверяем что daily_bonus ещё не начислен
                 u = await conn.fetchrow("SELECT daily_bonus_claimed FROM users WHERE uid=$1", uid)
                 if u and not u["daily_bonus_claimed"]:
+                    u_b = await conn.fetchrow("SELECT bonus_energy FROM users WHERE uid=$1", uid)
+                    cur_b = (u_b["bonus_energy"] if u_b else 0) or 0
+                    new_b = min(cur_b + QUEST_ALL_DONE_BONUS, MAX_BONUS_ENERGY)
                     await conn.execute(
-                        "UPDATE users SET ai_energy_used = GREATEST(ai_energy_used - $2, 0), "
+                        "UPDATE users SET bonus_energy=$2, "
                         "daily_bonus_claimed = TRUE WHERE uid=$1",
-                        uid, QUEST_ALL_DONE_BONUS
+                        uid, new_b
                     )
                     claimed_ids.append("all_done")
     return claimed_ids

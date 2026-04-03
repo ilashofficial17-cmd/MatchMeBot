@@ -151,11 +151,13 @@ def get_energy_info(char_tier: str, user_tier, ai_bonus: int = 0) -> tuple:
     return cost, max_energy
 
 
-def _energy_bar(used: int, max_e: int) -> str:
-    current = max(max_e - used, 0)
-    filled = round((current / max_e) * 8) if max_e > 0 else 0
+def _energy_bar(used: int, max_e: int, bonus: int = 0) -> str:
+    effective_max = max_e + bonus
+    current = max(effective_max - used, 0)
+    filled = round((current / effective_max) * 8) if effective_max > 0 else 0
     bar = "▓" * filled + "░" * (8 - filled)
-    return f"⚡ {current}/{max_e}  {bar}"
+    bonus_hint = f"  (+{bonus} bonus)" if bonus > 0 else ""
+    return f"⚡ {current}/{effective_max}  {bar}{bonus_hint}"
 
 
 def _user_context(user: dict, lang: str) -> str:
@@ -620,13 +622,13 @@ async def _show_ai_menu(message: types.Message, state: FSMContext, uid: int):
     mode = u.get("mode", "simple") if u else "simple"
     ai_bonus = u.get("ai_bonus", 0) if u else 0
     _, max_energy = get_energy_info("basic", user_tier, ai_bonus)
+    bonus = u.get("bonus_energy", 0) if u else 0
+    effective_max = max_energy + bonus
     energy_used = u.get("ai_energy_used", 0) if u else 0
     reset_time = u.get("ai_messages_reset") if u else None
     if reset_time and (datetime.now() - reset_time).total_seconds() > 86400:
         energy_used = 0
-    energy_left = max(max_energy - energy_used, 0)
-    # Smart recommendation
-    rec_text = await _get_ai_recommendations(uid, lang, mode)
+    energy_left = max(effective_max - energy_used, 0)
     if rec_text:
         await message.answer(rec_text)
     await state.set_state(AIChat.choosing)
@@ -906,12 +908,19 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     u = await _get_user(uid)
     ai_bonus = u.get("ai_bonus", 0) if u else 0
     cost, max_energy = get_energy_info(char_tier, user_tier, ai_bonus)
+    bonus = u.get("bonus_energy", 0) if u else 0
     energy_used = u.get("ai_energy_used", 0) if u else 0
     reset_time = u.get("ai_messages_reset") if u else None
     if reset_time and (datetime.now() - reset_time).total_seconds() > 86400:
-        await _update_user(uid, ai_energy_used=0, ai_messages_reset=datetime.now(), rate_energy_today=0)
+        # При ресете: если потрачена часть бонуса — уменьшить bonus_energy
+        if energy_used > max_energy:
+            bonus_spent = energy_used - max_energy
+            bonus = max(0, bonus - bonus_spent)
+        await _update_user(uid, ai_energy_used=0, bonus_energy=bonus,
+                           ai_messages_reset=datetime.now(), rate_energy_today=0)
         energy_used = 0
-    if energy_used + cost > max_energy:
+    effective_max = max_energy + bonus
+    if energy_used + cost > effective_max:
         if reset_time:
             elapsed = (datetime.now() - reset_time).total_seconds()
             remaining_secs = max(0, 86400 - elapsed)
@@ -963,7 +972,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
                 else:
                     await message.answer(t(lang, "quest_claimed", quest=qid))
     except Exception: pass
-    energy_left = max(max_energy - new_energy, 0)
+    energy_left = max(effective_max - new_energy, 0)
     low_warning = f"\n\n{t(lang, 'ai_energy_low')}" if 0 < energy_left <= 5 else ""
     await message.answer(f"{response}{low_warning}")
     # Проверяем ачивки после AI-сообщения
