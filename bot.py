@@ -845,7 +845,6 @@ async def set_commands():
         BotCommand(command="energy", description="Магазин энергии"),
         BotCommand(command="quests", description="Задания"),
         BotCommand(command="help", description="Помощь"),
-        BotCommand(command="admin", description="Админ панель"),
         BotCommand(command="referral", description="Пригласи друга"),
     ])
     # English commands
@@ -863,7 +862,6 @@ async def set_commands():
         BotCommand(command="energy", description="Energy shop"),
         BotCommand(command="quests", description="Quests"),
         BotCommand(command="help", description="Help"),
-        BotCommand(command="admin", description="Admin panel"),
         BotCommand(command="referral", description="Invite a friend"),
     ], language_code="en")
     # Spanish commands
@@ -881,7 +879,6 @@ async def set_commands():
         BotCommand(command="energy", description="Tienda de energía"),
         BotCommand(command="quests", description="Misiones"),
         BotCommand(command="help", description="Ayuda"),
-        BotCommand(command="admin", description="Panel de admin"),
         BotCommand(command="referral", description="Invitar amigo"),
     ], language_code="es")
 
@@ -3104,11 +3101,10 @@ async def main():
     )
     dp.include_router(ai_chat.router)
     dp.include_router(energy_shop_module.router)
-    dp.include_router(admin_module.router)
+    # admin_module.router перенесён в admin_bot/ — НЕ подключаем здесь
+    # tasks (reminder, winback, streak) перенесены в admin_bot/tasks/ — НЕ запускаем здесь
+    # inactivity_checker остаётся — требует in-memory state (active_chats, queues)
     asyncio.create_task(admin_module.inactivity_checker())
-    asyncio.create_task(admin_module.reminder_task())
-    asyncio.create_task(admin_module.winback_task())
-    asyncio.create_task(admin_module.streak_and_ai_push_task())
     logger.info("MatchMe запущен!")
     await dp.start_polling(bot)
 
