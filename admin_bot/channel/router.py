@@ -13,7 +13,10 @@ from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
 )
 
-from admin_bot.config import ADMIN_ID, ANTHROPIC_API_KEY, VENICE_API_KEY, CHANNEL_ID, BOT_USERNAME
+from admin_bot.config import (
+    ADMIN_ID, ANTHROPIC_API_KEY, VENICE_API_KEY, CHANNEL_ID, BOT_USERNAME,
+    OPEN_ROUTER_KEY, OPEN_ROUTER_URL, CHANNEL_AI_MODEL,
+)
 import admin_bot.db as _db
 from admin_bot.db import get_stat, set_stat
 from admin_bot.channel.content import CHANNEL_GENERATORS, generate_poll
@@ -154,28 +157,28 @@ async def check_api_status(message: types.Message):
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                "https://api.anthropic.com/v1/messages",
+                OPEN_ROUTER_URL,
                 headers={
-                    "x-api-key": ANTHROPIC_API_KEY or "",
-                    "anthropic-version": "2023-06-01",
+                    "Authorization": f"Bearer {OPEN_ROUTER_KEY or ''}",
                     "Content-Type": "application/json",
+                    "HTTP-Referer": "https://t.me/MatchMeBot",
                 },
-                json={"model": "claude-haiku-4-5-20251001", "max_tokens": 10,
+                json={"model": CHANNEL_AI_MODEL, "max_tokens": 10,
                       "messages": [{"role": "user", "content": "Hi"}]},
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 if resp.status == 200:
-                    results.append("🟢 Claude API — активен ✅")
+                    results.append(f"🟢 OpenRouter ({CHANNEL_AI_MODEL}) — активен ✅")
                 elif resp.status == 401:
-                    results.append("🔴 Claude API — неверный ключ ❌")
+                    results.append("🔴 OpenRouter — неверный ключ ❌")
                 elif resp.status == 402:
-                    results.append("🔴 Claude API — нет средств 💰")
+                    results.append("🔴 OpenRouter — нет средств 💰")
                 elif resp.status == 429:
-                    results.append("🟡 Claude API — лимит (но работает)")
+                    results.append("🟡 OpenRouter — лимит (но работает)")
                 else:
-                    results.append(f"🟡 Claude API — ошибка {resp.status}")
+                    results.append(f"🟡 OpenRouter — ошибка {resp.status}")
     except Exception as e:
-        results.append(f"🔴 Claude API — недоступен ({e})")
+        results.append(f"🔴 OpenRouter — недоступен ({e})")
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
