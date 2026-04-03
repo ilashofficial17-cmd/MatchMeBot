@@ -180,7 +180,7 @@ AI_CHARACTERS = {
     },
     "aurora": {
         "name_key": "char_aurora", "desc_key": "char_aurora_desc", "emoji": "✨",
-        "tier": "vip", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150, "temperature": 0.7,
+        "tier": "vip", "block": "simple", "model": "google/gemini-2.0-flash-001", "max_tokens": 150, "temperature": 0.7,
         "bio": {"ru": "Аврора, 28. Директор по маркетингу, объездила 18 стран. Элегантная, с сарказмом — читает людей как книги.", "en": "Aurora, 28. Marketing director, 18 countries. Elegant, sardonic — reads people like books.", "es": "Aurora, 28. Directora de marketing, 18 países. Elegante, con sarcasmo — lee a las personas como libros."},
         "system": {
             "ru": (
@@ -264,7 +264,7 @@ AI_CHARACTERS = {
     },
     "alex": {
         "name_key": "char_alex", "desc_key": "char_alex_desc", "emoji": "🔥",
-        "tier": "vip", "block": "simple", "model": "anthropic/claude-3-haiku", "max_tokens": 150, "temperature": 0.7,
+        "tier": "vip", "block": "simple", "model": "google/gemini-2.0-flash-001", "max_tokens": 150, "temperature": 0.7,
         "bio": {"ru": "Алекс, 26. Фрилансер, путешественник. Читает Камю, спорит о смысле жизни. Глубокий, харизматичный, немного опасный.", "en": "Alex, 26. Freelancer, traveller. Reads Camus, argues about life's meaning. Deep, charismatic, a little dangerous.", "es": "Alex, 26. Freelancer, viajero. Lee a Camus, discute sobre el sentido de la vida. Profundo, carismático, algo peligroso."},
         "system": {
             "ru": (
