@@ -2128,7 +2128,7 @@ async def reg_mode(message: types.Message, state: FSMContext):
     if mode == "kink":
         u = await get_user(uid)
         age = u.get("age", 0) if u else 0
-        if age < 18:
+        if age and age < 18:
             await message.answer(t(lang, "reg_kink_age"), reply_markup=kb_mode(lang))
             return
     await update_user(uid, mode=mode)
@@ -2640,7 +2640,10 @@ async def edit_profile_cb(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer(t(lang, "edit_mode_prompt"), reply_markup=kb_mode(lang))
     elif field == "interests":
         u = await get_user(uid)
-        mode = u.get("mode", "simple") if u else "simple"
+        mode = u.get("mode") if u else None
+        if not mode:
+            await callback.answer(t(lang, "edit_select_mode_first"), show_alert=True)
+            return
         await state.set_state(EditProfile.interests)
         await state.update_data(temp_interests=[], edit_mode=mode)
         await callback.message.answer(t(lang, "edit_interests_prompt"), reply_markup=kb_interests(mode, [], lang))
@@ -2710,7 +2713,7 @@ async def edit_mode(message: types.Message, state: FSMContext):
     if mode == "kink":
         u = await get_user(uid)
         age = u.get("age", 0) if u else 0
-        if age < 18:
+        if age and age < 18:
             await message.answer(t(lang, "reg_kink_age"), reply_markup=kb_mode(lang))
             return
     await update_user(uid, mode=mode, accept_cross_mode=False, interests="")
@@ -2882,7 +2885,7 @@ async def cmd_quests(message: types.Message, state: FSMContext):
             lines.append(f"  ✅ {name} ({progress}/{goal}) — +{reward}⚡")
         else:
             all_done = False
-            lines.append(f"  ⬜ {name} ({progress}/{goal}) — +{reward}⚡")
+            lines.append(f"  ▫️ {name} ({progress}/{goal}) — +{reward}⚡")
     if all_done:
         from constants import QUEST_ALL_DONE_BONUS
         lines.append(f"\n🎉 {t(lang, 'quest_all_done', bonus=QUEST_ALL_DONE_BONUS)}")
