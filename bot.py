@@ -152,10 +152,18 @@ async def init_db():
             ("return_gift_stage", "INTEGER DEFAULT 0"),
             ("return_gift_given", "TIMESTAMP DEFAULT NULL"),
             ("return_gifts_total", "INTEGER DEFAULT 0"),
+            ("bonus_energy", "INTEGER DEFAULT 0"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
             except Exception: pass
+        # Одноразовая миграция: перенести отрицательный ai_energy_used в bonus_energy
+        try:
+            await conn.execute("""
+                UPDATE users SET bonus_energy = ABS(ai_energy_used), ai_energy_used = 0
+                WHERE ai_energy_used < 0
+            """)
+        except Exception: pass
         # Migrate ai_character_media
         try:
             await conn.execute("ALTER TABLE ai_character_media ADD COLUMN IF NOT EXISTS hot_photo_file_id TEXT DEFAULT NULL")
@@ -1821,9 +1829,10 @@ async def successful_payment(message: types.Message):
             return
         lang = await get_lang(uid)
         u = await get_user(uid)
-        energy_used = u.get("ai_energy_used", 0) if u else 0
-        new_used = max(0, energy_used - pack["amount"])
-        await update_user(uid, ai_energy_used=new_used)
+        from constants import MAX_BONUS_ENERGY
+        bonus = u.get("bonus_energy", 0) if u else 0
+        new_bonus = min(bonus + pack["amount"], MAX_BONUS_ENERGY)
+        await update_user(uid, bonus_energy=new_bonus)
         await message.answer(t(lang, "energy_purchased", amount=pack["amount"]))
         return
 
@@ -2905,13 +2914,15 @@ async def cmd_energy_shop(message: types.Message, state: FSMContext):
     user_tier = await get_premium_tier(uid)
     ai_bonus = u.get("ai_bonus", 0) if u else 0
     _, max_energy = get_energy_info("basic", user_tier, ai_bonus)
+    bonus = u.get("bonus_energy", 0) if u else 0
+    effective_max = max_energy + bonus
     energy_used = u.get("ai_energy_used", 0) if u else 0
     from datetime import datetime as _dt
     reset_time = u.get("ai_messages_reset") if u else None
     if reset_time and (_dt.now() - reset_time).total_seconds() > 86400:
         energy_used = 0
-    energy_left = max(max_energy - energy_used, 0)
-    bar = _energy_bar(energy_left, max_energy)
+    energy_left = max(effective_max - energy_used, 0)
+    bar = _energy_bar(energy_left, effective_max)
     if reset_time:
         elapsed = (_dt.now() - reset_time).total_seconds()
         remaining = max(0, 86400 - elapsed)
@@ -2920,7 +2931,7 @@ async def cmd_energy_shop(message: types.Message, state: FSMContext):
     else:
         hrs, mins = 24, 0
     await message.answer(
-        t(lang, "energy_shop_title", left=energy_left, max=max_energy,
+        t(lang, "energy_shop_title", left=energy_left, max=effective_max,
           bar=bar, hours=hrs, mins=mins),
         reply_markup=kb_energy_shop(lang),
         parse_mode="HTML",
@@ -2974,9 +2985,10 @@ async def rate_chat(callback: types.CallbackQuery):
         u = await get_user(uid)
         rate_today = u.get("rate_energy_today", 0) if u else 0
         if rate_today < 5:
-            energy_used = u.get("ai_energy_used", 0) if u else 0
-            new_energy = max(energy_used - 2, 0)
-            await update_user(uid, ai_energy_used=new_energy, rate_energy_today=rate_today + 1)
+            from constants import MAX_BONUS_ENERGY
+            cur_bonus = u.get("bonus_energy", 0) if u else 0
+            new_bonus = min(cur_bonus + 2, MAX_BONUS_ENERGY)
+            await update_user(uid, bonus_energy=new_bonus, rate_energy_today=rate_today + 1)
             try:
                 await callback.message.edit_text(
                     t(lang, "rate_thanks", stars=stars) + "\n" + t(lang, "rate_energy_bonus"))

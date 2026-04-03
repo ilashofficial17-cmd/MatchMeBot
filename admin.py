@@ -1389,7 +1389,7 @@ async def winback_task():
             from constants import RETURN_GIFT_TIERS
             now_rg = datetime.now()
             inactive_users = await conn.fetch("""
-                SELECT uid, lang, last_seen, return_gift_stage, ai_energy_used, premium_until
+                SELECT uid, lang, last_seen, return_gift_stage, ai_energy_used, premium_until, bonus_energy
                 FROM users
                 WHERE last_seen < NOW() - INTERVAL '3 days'
                 AND ban_until IS NULL
@@ -1417,11 +1417,12 @@ async def winback_task():
                     if not chosen_tier:
                         continue
                     tier_cfg = RETURN_GIFT_TIERS[chosen_tier]
-                    # Начисляем энергию
-                    energy_used = row.get("ai_energy_used", 0) or 0
-                    new_energy = max(energy_used - tier_cfg["energy"], 0)
+                    # Начисляем энергию в bonus_energy
+                    from constants import MAX_BONUS_ENERGY
+                    cur_bonus = row.get("bonus_energy", 0) or 0
+                    new_bonus_val = min(cur_bonus + tier_cfg["energy"], MAX_BONUS_ENERGY)
                     updates = {
-                        "ai_energy_used": new_energy,
+                        "bonus_energy": new_bonus_val,
                         "return_gift_stage": chosen_tier,
                         "return_gift_given": now_rg,
                         "return_gifts_total": (row.get("return_gifts_total", 0) or 0) + 1,
