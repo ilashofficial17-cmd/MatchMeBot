@@ -18,6 +18,7 @@ _db_pool = None
 _admin_id = None
 
 # Жёсткий бан — ЦП и несовершеннолетние (keyword-based, без AI)
+# Начальные значения (fallback). При init() перезагружаются из БД (таблица stop_words).
 HARD_BAN_WORDS = [
     "мне 12", "мне 13", "мне 14", "мне 15",
     "школьница ищу", "школьник ищу", "порно за деньги",
@@ -25,6 +26,7 @@ HARD_BAN_WORDS = [
 ]
 
 # Подозрительные слова — триггер для AI-проверки (НЕ авто-бан)
+# Начальные значения (fallback). При init() перезагружаются из БД (таблица stop_words).
 SUSPECT_WORDS = [
     "предлагаю услуги", "оказываю услуги", "интим услуги",
     "escort", "эскорт", "проститутка",
@@ -79,6 +81,26 @@ def init(bot_instance, pool, admin_id):
     _bot = bot_instance
     _db_pool = pool
     _admin_id = admin_id
+
+
+async def load_stop_words():
+    """Загружает стоп-слова из БД (таблица stop_words). Вызвать после init()."""
+    global HARD_BAN_WORDS, SUSPECT_WORDS
+    if not _db_pool:
+        return
+    try:
+        async with _db_pool.acquire() as conn:
+            hard = await conn.fetch("SELECT word FROM stop_words WHERE type='hard_ban'")
+            suspect = await conn.fetch("SELECT word FROM stop_words WHERE type='suspect'")
+        if hard:
+            HARD_BAN_WORDS = [r["word"] for r in hard]
+        if suspect:
+            SUSPECT_WORDS = [r["word"] for r in suspect]
+        logging.getLogger("moderation").info(
+            f"Loaded stop words: {len(HARD_BAN_WORDS)} hard, {len(SUSPECT_WORDS)} suspect"
+        )
+    except Exception as e:
+        logging.getLogger("moderation").warning(f"Failed to load stop_words from DB: {e}")
 
 
 async def migrate_db():

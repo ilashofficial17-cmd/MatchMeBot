@@ -75,6 +75,39 @@ async def init_db():
             )
         """)
 
+        # Таблица стоп-слов (управление через админ-бота)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS stop_words (
+                id SERIAL PRIMARY KEY,
+                word TEXT NOT NULL UNIQUE,
+                type TEXT NOT NULL,
+                added_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        # Начальные стоп-слова (из moderation.py)
+        _initial_hard = [
+            "мне 12", "мне 13", "мне 14", "мне 15",
+            "школьница ищу", "школьник ищу", "порно за деньги",
+            "детское порно", "цп продаю", "малолетка",
+        ]
+        _initial_suspect = [
+            "предлагаю услуги", "оказываю услуги", "интим услуги",
+            "escort", "эскорт", "проститутка",
+            "вирт за деньги", "вирт платно", "за донат",
+            "подпишись на канал", "перейди по ссылке", "мой канал",
+            "казино", "ставки на спорт", "заработок в телеграм",
+            "крипта х10", "пассивный доход", "продаю фото", "продаю видео",
+            "продаю интим", "купи подписку", "пиши в лс за", "скидка на услуги",
+        ]
+        for w in _initial_hard:
+            await conn.execute(
+                "INSERT INTO stop_words (word, type) VALUES ($1, 'hard_ban') ON CONFLICT (word) DO NOTHING", w
+            )
+        for w in _initial_suspect:
+            await conn.execute(
+                "INSERT INTO stop_words (word, type) VALUES ($1, 'suspect') ON CONFLICT (word) DO NOTHING", w
+            )
+
 
 async def get_stat(key, default=0):
     """Читает значение из bot_stats."""

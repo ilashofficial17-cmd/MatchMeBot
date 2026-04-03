@@ -22,6 +22,8 @@ from admin_bot.admin.router import router as admin_router
 from admin_bot.admin.users import router as users_router
 from admin_bot.admin.media import router as media_router
 from admin_bot.admin.marketing import router as marketing_router
+from admin_bot.admin.stopwords import router as stopwords_router
+from admin_bot.admin.broadcast import router as broadcast_router
 from admin_bot.moderation.router import router as moderation_router
 from admin_bot.moderation.audit import router as audit_router
 from admin_bot.support.router import router as support_router
@@ -48,6 +50,8 @@ dp.include_router(admin_router)
 dp.include_router(users_router)
 dp.include_router(media_router)
 dp.include_router(marketing_router)
+dp.include_router(stopwords_router)
+dp.include_router(broadcast_router)
 dp.include_router(moderation_router)
 dp.include_router(audit_router)
 dp.include_router(support_router)

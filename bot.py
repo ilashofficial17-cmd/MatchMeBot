@@ -3046,6 +3046,7 @@ async def main():
     db.init(db_pool, ADMIN_ID)
     moderation.init(bot, db_pool, ADMIN_ID)
     await moderation.migrate_db()
+    await moderation.load_stop_words()
     await set_commands()
     ai_chat.init(
         bot=bot,

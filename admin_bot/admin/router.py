@@ -276,6 +276,79 @@ async def btn_ratings(message: types.Message):
     await message.answer(text)
 
 
+# ====================== СЕКЦИЯ: АДМИНКА — стоп-слова (reply button) ======================
+@router.message(F.text == "🚫 Стоп-слова")
+async def btn_stopwords(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    from admin_bot.admin.stopwords import show_stopwords
+    await show_stopwords(message)
+
+
+# ====================== СЕКЦИЯ: АНАЛИТИКА — воронка (reply button) ======================
+@router.message(F.text == "🔄 Воронка")
+async def btn_funnel(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await _show_funnel(message, days=7)
+
+
+async def _show_funnel(target, days: int = 7):
+    """Показать воронку регистрации. target — Message или CallbackQuery."""
+    if days > 0:
+        interval = f"NOW() - INTERVAL '{days} days'"
+        period_label = f"за {days} дн."
+    else:
+        interval = "'1970-01-01'"
+        period_label = "всё время"
+
+    async with _db.db_pool.acquire() as conn:
+        total = await conn.fetchval(f"SELECT COUNT(*) FROM users WHERE created_at > {interval}") or 0
+        lang_sel = await conn.fetchval(f"SELECT COUNT(*) FROM users WHERE lang IS NOT NULL AND created_at > {interval}") or 0
+        name_ent = await conn.fetchval(f"SELECT COUNT(*) FROM users WHERE name IS NOT NULL AND created_at > {interval}") or 0
+        age_ent = await conn.fetchval(f"SELECT COUNT(*) FROM users WHERE age IS NOT NULL AND created_at > {interval}") or 0
+        gender_sel = await conn.fetchval(f"SELECT COUNT(*) FROM users WHERE gender IS NOT NULL AND created_at > {interval}") or 0
+        mode_sel = await conn.fetchval(f"SELECT COUNT(*) FROM users WHERE mode IS NOT NULL AND created_at > {interval}") or 0
+        interests_sel = await conn.fetchval(f"SELECT COUNT(*) FROM users WHERE interests IS NOT NULL AND interests != '' AND created_at > {interval}") or 0
+        first_chat = await conn.fetchval(f"SELECT COUNT(*) FROM users WHERE total_chats >= 1 AND created_at > {interval}") or 0
+
+    def pct(v):
+        return round(v / max(total, 1) * 100) if total else 0
+
+    text = (
+        f"🔄 Воронка регистрации ({period_label})\n\n"
+        f"/start нажали: {total}\n"
+        f"Язык выбрали: {lang_sel} ({pct(lang_sel)}%)\n"
+        f"Имя ввели: {name_ent} ({pct(name_ent)}%)\n"
+        f"Возраст: {age_ent} ({pct(age_ent)}%)\n"
+        f"Пол: {gender_sel} ({pct(gender_sel)}%)\n"
+        f"Режим: {mode_sel} ({pct(mode_sel)}%)\n"
+        f"Интересы: {interests_sel} ({pct(interests_sel)}%)\n"
+        f"Первый чат: {first_chat} ({pct(first_chat)}%)"
+    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="24ч", callback_data="funnel:1"),
+            InlineKeyboardButton(text="7 дней", callback_data="funnel:7"),
+            InlineKeyboardButton(text="30 дней", callback_data="funnel:30"),
+            InlineKeyboardButton(text="Всё время", callback_data="funnel:0"),
+        ]
+    ])
+    if isinstance(target, types.Message):
+        await target.answer(text, reply_markup=kb)
+    else:
+        await target.message.answer(text, reply_markup=kb)
+
+
+# ====================== СЕКЦИЯ: МАРКЕТИНГ — рассылка (reply button) ======================
+@router.message(F.text == "📨 Рассылка")
+async def btn_broadcast(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    from admin_bot.admin.broadcast import show_broadcast_menu
+    await show_broadcast_menu(message)
+
+
 # ====================== LEGACY COMMANDS ======================
 @router.message(Command("admin"), StateFilter("*"))
 async def admin_panel(message: types.Message, state: FSMContext):
@@ -308,6 +381,16 @@ async def handle_update_notify(callback: types.CallbackQuery):
         except Exception:
             pass
     await callback.message.answer(f"✅ Отправлено {sent} пользователям.")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("funnel:"), StateFilter("*"))
+async def funnel_period(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+    days = int(callback.data.split(":")[1])
+    await _show_funnel(callback, days=days)
     await callback.answer()
 
 

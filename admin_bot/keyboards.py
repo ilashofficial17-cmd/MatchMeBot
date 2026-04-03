@@ -21,6 +21,7 @@ def kb_admin():
         [KeyboardButton(text="🔍 Найти юзера"), KeyboardButton(text="🚩 Жалобы")],
         [KeyboardButton(text="📋 Аудит"), KeyboardButton(text="📩 Саппорт")],
         [KeyboardButton(text="🖼 Медиа"), KeyboardButton(text="🔧 Уведомление")],
+        [KeyboardButton(text="🚫 Стоп-слова")],
         [KeyboardButton(text="⬅️ Назад")],
     ], resize_keyboard=True)
 
@@ -40,6 +41,7 @@ def kb_analytics():
         [KeyboardButton(text="👥 Общая"), KeyboardButton(text="📈 Retention")],
         [KeyboardButton(text="👁 Онлайн"), KeyboardButton(text="🤖 AI чаты")],
         [KeyboardButton(text="⭐ Оценки"), KeyboardButton(text="📢 Канал стат")],
+        [KeyboardButton(text="🔄 Воронка")],
         [KeyboardButton(text="⬅️ Назад")],
     ], resize_keyboard=True)
 
@@ -49,7 +51,7 @@ def kb_marketing():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="💰 Доходы"), KeyboardButton(text="🎨 Креативы")],
         [KeyboardButton(text="📊 Реклама"), KeyboardButton(text="🧪 A/B тесты")],
-        [KeyboardButton(text="📅 Когорты")],
+        [KeyboardButton(text="📅 Когорты"), KeyboardButton(text="📨 Рассылка")],
         [KeyboardButton(text="⬅️ Назад")],
     ], resize_keyboard=True)
 
