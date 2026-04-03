@@ -98,7 +98,13 @@ async def ask_openrouter(history: list[dict]) -> str:
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     uid = message.from_user.id
-    users[uid] = {"count": 0, "history": []}
+    if uid not in users:
+        users[uid] = {"count": 0, "history": []}
+
+    if users[uid]["count"] >= MAX_FREE_MESSAGES:
+        await message.answer(BLOCK_TEXT, reply_markup=KB_MAIN_BOT)
+        return
+
     await message.answer(WELCOME_TEXT)
 
 
