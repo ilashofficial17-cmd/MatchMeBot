@@ -1081,10 +1081,11 @@ async def inactivity_checker():
                 await _bot.send_message(uid_key, t(ai_lang, "inactivity_ai_end"), reply_markup=kb_main(ai_lang))
             except Exception: pass
 
-        # Обновляем bot_stats для channel_bot (live-данные)
+        # Обновляем bot_stats для admin_bot (live-данные)
         try:
             online_pairs = len(_active_chats) // 2
             searching_count = sum(len(q) for q in _get_all_queues())
+            ai_sessions_count = len(_ai_sessions)
             async with _db_pool.acquire() as conn:
                 await conn.execute(
                     "INSERT INTO bot_stats (key, value, updated_at) VALUES ('online_pairs', $1, NOW()) "
@@ -1094,6 +1095,47 @@ async def inactivity_checker():
                     "INSERT INTO bot_stats (key, value, updated_at) VALUES ('searching_count', $1, NOW()) "
                     "ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()", searching_count
                 )
+                await conn.execute(
+                    "INSERT INTO bot_stats (key, value, updated_at) VALUES ('ai_sessions_count', $1, NOW()) "
+                    "ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()", ai_sessions_count
+                )
+        except Exception:
+            pass
+
+        # Polling admin_commands — исполняем pending команды от admin_bot
+        try:
+            async with _db_pool.acquire() as conn:
+                rows = await conn.fetch("SELECT * FROM admin_commands WHERE status='pending'")
+                for row in rows:
+                    if row['command'] == 'kick':
+                        uid = row['target_uid']
+                        if uid in _active_chats:
+                            partner = _active_chats[uid]
+                            async with _pairing_lock:
+                                _active_chats.pop(uid, None)
+                                _active_chats.pop(partner, None)
+                            await _remove_chat_from_db(uid, partner)
+                            _clear_chat_log(uid, partner)
+                            for chat_uid in (uid, partner):
+                                try:
+                                    key = StorageKey(bot_id=_bot.id, chat_id=chat_uid, user_id=chat_uid)
+                                    await FSMContext(_dp.storage, key=key).clear()
+                                except Exception:
+                                    pass
+                            try:
+                                uid_lang = await _get_lang(uid)
+                                await _bot.send_message(uid, t(uid_lang, "inactivity_end"), reply_markup=kb_main(uid_lang))
+                            except Exception:
+                                pass
+                            try:
+                                p_lang = await _get_lang(partner)
+                                await _bot.send_message(partner, t(p_lang, "inactivity_end"), reply_markup=kb_main(p_lang))
+                            except Exception:
+                                pass
+                    await conn.execute(
+                        "UPDATE admin_commands SET status='executed', executed_at=NOW() WHERE id=$1",
+                        row['id']
+                    )
         except Exception:
             pass
 
