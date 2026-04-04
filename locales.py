@@ -705,11 +705,6 @@ TEXTS = {
         # Retention
         "retention_miss_you": "👋 Давно тебя не было! В MatchMe сейчас {count} человек онлайн. Заходи пообщаться!",
         "retention_ai_miss": "💬 {name} скучает по тебе! Зайди продолжить разговор.",
-        # Подарки возвращения
-        "return_gift_1": "👋 С возвращением! Соскучились.\n⚡ +10 энергии — держи, заряжайся.",
-        "return_gift_2": "👋 Давненько не заходил! Рады видеть.\n⚡ +25 энергии — чтобы наверстать.",
-        "return_gift_3": "🎁 Целых две недели! Мы ждали.\n⚡ +50 энергии  ·  ⭐ +1 день Premium — с нас подарок.",
-        "return_gift_4": "🎁 Месяц! Наконец-то. Серьёзный бонус за возвращение:\n⚡ +100 энергии  ·  ⭐ +3 дня Premium — добро пожаловать обратно!",
         # Social proof
         "online_count": "Сейчас в сети: {count}",
         # Streak
@@ -751,6 +746,9 @@ TEXTS = {
         "quest_streak": "Зайди в бот (стрик)",
         "quest_claimed": "✅ Квест выполнен! Энергия начислена ⚡",
         "quest_all_done": "🎉 Все задания выполнены! Бонус +{bonus}⚡",
+        "quest_done": "✅ Выполнено!",
+        "quest_progress": "{current}/{total}",
+        "quest_reward": "+{n} ⚡",
         # Подарки возвращения
         "return_gift_1": "🎁 Мы скучали! Вот тебе +10 энергии ⚡ за возвращение!",
         "return_gift_2": "🎁 Давно не виделись! Держи +20 энергии ⚡!",
@@ -761,29 +759,9 @@ TEXTS = {
         # Streak reminder
         "streak_reminder": "🔥 {days} дней подряд — не ломай серию! Загляни сегодня и продолжи.",
         "streak_lost": "Стрик обнулился, ну и ладно 🤷 Новый можно начать прямо сейчас!",
-        # Квесты дня
-        "quest_title": "⚡ Задания дня",
-        "quest_chat_1": "💬 Проведи 1 чат",
-        "quest_chat_3": "💬 Проведи 3 чата",
-        "quest_rate": "⭐ Оцени чат",
-        "quest_ai": "🤖 Напиши AI-персонажу",
-        "quest_like": "👍 Поставь лайк",
-        "quest_reward": "+{n} ⚡",
-        "quest_done": "✅ Выполнено!",
-        "quest_progress": "{current}/{total}",
-        "quest_all_bonus": "🎉 +5 ⚡ за все задания!",
-        "rate_energy_bonus": "⚡ +2 за оценку!",
-        # Ачивки
-        "ach_first_chat": "🗣 Первый чат",
-        "ach_10_chats": "💬 10 чатов",
-        "ach_50_chats": "🔥 50 чатов",
-        "ach_first_rate": "⭐ Первая оценка",
-        "ach_first_ai": "🤖 Первый AI чат",
-        "ach_week_streak": "📅 Неделя подряд",
-        "ach_month_streak": "🏆 Месяц подряд",
-        "ach_first_like": "👍 Первый лайк",
-        "ach_mutual_match": "❤️ Взаимный матч",
+        # Ачивки — доп. ключи
         "ach_unlocked": "🏅 Новая ачивка: {name}!",
+        "ach_mutual_match": "❤️ Взаимный матч",
         # AI miss-you
         "ai_miss_you": "{emoji} {name} думает о тебе... Загляни, а? 💬",
         # Onboarding
@@ -1539,11 +1517,6 @@ TEXTS = {
         # Retention
         "retention_miss_you": "👋 We miss you! {count} people are online on MatchMe right now. Come chat!",
         "retention_ai_miss": "💬 {name} misses you! Come back to continue the conversation.",
-        # Return gifts
-        "return_gift_1": "👋 Welcome back! We missed you.\n⚡ +10 energy — here you go, recharge.",
-        "return_gift_2": "👋 Long time no see! Glad you're back.\n⚡ +25 energy — time to catch up.",
-        "return_gift_3": "🎁 Two whole weeks! We've been waiting.\n⚡ +50 energy  ·  ⭐ +1 day Premium — our gift to you.",
-        "return_gift_4": "🎁 A whole month! Finally. Big welcome-back bonus:\n⚡ +100 energy  ·  ⭐ +3 days Premium — welcome back!",
         # Social proof
         "online_count": "Online now: {count}",
         # Streak
@@ -1585,6 +1558,9 @@ TEXTS = {
         "quest_streak": "Log in (streak)",
         "quest_claimed": "✅ Quest completed! Energy rewarded ⚡",
         "quest_all_done": "🎉 All quests done! Bonus +{bonus}⚡",
+        "quest_done": "✅ Done!",
+        "quest_progress": "{current}/{total}",
+        "quest_reward": "+{n} ⚡",
         # Return gifts
         "return_gift_1": "🎁 We missed you! Here's +10 energy ⚡ for coming back!",
         "return_gift_2": "🎁 Long time no see! Take +20 energy ⚡!",
@@ -1595,29 +1571,9 @@ TEXTS = {
         # Streak reminder
         "streak_reminder": "🔥 {days} days in a row — don't break the streak! Drop by today and keep going.",
         "streak_lost": "Streak reset, oh well 🤷 You can start a new one right now!",
-        # Daily quests
-        "quest_title": "⚡ Daily Quests",
-        "quest_chat_1": "💬 Have 1 chat",
-        "quest_chat_3": "💬 Have 3 chats",
-        "quest_rate": "⭐ Rate a chat",
-        "quest_ai": "🤖 Message an AI character",
-        "quest_like": "👍 Give a like",
-        "quest_reward": "+{n} ⚡",
-        "quest_done": "✅ Done!",
-        "quest_progress": "{current}/{total}",
-        "quest_all_bonus": "🎉 +5 ⚡ for all quests!",
-        "rate_energy_bonus": "⚡ +2 for rating!",
-        # Achievements
-        "ach_first_chat": "🗣 First Chat",
-        "ach_10_chats": "💬 10 Chats",
-        "ach_50_chats": "🔥 50 Chats",
-        "ach_first_rate": "⭐ First Rating",
-        "ach_first_ai": "🤖 First AI Chat",
-        "ach_week_streak": "📅 Week Streak",
-        "ach_month_streak": "🏆 Month Streak",
-        "ach_first_like": "👍 First Like",
-        "ach_mutual_match": "❤️ Mutual Match",
+        # Achievements — extra keys
         "ach_unlocked": "🏅 Achievement unlocked: {name}!",
+        "ach_mutual_match": "❤️ Mutual Match",
         # AI miss-you
         "ai_miss_you": "{emoji} {name} is thinking about you... Come say hi? 💬",
         # Onboarding
@@ -2360,11 +2316,6 @@ TEXTS = {
         # Retention
         "retention_miss_you": "👋 ¡Te extrañamos! Hay {count} personas en línea en MatchMe. ¡Ven a chatear!",
         "retention_ai_miss": "💬 ¡{name} te extraña! Vuelve a continuar la conversación.",
-        # Regalos de regreso
-        "return_gift_1": "👋 ¡Bienvenido de vuelta! Te echamos de menos.\n⚡ +10 de energía — toma, recárgala.",
-        "return_gift_2": "👋 ¡Cuánto tiempo! Qué alegría verte.\n⚡ +25 de energía — a recuperar el tiempo perdido.",
-        "return_gift_3": "🎁 ¡Dos semanas enteras! Te estábamos esperando.\n⚡ +50 de energía  ·  ⭐ +1 día Premium — de parte nuestra.",
-        "return_gift_4": "🎁 ¡Un mes entero! Por fin. Bonificación de bienvenida:\n⚡ +100 de energía  ·  ⭐ +3 días Premium — ¡bienvenido de vuelta!",
         # Social proof
         "online_count": "En línea ahora: {count}",
         # Streak
@@ -2406,6 +2357,9 @@ TEXTS = {
         "quest_streak": "Entra al bot (racha)",
         "quest_claimed": "✅ ¡Misión cumplida! Energía otorgada ⚡",
         "quest_all_done": "🎉 ¡Todas las misiones completadas! Bono +{bonus}⚡",
+        "quest_done": "✅ ¡Completado!",
+        "quest_progress": "{current}/{total}",
+        "quest_reward": "+{n} ⚡",
         # Regalos de regreso
         "return_gift_1": "🎁 ¡Te extrañamos! Aquí tienes +10 energía ⚡ por volver!",
         "return_gift_2": "🎁 ¡Cuánto tiempo! Toma +20 energía ⚡!",
@@ -2416,29 +2370,9 @@ TEXTS = {
         # Streak reminder
         "streak_reminder": "🔥 {days} días seguidos — ¡no rompas la racha! Pásate hoy y sigue.",
         "streak_lost": "Se acabó la racha, bueno 🤷 ¡Puedes empezar una nueva ahora mismo!",
-        # Misiones del día
-        "quest_title": "⚡ Misiones del día",
-        "quest_chat_1": "💬 Ten 1 chat",
-        "quest_chat_3": "💬 Ten 3 chats",
-        "quest_rate": "⭐ Valora un chat",
-        "quest_ai": "🤖 Escribe a un personaje IA",
-        "quest_like": "👍 Da un like",
-        "quest_reward": "+{n} ⚡",
-        "quest_done": "✅ ¡Completado!",
-        "quest_progress": "{current}/{total}",
-        "quest_all_bonus": "🎉 ¡+5 ⚡ por todas las misiones!",
-        "rate_energy_bonus": "⚡ ¡+2 por valorar!",
-        # Logros
-        "ach_first_chat": "🗣 Primer Chat",
-        "ach_10_chats": "💬 10 Chats",
-        "ach_50_chats": "🔥 50 Chats",
-        "ach_first_rate": "⭐ Primera Valoración",
-        "ach_first_ai": "🤖 Primer Chat IA",
-        "ach_week_streak": "📅 Semana seguida",
-        "ach_month_streak": "🏆 Mes seguido",
-        "ach_first_like": "👍 Primer Like",
-        "ach_mutual_match": "❤️ Match Mutuo",
+        # Logros — extra keys
         "ach_unlocked": "🏅 ¡Nuevo logro: {name}!",
+        "ach_mutual_match": "❤️ Match Mutuo",
         # AI miss-you
         "ai_miss_you": "{emoji} {name} está pensando en ti... ¿Vienes a saludar? 💬",
         # Onboarding

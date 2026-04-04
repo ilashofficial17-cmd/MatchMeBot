@@ -3182,7 +3182,8 @@ async def main():
     if _use_redis:
         from aiogram.fsm.storage.redis import RedisStorage
         redis_url = os.environ.get("REDIS_URL")
-        dp.storage = RedisStorage.from_url(redis_url)
+        redis_storage = RedisStorage.from_url(redis_url)
+        dp.fsm.storage = redis_storage
         logger.info("FSM switched to RedisStorage")
     else:
         logger.warning("Running with MemoryStorage (no Redis)")
