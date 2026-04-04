@@ -15,6 +15,12 @@ OPEN_ROUTER_KEY = os.environ.get("OPEN_ROUTER")
 OPEN_ROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 CHANNEL_AI_MODEL = "google/gemini-2.0-flash-001"
 BOT_TOKEN = os.environ.get("BOT_TOKEN")  # основной бот — для отправки юзерам
+
+# ====================== IMAGE GENERATION ======================
+CHANNEL_IMAGE_ENABLED = os.environ.get("CHANNEL_IMAGE_ENABLED", "1") == "1"
+CHANNEL_IMAGE_MODEL = "black-forest-labs/flux.2-pro"
+# Типы постов к которым генерируются изображения
+CHANNEL_IMAGE_RUBRICS = {"chat_story", "hot_take", "night_vibe"}
 CHANNEL_ID = "@MATCHMEHUB"
 BOT_USERNAME = "MyMatchMeBot"
 

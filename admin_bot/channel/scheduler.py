@@ -6,13 +6,14 @@ Admin Bot — цикл авто-постинга в канал.
 import asyncio
 import logging
 from datetime import datetime
+from io import BytesIO
 
 from admin_bot.config import CHANNEL_ID, CHANNEL_SCHEDULE, MILESTONE_THRESHOLDS
 import admin_bot.db as _db
 from admin_bot.db import get_stat, set_stat
 from admin_bot.channel.content import (
     CHANNEL_GENERATORS, generate_poll, generate_milestone,
-    last_milestone_threshold,
+    generate_image, last_milestone_threshold,
 )
 import admin_bot.channel.content as content_module
 
@@ -71,9 +72,17 @@ async def channel_poster():
                 elif rubric in CHANNEL_GENERATORS:
                     text = await CHANNEL_GENERATORS[rubric]()
                     if text:
-                        await admin_bot.send_message(CHANNEL_ID, text)
+                        # Try to generate an image for eligible rubrics
+                        image_bytes = await generate_image(rubric, text)
+                        if image_bytes:
+                            from aiogram.types import BufferedInputFile
+                            photo = BufferedInputFile(image_bytes, filename=f"{rubric}.png")
+                            await admin_bot.send_photo(CHANNEL_ID, photo=photo, caption=text)
+                            logger.info(f"Channel post [{rubric}] sent with image")
+                        else:
+                            await admin_bot.send_message(CHANNEL_ID, text)
+                            logger.info(f"Channel post [{rubric}] sent")
                         last_channel_post[rubric] = now
-                        logger.info(f"Channel post [{rubric}] sent")
             except Exception as e:
                 logger.error(f"Channel poster error [{rubric}]: {e}")
 

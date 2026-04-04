@@ -7,10 +7,14 @@ import random
 import logging
 import aiohttp
 
+import base64
+from io import BytesIO
+
 from admin_bot.config import (
     OPEN_ROUTER_KEY, OPEN_ROUTER_URL, CHANNEL_AI_MODEL,
     CHANNEL_STYLE_PROMPT, BOT_USERNAME,
     MODE_NAMES, MILESTONE_THRESHOLDS, POLL_BANK, ADMIN_ID,
+    CHANNEL_IMAGE_ENABLED, CHANNEL_IMAGE_MODEL, CHANNEL_IMAGE_RUBRICS,
 )
 import admin_bot.db as _db
 from admin_bot.db import get_stat, set_stat
@@ -64,6 +68,97 @@ async def ask_claude_channel(system_prompt: str, user_prompt: str) -> str:
     except Exception as e:
         logger.error(f"OpenRouter channel error: {e}")
     return None
+
+
+# ====================== IMAGE GENERATION ======================
+
+IMAGE_STYLE_SUFFIX = (
+    "Minimalist digital art, dark moody palette, neon purple and pink accents, "
+    "abstract silhouettes, city lights at night, no faces, no text, no letters, "
+    "atmospheric bokeh, dating app aesthetic, 16:9 aspect ratio"
+)
+
+_IMAGE_PROMPT_HINTS = {
+    "chat_story": "abstract illustration of two glowing phone screens in the dark, connected by light threads",
+    "hot_take": "abstract neon thought bubble or speech shape dissolving into particles, dark background",
+    "night_vibe": "night city skyline with warm phone glow in foreground, lonely but beautiful atmosphere",
+}
+
+
+async def generate_image_prompt(rubric: str, post_text: str) -> str:
+    """Generate an image prompt based on the post text and rubric."""
+    hint = _IMAGE_PROMPT_HINTS.get(rubric, "abstract dating mood illustration")
+    prompt = await ask_claude_channel(
+        "You are an expert at writing prompts for AI image generation. "
+        "Output ONLY the image prompt, nothing else. In English.",
+        f"Write a short (1-2 sentences) image generation prompt for this social media post.\n"
+        f"Post text: {post_text[:300]}\n"
+        f"Visual hint: {hint}\n"
+        f"Style requirements: {IMAGE_STYLE_SUFFIX}\n"
+        f"Output ONLY the prompt, no explanation."
+    )
+    if prompt:
+        return prompt.strip().strip('"').strip("'")
+    return f"{hint}. {IMAGE_STYLE_SUFFIX}"
+
+
+async def generate_image(rubric: str, post_text: str) -> bytes | None:
+    """Generate an image for a channel post via OpenRouter (FLUX.2 Pro).
+    Returns image bytes (PNG/JPEG) or None on failure / if disabled."""
+    if not CHANNEL_IMAGE_ENABLED or not OPEN_ROUTER_KEY:
+        return None
+    if rubric not in CHANNEL_IMAGE_RUBRICS:
+        return None
+
+    image_prompt = await generate_image_prompt(rubric, post_text)
+    if not image_prompt:
+        return None
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                OPEN_ROUTER_URL,
+                headers={
+                    "Authorization": f"Bearer {OPEN_ROUTER_KEY}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://t.me/MatchMeBot",
+                },
+                json={
+                    "model": CHANNEL_IMAGE_MODEL,
+                    "messages": [
+                        {"role": "user", "content": image_prompt},
+                    ],
+                    "modalities": ["image"],
+                },
+                timeout=aiohttp.ClientTimeout(total=60),
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    content = data["choices"][0]["message"]["content"]
+                    # Content is a list of parts; find the image part
+                    if isinstance(content, list):
+                        for part in content:
+                            if isinstance(part, dict) and part.get("type") == "image_url":
+                                url = part.get("image_url", {}).get("url", "")
+                                if url.startswith("data:"):
+                                    # data:image/png;base64,...
+                                    b64_data = url.split(",", 1)[1] if "," in url else ""
+                                    return base64.b64decode(b64_data)
+                    # Some models return base64 directly in content string
+                    if isinstance(content, str) and len(content) > 500:
+                        try:
+                            return base64.b64decode(content)
+                        except Exception:
+                            pass
+                    logger.warning(f"Image gen: unexpected response format for {rubric}")
+                    return None
+                else:
+                    body = await resp.text()
+                    logger.warning(f"Image gen error {resp.status}: {body[:300]}")
+                    return None
+    except Exception as e:
+        logger.error(f"Image gen exception: {e}")
+        return None
 
 
 # ====================== КАТЕГОРИИ ДЛЯ РАНДОМИЗАЦИИ ======================
