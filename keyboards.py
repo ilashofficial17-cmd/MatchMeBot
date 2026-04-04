@@ -216,7 +216,7 @@ def kb_user_actions(target_uid, is_shadow=False, lang="ru"):
         [InlineKeyboardButton(text=t(lang, "adm_uban3"), callback_data=f"uadm:ban3:{target_uid}"),
          InlineKeyboardButton(text=t(lang, "adm_uban24"), callback_data=f"uadm:ban24:{target_uid}")],
         [InlineKeyboardButton(text=t(lang, "adm_ubanperm"), callback_data=f"uadm:banperm:{target_uid}"),
-         InlineKeyboardButton(text=t(lang, "adm_unban"), callback_data=f"uadm:unban:{target_uid}")],
+         InlineKeyboardButton(text=t(lang, "adm_unban_btn"), callback_data=f"uadm:unban:{target_uid}")],
         [InlineKeyboardButton(
             text=t(lang, "adm_shadow_remove") if is_shadow else t(lang, "adm_shadow_set"),
             callback_data=f"uadm:shadowtoggle:{target_uid}",
