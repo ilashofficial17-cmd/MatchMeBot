@@ -49,16 +49,22 @@ SYSTEM_PROMPT = (
     "Отвечай ТОЛЬКО на русском."
 )
 
-WELCOME_TEXT = "Привет 🍭 Я Мия. Хочешь поболтать? Просто напиши что-нибудь"
+WELCOME_TEXT = (
+    "🍭 Это Мия.\n\n"
+    "22 года. Бариста, байкер, татуировки.\n"
+    "Написать есть что?"
+)
 
 BLOCK_TEXT = (
-    "🔒 Демо закончилось — 5 сообщений, чтобы зацепить 😏\n\n"
-    "Хочешь продолжить с Мией и ещё 15+ персонажами?\n"
-    "👇 Переходи в основной бот"
+    "Мия здесь — но в MatchMe она не одна.\n\n"
+    "💬  Луна · Макс · Аврора · Алекс\n"
+    "💋  Кай · Диана · Леон\n"
+    "🔥  Лилит · Ева · Дамир · Арс · Мастер\n\n"
+    "И живые анонимные чаты с реальными людьми — прямо сейчас."
 )
 
 KB_MAIN_BOT = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="🚀 Открыть MatchMe", url="https://t.me/MyMatchMeBot")]
+    [InlineKeyboardButton(text="Открыть MatchMe →", url="https://t.me/MyMatchMeBot")]
 ])
 
 # In-memory: {user_id: {"count": int, "history": [{"role", "content"}]}}

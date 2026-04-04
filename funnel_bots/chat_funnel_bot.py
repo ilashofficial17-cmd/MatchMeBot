@@ -19,7 +19,7 @@ TOKEN = os.environ["FUNNEL_CHAT_TOKEN_RU"]
 DATABASE_URL = os.environ["DATABASE_URL"]
 
 KB_MAIN_BOT = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="🚀 Начать общение", url="https://t.me/MyMatchMeBot")]
+    [InlineKeyboardButton(text="Найти собеседника →", url="https://t.me/MyMatchMeBot")]
 ])
 
 bot = Bot(token=TOKEN)
@@ -46,17 +46,12 @@ async def get_online_count() -> int:
 
 
 def build_landing(online: int) -> str:
-    online_text = f"🔥 {online} человек онлайн прямо сейчас\n\n" if online > 0 else ""
+    online_line = f"{online} человек онлайн — " if online > 0 else ""
     return (
-        f"🎭 Анонимный чат — общайся без масок\n\n"
-        f"{online_text}"
-        f"Что тебя ждёт:\n"
-        f"💬 Случайный собеседник за секунды\n"
-        f"🎭 Полная анонимность\n"
-        f"💋 3 режима: общение, флирт, kink\n"
-        f"🤖 15+ AI-персонажей для практики\n"
-        f"⚡ Бесплатно, без регистрации\n\n"
-        f"Готов попробовать? 👇"
+        f"{online_line}и ни один не знает кто им напишет следующим 👀\n\n"
+        f"Анонимный чат. Без имени, без фото.\n"
+        f"Флирт, разговор, или что-то большее — сам решаешь.\n\n"
+        f"Бесплатно. Без регистрации."
     )
 
 
