@@ -39,6 +39,7 @@ from constants import (
 import ai_chat
 import admin as admin_module
 import energy_shop as energy_shop_module
+import redis_state
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("matchme")
@@ -51,27 +52,31 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "590443268"))
 # Constants imported from constants.py: PREMIUM_PLANS, GIFTS, PRICE_MULTIPLIERS, etc.
 
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(storage=MemoryStorage())
+# Storage: RedisStorage if REDIS_URL available, else MemoryStorage (fallback)
+_use_redis = False  # set in main() after init_redis
+dp = Dispatcher(storage=MemoryStorage())  # replaced in main() if Redis available
 
 db_pool = None
-active_chats = {}
-waiting_anon = set()
-waiting_simple = set()
-waiting_flirt = set()
-waiting_kink = set()
-waiting_simple_premium = set()
-waiting_flirt_premium = set()
-waiting_kink_premium = set()
-last_msg_time = {}
+# --- In-memory only (latency-critical or non-critical, safe to lose on restart) ---
 msg_count = {}
 translate_notice_sent = set()  # (uid, partner) — one-time translation upsell per chat
 gift_prompt_sent = set()  # (uid, partner) — one-time gift prompt per chat
-pairing_lock = asyncio.Lock()
-chat_logs = {}
-ai_sessions = {}
 last_ai_msg = {}  # uid -> datetime последнего сообщения в AI чат
-mutual_likes = {}  # uid -> set of partner_uids которым лайкнул
-liked_chats = set()  # (uid, chat_key) — защита от спама лайков
+# --- Fallback dicts (used only when Redis is unavailable) ---
+_fb_active_chats = {}
+_fb_waiting_anon = set()
+_fb_waiting_simple = set()
+_fb_waiting_flirt = set()
+_fb_waiting_kink = set()
+_fb_waiting_simple_premium = set()
+_fb_waiting_flirt_premium = set()
+_fb_waiting_kink_premium = set()
+_fb_last_msg_time = {}
+_fb_chat_logs = {}
+_fb_ai_sessions = {}
+_fb_mutual_likes = {}
+_fb_liked_chats = set()
+_fb_pairing_lock = asyncio.Lock()
 
 
 # GIFTS, STOP_WORDS — see constants.py
@@ -378,8 +383,11 @@ async def restore_chats():
     restored = 0
     for r in rows:
         uid1, uid2 = r["uid1"], r["uid2"]
-        active_chats[uid1] = uid2
-        active_chats[uid2] = uid1
+        if _use_redis:
+            await redis_state.set_active_chat(uid1, uid2)
+        else:
+            _fb_active_chats[uid1] = uid2
+            _fb_active_chats[uid2] = uid1
         restored += 1
         try:
             u1 = await get_user(uid1)
@@ -411,10 +419,13 @@ increment_quest = db.increment_quest
 
 
 # ====================== SOCIAL PROOF ======================
-def get_online_count() -> int:
+async def get_online_count() -> int:
     """Real online count: active chats + people in queues."""
-    chatting = len(active_chats) // 2
-    in_queue = sum(len(q) for q in get_all_queues())
+    if _use_redis:
+        pairs, searching = await redis_state.get_online_count()
+        return pairs * 2 + searching
+    chatting = len(_fb_active_chats) // 2
+    in_queue = sum(len(q) for q in _get_fb_all_queues())
     return chatting + in_queue
 
 
@@ -600,21 +611,27 @@ async def remove_chat_from_db(uid1, uid2=None):
 def get_chat_key(uid1, uid2):
     return (min(uid1, uid2), max(uid1, uid2))
 
-def log_message(uid1, uid2, sender_uid, text):
-    key = get_chat_key(uid1, uid2)
-    if key not in chat_logs:
-        chat_logs[key] = []
-    chat_logs[key].append({
-        "sender": sender_uid,
-        "text": text[:200],
-        "time": datetime.now().strftime("%H:%M:%S")
-    })
-    if len(chat_logs[key]) > 10:
-        chat_logs[key] = chat_logs[key][-10:]
+async def log_message_async(uid1, uid2, sender_uid, text):
+    if _use_redis:
+        await redis_state.log_message(uid1, uid2, sender_uid, text)
+    else:
+        key = get_chat_key(uid1, uid2)
+        if key not in _fb_chat_logs:
+            _fb_chat_logs[key] = []
+        _fb_chat_logs[key].append({
+            "sender": sender_uid,
+            "text": text[:200],
+            "time": datetime.now().strftime("%H:%M:%S")
+        })
+        if len(_fb_chat_logs[key]) > 10:
+            _fb_chat_logs[key] = _fb_chat_logs[key][-10:]
 
-def get_chat_log_text(uid1, uid2):
-    key = get_chat_key(uid1, uid2)
-    logs = chat_logs.get(key, [])
+async def get_chat_log_text(uid1, uid2):
+    if _use_redis:
+        logs = await redis_state.get_chat_log(uid1, uid2)
+    else:
+        key = get_chat_key(uid1, uid2)
+        logs = _fb_chat_logs.get(key, [])
     if not logs: return "Переписка пуста"
     lines = []
     for msg in logs:
@@ -622,17 +639,23 @@ def get_chat_log_text(uid1, uid2):
         lines.append(f"[{msg['time']}] {sender}: {msg['text']}")
     return "\n".join(lines)
 
-def check_stop_words(uid1, uid2):
-    key = get_chat_key(uid1, uid2)
-    logs = chat_logs.get(key, [])
+async def check_stop_words(uid1, uid2):
+    if _use_redis:
+        logs = await redis_state.get_chat_log(uid1, uid2)
+    else:
+        key = get_chat_key(uid1, uid2)
+        logs = _fb_chat_logs.get(key, [])
     all_text = " ".join(msg["text"].lower() for msg in logs)
     found = [w for w in STOP_WORDS if w.lower() in all_text]
     return len(found) > 0, found
 
-def clear_chat_log(uid1, uid2):
-    key = get_chat_key(uid1, uid2)
-    if key in chat_logs:
-        del chat_logs[key]
+async def clear_chat_log(uid1, uid2):
+    if _use_redis:
+        await redis_state.delete_chat_log(uid1, uid2)
+    else:
+        key = get_chat_key(uid1, uid2)
+        if key in _fb_chat_logs:
+            del _fb_chat_logs[key]
 
 # ====================== ПРИКОЛЫ ПО ВОЗРАСТУ ======================
 def get_age_joke(age, lang="ru"):
@@ -740,50 +763,60 @@ async def kb_settings(uid, lang="ru"):
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 # ====================== УТИЛИТЫ ======================
-def get_all_queues():
-    return [waiting_anon, waiting_simple, waiting_flirt, waiting_kink,
-            waiting_simple_premium, waiting_flirt_premium, waiting_kink_premium]
+def _get_fb_all_queues():
+    """Fallback in-memory queues."""
+    return [_fb_waiting_anon, _fb_waiting_simple, _fb_waiting_flirt, _fb_waiting_kink,
+            _fb_waiting_simple_premium, _fb_waiting_flirt_premium, _fb_waiting_kink_premium]
 
-def get_queue(mode, premium=False):
+def _get_fb_queue(mode, premium=False):
+    """Fallback: get specific in-memory queue."""
     if premium:
-        if mode == "simple": return waiting_simple_premium
-        if mode == "flirt": return waiting_flirt_premium
-        if mode == "kink": return waiting_kink_premium
+        if mode == "simple": return _fb_waiting_simple_premium
+        if mode == "flirt": return _fb_waiting_flirt_premium
+        if mode == "kink": return _fb_waiting_kink_premium
     else:
-        if mode == "simple": return waiting_simple
-        if mode == "flirt": return waiting_flirt
-        if mode == "kink": return waiting_kink
-    return waiting_simple
+        if mode == "simple": return _fb_waiting_simple
+        if mode == "flirt": return _fb_waiting_flirt
+        if mode == "kink": return _fb_waiting_kink
+    return _fb_waiting_simple
 
 def get_rating(u):
     return u.get("likes", 0) - u.get("dislikes", 0)
 
-def _is_in_queue(uid):
-    return any(uid in q for q in get_all_queues())
+async def _is_in_queue(uid):
+    if _use_redis:
+        return await redis_state.is_in_queue(uid)
+    return any(uid in q for q in _get_fb_all_queues())
 
 async def _clear_ai_if_active(uid, state):
     current = await state.get_state()
     if current in (AIChat.choosing.state, AIChat.chatting.state):
-        ai_sessions.pop(uid, None)
+        if _use_redis:
+            await redis_state.delete_ai_session(uid)
+        else:
+            _fb_ai_sessions.pop(uid, None)
         await state.clear()
 
 _last_relay_msg_id = {}
 
 async def cleanup(uid, state=None):
-    async with pairing_lock:
-        for q in get_all_queues():
-            q.discard(uid)
-        partner = active_chats.pop(uid, None)
-        if partner:
-            active_chats.pop(partner, None)
+    if _use_redis:
+        await redis_state.remove_from_queues(uid)
+        partner = await redis_state.disconnect(uid)
+    else:
+        async with _fb_pairing_lock:
+            for q in _get_fb_all_queues():
+                q.discard(uid)
+            partner = _fb_active_chats.pop(uid, None)
+            if partner:
+                _fb_active_chats.pop(partner, None)
     if partner:
         await remove_chat_from_db(uid, partner)
-        clear_chat_log(uid, partner)
-        # Cleanup liked_chats for this chat
-        chat_key = get_chat_key(uid, partner)
-        liked_chats.discard((uid, chat_key))
-        liked_chats.discard((partner, chat_key))
-    ai_sessions.pop(uid, None)
+        await clear_chat_log(uid, partner)
+    if _use_redis:
+        await redis_state.delete_ai_session(uid)
+    else:
+        _fb_ai_sessions.pop(uid, None)
     if state: await state.clear()
     return partner
 
@@ -928,8 +961,12 @@ async def send_ad_message(uid, source: str = "search"):
     except Exception: pass
 
 async def do_find(uid, state):
-    if uid in active_chats:
-        return False
+    if _use_redis:
+        if await redis_state.is_in_chat(uid):
+            return False
+    else:
+        if uid in _fb_active_chats:
+            return False
     u = await get_user(uid)
     if not u or not u.get("mode"): return False
     mode = u["mode"]
@@ -948,19 +985,29 @@ async def do_find(uid, state):
     # Общение — всегда изолировано, кросс-режим только Флирт↔Kink
     # Обе очереди (premium + non-premium) всегда доступны для поиска,
     # premium-кандидаты получают приоритет через сортировку ниже
-    queues_to_search = [get_queue(mode, True), get_queue(mode, False)]
+    queue_configs = [(mode, True), (mode, False)]
     if cross and mode == "flirt":
-        queues_to_search += [get_queue("kink", True), get_queue("kink", False)]
+        queue_configs += [("kink", True), ("kink", False)]
     elif cross and mode == "kink":
-        queues_to_search += [get_queue("flirt", True), get_queue("flirt", False)]
+        queue_configs += [("flirt", True), ("flirt", False)]
 
     candidates = []
-    for q in queues_to_search:
-        for pid in list(q):
-            if pid == uid or pid in active_chats: continue
+    for q_mode, q_prem in queue_configs:
+        if _use_redis:
+            q_members = await redis_state.get_queue_members(q_mode, q_prem)
+            qkey = redis_state.queue_key(q_mode, q_prem)
+        else:
+            q_obj = _get_fb_queue(q_mode, q_prem)
+            q_members = set(q_obj)
+            qkey = None
+        for pid in q_members:
+            if pid == uid: continue
+            if _use_redis:
+                if await redis_state.is_in_chat(pid): continue
+            else:
+                if pid in _fb_active_chats: continue
             pu = await get_user(pid)
             if not pu or not pu.get("name") or not pu.get("gender") or not pu.get("mode"): continue
-            # Забаненные не участвуют в матчинге
             if pu.get("ban_until"):
                 ban_v = pu["ban_until"]
                 if ban_v == "permanent":
@@ -970,19 +1017,15 @@ async def do_find(uid, state):
                         continue
                 except Exception:
                     pass
-            # Language filter: skip if both users are on "local" and languages differ
             p_lang_val = pu.get("lang") or "ru"
             p_search_range = pu.get("search_range", "local")
             if my_lang != p_lang_val and my_search_range == "local" and p_search_range == "local":
                 continue
-            # Shadow ban: теневые юзеры матчатся только между собой
             p_shadow = pu.get("shadow_ban", False)
             if my_shadow != p_shadow: continue
-            # Двусторонняя проверка пола: мой фильтр → пол партнёра И фильтр партнёра → мой пол
             if search_gender != "any" and pu.get("gender") != search_gender: continue
             p_search_gender = pu.get("search_gender", "any")
             if p_search_gender != "any" and u.get("gender") != p_search_gender: continue
-            # Двусторонняя проверка возраста (пропускаем если age=None/0)
             p_age = pu.get("age") or 0
             my_age = u.get("age") or 0
             if p_age and (p_age < search_age_min or p_age > search_age_max): continue
@@ -990,40 +1033,49 @@ async def do_find(uid, state):
             p_age_max = pu.get("search_age_max", 99) or 99
             if my_age and (my_age < p_age_min or my_age > p_age_max): continue
             p_mode = pu.get("mode", "simple")
-            # Общение — изолировано: партнёр тоже должен быть в Общении
             if mode == "simple" and p_mode != "simple": continue
-            # Кросс-режим: партнёр тоже должен принимать кросс, если режимы разные
             if p_mode != mode and not pu.get("accept_cross_mode", False): continue
             p_interests = set(filter(None, pu.get("interests", "").split(","))) if pu.get("interests") else set()
             common = len(my_interests & p_interests)
             rating_diff = abs(get_rating(pu) - my_rating)
             p_premium = await is_premium(pid)
             priority = 0 if p_premium else 1
-            candidates.append((pid, common, rating_diff, priority, q))
+            candidates.append((pid, common, rating_diff, priority, qkey if _use_redis else _get_fb_queue(q_mode, q_prem)))
 
     if candidates:
         candidates.sort(key=lambda x: (x[3], -x[1], x[2]))
 
-    # Внутри лока — только атомарное спаривание (без await к БД)
+    # Атомарное спаривание
     partner = None
-    async with pairing_lock:
-        if uid in active_chats:
-            for q in get_all_queues():
-                q.discard(uid)
+    if _use_redis:
+        if await redis_state.is_in_chat(uid):
+            await redis_state.remove_from_queues(uid)
             return True
-        for cand_pid, _, _, _, cand_q in candidates:
-            if cand_pid not in active_chats and cand_pid in cand_q:
+        for cand_pid, _, _, _, cand_qkey in candidates:
+            result = await redis_state.try_pair(uid, cand_pid, cand_qkey)
+            if result == 1:
                 partner = cand_pid
-                cand_q.discard(partner)
                 break
-
-        if partner:
-            active_chats[uid] = partner
-            active_chats[partner] = uid
-            last_msg_time[uid] = last_msg_time[partner] = datetime.now()
-        else:
-            q = get_queue(mode, user_premium)
-            q.add(uid)
+        if not partner:
+            await redis_state.add_to_queue(uid, mode, user_premium)
+    else:
+        async with _fb_pairing_lock:
+            if uid in _fb_active_chats:
+                for q in _get_fb_all_queues():
+                    q.discard(uid)
+                return True
+            for cand_pid, _, _, _, cand_q in candidates:
+                if cand_pid not in _fb_active_chats and cand_pid in cand_q:
+                    partner = cand_pid
+                    cand_q.discard(partner)
+                    break
+            if partner:
+                _fb_active_chats[uid] = partner
+                _fb_active_chats[partner] = uid
+                _fb_last_msg_time[uid] = _fb_last_msg_time[partner] = datetime.now()
+            else:
+                q = _get_fb_queue(mode, user_premium)
+                q.add(uid)
 
     # Все await-операции — ПОСЛЕ лока
     if partner:
@@ -1086,10 +1138,15 @@ _MODE_CHARS = {
 
 async def notify_no_partner(uid):
     await asyncio.sleep(30)
-    if uid in active_chats:
-        return
-    all_waiting = set().union(*get_all_queues())
-    if uid in all_waiting:
+    if _use_redis:
+        if await redis_state.is_in_chat(uid):
+            return
+        in_queue = await redis_state.is_in_queue(uid)
+    else:
+        if uid in _fb_active_chats:
+            return
+        in_queue = any(uid in q for q in _get_fb_all_queues())
+    if in_queue:
         try:
             u = await get_user(uid)
             mode = u.get("mode", "simple") if u else "simple"
@@ -1112,15 +1169,18 @@ async def notify_no_partner(uid):
         except Exception: pass
 
 async def end_chat(uid, state, go_next=False):
-    async with pairing_lock:
-        partner = active_chats.pop(uid, None)
-        if partner:
-            active_chats.pop(partner, None)
-        for q in get_all_queues():
-            q.discard(uid)
+    if _use_redis:
+        partner = await redis_state.disconnect(uid)
+    else:
+        async with _fb_pairing_lock:
+            partner = _fb_active_chats.pop(uid, None)
+            if partner:
+                _fb_active_chats.pop(partner, None)
+            for q in _get_fb_all_queues():
+                q.discard(uid)
     if partner:
         await remove_chat_from_db(uid, partner)
-        clear_chat_log(uid, partner)
+        await clear_chat_log(uid, partner)
         translate_notice_sent.discard((uid, partner))
         translate_notice_sent.discard((partner, uid))
         gift_prompt_sent.discard((uid, partner))
@@ -1156,13 +1216,22 @@ async def end_chat(uid, state, go_next=False):
 
     if go_next and partner:
         await asyncio.sleep(0.5)
-        if uid in active_chats:
-            return
+        if _use_redis:
+            if await redis_state.is_in_chat(uid):
+                return
+        else:
+            if uid in _fb_active_chats:
+                return
         u = await get_user(uid)
         if u and u.get("mode"):
             lang = (u.get("lang") or "ru")
             mode = u["mode"]
-            q_len = len(get_queue(mode, False)) + len(get_queue(mode, True))
+            if _use_redis:
+                q_free = await redis_state.get_queue_members(mode, False)
+                q_prem = await redis_state.get_queue_members(mode, True)
+                q_len = len(q_free) + len(q_prem)
+            else:
+                q_len = len(_get_fb_queue(mode, False)) + len(_get_fb_queue(mode, True))
             await bot.send_message(uid,
                 t(lang, "queue_info", mode=t(lang, f"mode_{mode}"), count=q_len, status=t(lang, "queue_searching")),
                 reply_markup=kb_cancel_search(lang)
@@ -1180,8 +1249,12 @@ async def _send_upsell_after_chat(uid, partner):
     """
     await asyncio.sleep(3)
     for target_uid in (uid, partner):
-        if target_uid in active_chats:
-            continue
+        if _use_redis:
+            if await redis_state.is_in_chat(target_uid):
+                continue
+        else:
+            if target_uid in _fb_active_chats:
+                continue
         u = await get_user(target_uid)
         chats = u.get("total_chats", 0) if u else 0
         # После 1-го чата — предложить подписку на канал
@@ -1266,8 +1339,13 @@ async def activate_trial(callback: types.CallbackQuery):
 async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
     partner_uid = int(callback.data.split(":", 1)[1])
-        # Проверяем что партнёр не в активном чате с кем-то другим
-    if partner_uid in active_chats and active_chats.get(partner_uid) != uid:
+    # Проверяем что партнёр не в активном чате с кем-то другим
+    if _use_redis:
+        p_partner = await redis_state.get_active_partner(partner_uid)
+        partner_busy = p_partner is not None and p_partner != uid
+    else:
+        partner_busy = partner_uid in _fb_active_chats and _fb_active_chats.get(partner_uid) != uid
+    if partner_busy:
         lang = await get_lang(uid)
         await callback.answer(t(lang, "partner_busy"), show_alert=True)
         try:
@@ -1279,30 +1357,33 @@ async def mutual_like(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_reply_markup(reply_markup=None)
     except Exception: pass
 
-    # Вся логика mutual likes — атомарно внутри лока (race condition fix)
-    async with pairing_lock:
-        if uid not in mutual_likes:
-            mutual_likes[uid] = set()
-
-        # Проверяем взаимность ДО добавления своего лайка
-        already_mutual = partner_uid in mutual_likes and uid in mutual_likes.get(partner_uid, set())
-
-        # Добавляем свой лайк
-        mutual_likes[uid].add(partner_uid)
-
+    if _use_redis:
+        already_mutual = await redis_state.add_mutual_like(uid, partner_uid)
         if already_mutual:
-            # Взаимный матч! Очищаем лайки и соединяем в чат
-            mutual_likes[uid].discard(partner_uid)
-            if partner_uid in mutual_likes:
-                mutual_likes[partner_uid].discard(uid)
-
-            if uid in active_chats or partner_uid in active_chats:
+            if await redis_state.is_in_chat(uid) or await redis_state.is_in_chat(partner_uid):
                 my_lang_tmp = await get_lang(uid)
                 await callback.answer(t(my_lang_tmp, "mutual_already_in_chat"), show_alert=True)
                 return
-            active_chats[uid] = partner_uid
-            active_chats[partner_uid] = uid
-            last_msg_time[uid] = last_msg_time[partner_uid] = datetime.now()
+            await redis_state.set_active_chat(uid, partner_uid)
+            await redis_state.set_last_msg_time(uid)
+            await redis_state.set_last_msg_time(partner_uid)
+    else:
+        async with _fb_pairing_lock:
+            if uid not in _fb_mutual_likes:
+                _fb_mutual_likes[uid] = set()
+            already_mutual = partner_uid in _fb_mutual_likes and uid in _fb_mutual_likes.get(partner_uid, set())
+            _fb_mutual_likes[uid].add(partner_uid)
+            if already_mutual:
+                _fb_mutual_likes[uid].discard(partner_uid)
+                if partner_uid in _fb_mutual_likes:
+                    _fb_mutual_likes[partner_uid].discard(uid)
+                if uid in _fb_active_chats or partner_uid in _fb_active_chats:
+                    my_lang_tmp = await get_lang(uid)
+                    await callback.answer(t(my_lang_tmp, "mutual_already_in_chat"), show_alert=True)
+                    return
+                _fb_active_chats[uid] = partner_uid
+                _fb_active_chats[partner_uid] = uid
+                _fb_last_msg_time[uid] = _fb_last_msg_time[partner_uid] = datetime.now()
 
     if already_mutual:
         await state.set_state(Chat.chatting)
@@ -1345,19 +1426,25 @@ async def mutual_decline(callback: types.CallbackQuery):
         await callback.message.edit_reply_markup(reply_markup=None)
     except Exception: pass
     # Очищаем все взаимные лайки с этим пользователем
-    for key in list(mutual_likes.keys()):
-        mutual_likes[key].discard(uid)
+    if not _use_redis:
+        for key in list(_fb_mutual_likes.keys()):
+            _fb_mutual_likes[key].discard(uid)
+    # Redis: mutual likes auto-expire via TTL, no cleanup needed
     lang = await get_lang(callback.from_user.id)
     await callback.answer(t(lang, "mutual_decline_ok"))
 
 async def _mutual_timeout(uid, partner_uid):
     await asyncio.sleep(600)  # 10 минут
-    if uid in mutual_likes and partner_uid in mutual_likes[uid]:
-        mutual_likes[uid].discard(partner_uid)
-        try:
-            lang = await get_lang(uid)
-            await bot.send_message(uid, t(lang, "mutual_no_response"))
-        except Exception: pass
+    if _use_redis:
+        # Redis: mutual likes auto-expire via TTL
+        pass
+    else:
+        if uid in _fb_mutual_likes and partner_uid in _fb_mutual_likes[uid]:
+            _fb_mutual_likes[uid].discard(partner_uid)
+    try:
+        lang = await get_lang(uid)
+        await bot.send_message(uid, t(lang, "mutual_no_response"))
+    except Exception: pass
 
 # ====================== СТАРТ ======================
 @dp.message(Command("start"), StateFilter("*"))
@@ -1408,7 +1495,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
         asyncio.create_task(_notify_achievements(uid))
         asyncio.create_task(_quest_progress(uid, "streak"))
         badge = await get_premium_badge(uid)
-        online = get_online_count()
+        online = await get_online_count()
         online_text = f"\n🟢 {t(lang, 'online_count', count=online)}" if online > 0 else ""
         await message.answer(
             t(lang, "welcome_back", badge=badge) + online_text,
@@ -1458,7 +1545,7 @@ async def accept_all(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_text(t(lang, "rules_accepted"))
     except Exception: pass
     badge = await get_premium_badge(uid)
-    online = get_online_count()
+    online = await get_online_count()
     online_text = f"\n🟢 {t(lang, 'online_count', count=online)}" if online > 0 else ""
     await callback.message.answer(
         t(lang, "welcome_new", badge=badge) + online_text,
@@ -1645,7 +1732,7 @@ async def cmd_referral(message: types.Message, state: FSMContext):
     if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
-    if _is_in_queue(uid):
+    if await _is_in_queue(uid):
         await message.answer(t(lang, "reason_in_search"))
         return
     await _clear_ai_if_active(uid, state)
@@ -1666,7 +1753,7 @@ async def cmd_premium(message: types.Message, state: FSMContext):
     if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
-    if _is_in_queue(uid):
+    if await _is_in_queue(uid):
         await message.answer(t(lang, "reason_in_search"))
         return
     await _clear_ai_if_active(uid, state)
@@ -1931,11 +2018,15 @@ async def anon_search(message: types.Message, state: FSMContext):
     if current in [Reg.name.state, Reg.age.state, Reg.gender.state, Reg.mode.state, Reg.interests.state]:
         await unavailable(message, lang, "reason_finish_form")
         return
-    if current == Chat.chatting.state or uid in active_chats:
+    _in_chat = (await redis_state.is_in_chat(uid)) if _use_redis else (uid in _fb_active_chats)
+    if current == Chat.chatting.state or _in_chat:
         await unavailable(message, lang, "reason_in_chat")
         return
     if current == AIChat.chatting.state:
-        ai_sessions.pop(uid, None)
+        if _use_redis:
+            await redis_state.delete_ai_session(uid)
+        else:
+            _fb_ai_sessions.pop(uid, None)
     await cleanup(uid, state)
     banned, until = await is_banned(uid)
     if banned:
@@ -1945,7 +2036,7 @@ async def anon_search(message: types.Message, state: FSMContext):
             await message.answer(t(lang, "banned_until", until=until.strftime('%H:%M %d.%m.%Y')))
         return
     await ensure_user(uid)
-    online = get_online_count()
+    online = await get_online_count()
     online_hint = f"\n🟢 {t(lang, 'online_count', count=online)}" if online > 0 else ""
     await message.answer(t(lang, "searching_anon") + online_hint, reply_markup=kb_cancel_search(lang))
     # Shadow ban & language check
@@ -1954,30 +2045,51 @@ async def anon_search(message: types.Message, state: FSMContext):
     my_lang = (u.get("lang") or "ru") if u else "ru"
     # Собираем кандидатов ВНЕ лока
     anon_candidates = []
-    for pid in list(waiting_anon):
-        if pid != uid and pid not in active_chats:
-            pu = await get_user(pid)
-            if not pu: continue
-            if pu.get("shadow_ban", False) != my_shadow: continue
-            if (pu.get("lang") or "ru") != my_lang: continue
-            anon_candidates.append(pid)
-    # Внутри лока — только атомарное спаривание
+    if _use_redis:
+        anon_members = await redis_state.get_queue_members("anon", False)
+    else:
+        anon_members = set(_fb_waiting_anon)
+    for pid in anon_members:
+        if pid == uid: continue
+        if _use_redis:
+            if await redis_state.is_in_chat(pid): continue
+        else:
+            if pid in _fb_active_chats: continue
+        pu = await get_user(pid)
+        if not pu: continue
+        if pu.get("shadow_ban", False) != my_shadow: continue
+        if (pu.get("lang") or "ru") != my_lang: continue
+        anon_candidates.append(pid)
+    # Атомарное спаривание
     partner = None
-    async with pairing_lock:
-        if uid in active_chats:
-            waiting_anon.discard(uid)
+    anon_qkey = redis_state.queue_key("anon", False) if _use_redis else None
+    if _use_redis:
+        if await redis_state.is_in_chat(uid):
+            await redis_state.remove_from_queues(uid)
             return
         for pid in anon_candidates:
-            if pid not in active_chats and pid in waiting_anon:
+            result = await redis_state.try_pair(uid, pid, anon_qkey)
+            if result == 1:
                 partner = pid
-                waiting_anon.discard(pid)
                 break
-        if partner:
-            active_chats[uid] = partner
-            active_chats[partner] = uid
-            last_msg_time[uid] = last_msg_time[partner] = datetime.now()
-        else:
-            waiting_anon.add(uid)
+        if not partner:
+            await redis_state.add_to_queue(uid, "anon", False)
+    else:
+        async with _fb_pairing_lock:
+            if uid in _fb_active_chats:
+                _fb_waiting_anon.discard(uid)
+                return
+            for pid in anon_candidates:
+                if pid not in _fb_active_chats and pid in _fb_waiting_anon:
+                    partner = pid
+                    _fb_waiting_anon.discard(pid)
+                    break
+            if partner:
+                _fb_active_chats[uid] = partner
+                _fb_active_chats[partner] = uid
+                _fb_last_msg_time[uid] = _fb_last_msg_time[partner] = datetime.now()
+            else:
+                _fb_waiting_anon.add(uid)
 
     # Все await-операции — ПОСЛЕ лока
     if partner:
@@ -2011,11 +2123,15 @@ async def cmd_find(message: types.Message, state: FSMContext):
     if current in [Reg.name.state, Reg.age.state, Reg.gender.state, Reg.mode.state, Reg.interests.state]:
         await unavailable(message, lang, "reason_finish_form")
         return
-    if current == Chat.chatting.state or uid in active_chats:
+    _in_chat_f = (await redis_state.is_in_chat(uid)) if _use_redis else (uid in _fb_active_chats)
+    if current == Chat.chatting.state or _in_chat_f:
         await unavailable(message, lang, "reason_in_chat")
         return
     if current == AIChat.chatting.state:
-        ai_sessions.pop(uid, None)
+        if _use_redis:
+            await redis_state.delete_ai_session(uid)
+        else:
+            _fb_ai_sessions.pop(uid, None)
     await cleanup(uid, state)
     await ensure_user(uid)
     banned, until = await is_banned(uid)
@@ -2032,7 +2148,12 @@ async def cmd_find(message: types.Message, state: FSMContext):
         return
     mode = u["mode"]
     user_premium = await is_premium(uid)
-    q_len = len(get_queue(mode, False)) + len(get_queue(mode, True))
+    if _use_redis:
+        q_free = await redis_state.get_queue_members(mode, False)
+        q_prem = await redis_state.get_queue_members(mode, True)
+        q_len = len(q_free) + len(q_prem)
+    else:
+        q_len = len(_get_fb_queue(mode, False)) + len(_get_fb_queue(mode, True))
     status = t(lang, "queue_priority") if user_premium else t(lang, "queue_searching")
     await message.answer(
         t(lang, "queue_info", mode=t(lang, f"mode_{mode}"), count=q_len, status=status),
@@ -2228,15 +2349,20 @@ async def relay(message: types.Message, state: FSMContext):
         await message.answer(t(lang, "complaint_prompt"), reply_markup=kb_complaint(lang))
         return
     if txt == t(lang, "btn_like") or "👍" in txt:
-        if uid in active_chats:
-            partner = active_chats[uid]
-            # Защита от спама лайков — 1 лайк за чат
+        partner = (await redis_state.get_active_partner(uid)) if _use_redis else _fb_active_chats.get(uid)
+        if partner:
             chat_key = get_chat_key(uid, partner)
-            like_key = (uid, chat_key)
-            if like_key in liked_chats:
+            if _use_redis:
+                already_liked = await redis_state.is_liked(uid, f"{chat_key[0]}:{chat_key[1]}")
+            else:
+                already_liked = (uid, chat_key) in _fb_liked_chats
+            if already_liked:
                 await message.answer(t(lang, "like_already"))
                 return
-            liked_chats.add(like_key)
+            if _use_redis:
+                await redis_state.set_liked(uid, f"{chat_key[0]}:{chat_key[1]}")
+            else:
+                _fb_liked_chats.add((uid, chat_key))
             await increment_user(partner, likes=1)
             asyncio.create_task(_notify_achievements(partner))
             asyncio.create_task(_quest_progress(uid, "like"))
@@ -2247,8 +2373,8 @@ async def relay(message: types.Message, state: FSMContext):
             except Exception: pass
         return
     if txt == t(lang, "btn_topic") or "🎲" in txt:
-        if uid in active_chats:
-            partner = active_chats[uid]
+        partner = (await redis_state.get_active_partner(uid)) if _use_redis else _fb_active_chats.get(uid)
+        if partner:
             topics = get_chat_topics(lang)
             idx = random.randrange(len(topics))
             topic = topics[idx]
@@ -2266,13 +2392,13 @@ async def relay(message: types.Message, state: FSMContext):
     if txt.startswith("/start"):
         await end_chat(uid, state, go_next=False)
         return
-    partner = active_chats.get(uid)
+    partner = (await redis_state.get_active_partner(uid)) if _use_redis else _fb_active_chats.get(uid)
     if not partner:
         await state.clear()
         await message.answer(t(lang, "not_in_chat"), reply_markup=kb_main(lang))
         return
     if message.text:
-        log_message(uid, partner, uid, message.text)
+        await log_message_async(uid, partner, uid, message.text)
         # AI-модерация в реальном времени
         mod_result = await moderation.check_message(message.text, uid)
         if mod_result:
@@ -2306,7 +2432,11 @@ async def relay(message: types.Message, state: FSMContext):
         await message.answer(t(lang, "spam_warning"))
         return
     msg_count[uid].append(now)
-    last_msg_time[uid] = last_msg_time[partner] = now
+    if _use_redis:
+        await redis_state.set_last_msg_time(uid)
+        await redis_state.set_last_msg_time(partner)
+    else:
+        _fb_last_msg_time[uid] = _fb_last_msg_time[partner] = now
     # --- Translation for cross-language chats ---
     p_lang = await get_lang(partner)
     need_translate = lang != p_lang
@@ -2451,7 +2581,8 @@ async def complaint_cancel(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
     lang = await get_lang(uid)
     # If user is still in a chat, restore chatting state; otherwise clear
-    if uid in active_chats:
+    _in_chat_c = (await redis_state.is_in_chat(uid)) if _use_redis else (uid in _fb_active_chats)
+    if _in_chat_c:
         await state.set_state(Chat.chatting)
     else:
         await state.clear()
@@ -2468,7 +2599,7 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
         "abuse": "Угрозы/Оскорбления", "nsfw": "Пошлятина без согласия", "other": "Другое"
     }
     reason = reason_map.get(callback.data.split(":", 1)[1], "Другое")
-    partner = active_chats.get(uid)
+    partner = (await redis_state.get_active_partner(uid)) if _use_redis else _fb_active_chats.get(uid)
     lang = await get_lang(uid)
     if not partner:
         try:
@@ -2476,19 +2607,22 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
         except Exception: pass
         await state.clear()
         return
-    log_text = get_chat_log_text(uid, partner)
-    stop_found, _ = check_stop_words(uid, partner)
+    log_text = await get_chat_log_text(uid, partner)
+    stop_found, _ = await check_stop_words(uid, partner)
     async with db_pool.acquire() as conn:
         complaint_id = await conn.fetchval(
             "INSERT INTO complaints_log (from_uid, to_uid, reason, chat_log, stop_words_found) VALUES ($1,$2,$3,$4,$5) RETURNING id",
             uid, partner, reason, log_text, stop_found
         )
         await increment_user(partner, complaints=1)
-    async with pairing_lock:
-        active_chats.pop(uid, None)
-        active_chats.pop(partner, None)
+    if _use_redis:
+        await redis_state.disconnect(uid)
+    else:
+        async with _fb_pairing_lock:
+            _fb_active_chats.pop(uid, None)
+            _fb_active_chats.pop(partner, None)
     await remove_chat_from_db(uid, partner)
-    clear_chat_log(uid, partner)
+    await clear_chat_log(uid, partner)
     await state.clear()
     try:
         await callback.message.edit_text(t(lang, "complaint_sent", id=complaint_id))
@@ -2525,10 +2659,14 @@ async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
 async def cancel_search(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     lang = await get_lang(uid)
-    async with pairing_lock:
-        removed = any(uid in q for q in get_all_queues())
-        for q in get_all_queues():
-            q.discard(uid)
+    if _use_redis:
+        removed = await redis_state.is_in_queue(uid)
+        await redis_state.remove_from_queues(uid)
+    else:
+        async with _fb_pairing_lock:
+            removed = any(uid in q for q in _get_fb_all_queues())
+            for q in _get_fb_all_queues():
+                q.discard(uid)
     await state.clear()
     await message.answer(t(lang, "search_cancelled") if removed else t(lang, "not_searching"), reply_markup=kb_main(lang))
 
@@ -2561,7 +2699,7 @@ async def show_profile(message: types.Message, state: FSMContext):
     if current == Chat.chatting.state:
         await unavailable(message, lang, "reason_in_chat_stop")
         return
-    if _is_in_queue(uid):
+    if await _is_in_queue(uid):
         await message.answer(t(lang, "reason_in_search"))
         return
     await _clear_ai_if_active(uid, state)
@@ -2785,7 +2923,7 @@ async def show_settings(message: types.Message, state: FSMContext):
     if current == Chat.chatting.state:
         await unavailable(message, lang, "reason_in_chat")
         return
-    if _is_in_queue(uid):
+    if await _is_in_queue(uid):
         await message.answer(t(lang, "reason_in_search"))
         return
     await _clear_ai_if_active(uid, state)
@@ -2942,7 +3080,7 @@ async def show_help(message: types.Message, state: FSMContext):
     if await needs_onboarding(message, state): return
     uid = message.from_user.id
     lang = await get_lang(uid)
-    if _is_in_queue(uid):
+    if await _is_in_queue(uid):
         await message.answer(t(lang, "reason_in_search"))
         return
     await _clear_ai_if_active(uid, state)
@@ -3036,7 +3174,19 @@ async def ad_click_handler(callback: types.CallbackQuery):
 
 # ====================== ЗАПУСК ======================
 async def main():
+    global _use_redis
+
     await init_db()
+    # --- Redis init (with fallback to in-memory) ---
+    _use_redis = await redis_state.init_redis()
+    if _use_redis:
+        from aiogram.fsm.storage.redis import RedisStorage
+        redis_url = os.environ.get("REDIS_URL")
+        dp.storage = RedisStorage.from_url(redis_url)
+        logger.info("FSM switched to RedisStorage")
+    else:
+        logger.warning("Running with MemoryStorage (no Redis)")
+
     # Create Telegraph legal pages on startup
     try:
         legal_urls = await create_legal_pages()
@@ -3050,11 +3200,11 @@ async def main():
     await set_commands()
     ai_chat.init(
         bot=bot,
-        ai_sessions=ai_sessions,
+        ai_sessions=_fb_ai_sessions,
         last_ai_msg=last_ai_msg,
-        pairing_lock=pairing_lock,
-        get_all_queues=get_all_queues,
-        active_chats=active_chats,
+        pairing_lock=_fb_pairing_lock,
+        get_all_queues=_get_fb_all_queues,
+        active_chats=_fb_active_chats,
         get_user=get_user,
         ensure_user=ensure_user,
         get_premium_tier=get_premium_tier,
@@ -3068,21 +3218,22 @@ async def main():
         save_ai_notes=save_ai_notes,
         db_pool=db_pool,
         send_ad_message=send_ad_message,
+        use_redis=_use_redis,
     )
     admin_module.init(
         bot=bot,
         dp=dp,
         db_pool=db_pool,
         admin_id=ADMIN_ID,
-        active_chats=active_chats,
-        ai_sessions=ai_sessions,
+        active_chats=_fb_active_chats,
+        ai_sessions=_fb_ai_sessions,
         last_ai_msg=last_ai_msg,
-        pairing_lock=pairing_lock,
-        get_all_queues=get_all_queues,
-        chat_logs=chat_logs,
-        last_msg_time=last_msg_time,
+        pairing_lock=_fb_pairing_lock,
+        get_all_queues=_get_fb_all_queues,
+        chat_logs=_fb_chat_logs,
+        last_msg_time=_fb_last_msg_time,
         msg_count=msg_count,
-        mutual_likes=mutual_likes,
+        mutual_likes=_fb_mutual_likes,
         clear_chat_log=clear_chat_log,
         get_user=get_user,
         update_user=update_user,
@@ -3093,6 +3244,7 @@ async def main():
         PARTNER_ADS=PARTNER_ADS,
         filter_ads=_filter_ads,
         get_chat_topics=get_chat_topics,
+        use_redis=_use_redis,
     )
     energy_shop_module.setup(
         bot=bot,
@@ -3104,7 +3256,7 @@ async def main():
     dp.include_router(energy_shop_module.router)
     # admin_module.router перенесён в admin_bot/ — НЕ подключаем здесь
     # tasks (reminder, winback, streak) перенесены в admin_bot/tasks/ — НЕ запускаем здесь
-    # inactivity_checker остаётся — требует in-memory state (active_chats, queues)
+    # inactivity_checker остаётся — reads from Redis when available
     asyncio.create_task(admin_module.inactivity_checker())
     logger.info("MatchMe запущен!")
     await dp.start_polling(bot)

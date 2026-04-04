@@ -14,6 +14,7 @@ from locales import t, TEXTS
 import base64
 import io
 from ai_utils import get_ai_chat_response, describe_image, transcribe_voice
+import redis_state
 
 router = Router()
 logger = logging.getLogger("matchme")
@@ -31,7 +32,7 @@ def _all(key):
 
 # ====================== Injected dependencies ======================
 _bot = None
-_ai_sessions = None
+_ai_sessions = None  # fallback in-memory dict
 _last_ai_msg = None
 _pairing_lock = None
 _get_all_queues = None
@@ -49,18 +50,19 @@ _get_ai_notes = None
 _save_ai_notes = None
 _db_pool = None
 _send_ad_message = None
+_use_redis = False
 
 
 def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
          active_chats, get_user, ensure_user, get_premium_tier, update_user,
          cmd_find, show_settings, get_ai_history=None, save_ai_message=None,
          clear_ai_history=None, get_ai_notes=None, save_ai_notes=None,
-         db_pool=None, send_ad_message=None):
+         db_pool=None, send_ad_message=None, use_redis=False):
     global _bot, _ai_sessions, _last_ai_msg, _pairing_lock, _get_all_queues
     global _active_chats, _get_user, _ensure_user, _get_premium_tier
     global _update_user, _cmd_find, _show_settings
     global _get_ai_history, _save_ai_message, _clear_ai_history
-    global _get_ai_notes, _save_ai_notes, _db_pool, _send_ad_message
+    global _get_ai_notes, _save_ai_notes, _db_pool, _send_ad_message, _use_redis
     _bot = bot
     _ai_sessions = ai_sessions
     _last_ai_msg = last_ai_msg
@@ -80,6 +82,46 @@ def init(*, bot, ai_sessions, last_ai_msg, pairing_lock, get_all_queues,
     _save_ai_notes = save_ai_notes
     _db_pool = db_pool
     _send_ad_message = send_ad_message
+    _use_redis = use_redis
+
+
+# --- AI session helpers (Redis or fallback) ---
+async def _get_session(uid: int) -> dict | None:
+    if _use_redis:
+        return await redis_state.get_ai_session(uid)
+    return _ai_sessions.get(uid)
+
+
+async def _set_session(uid: int, char_id: str, history: list):
+    if _use_redis:
+        await redis_state.create_ai_session(uid, char_id, history)
+    else:
+        _ai_sessions[uid] = {"character": char_id, "history": history, "msg_count": 0}
+
+
+async def _del_session(uid: int):
+    if _use_redis:
+        await redis_state.delete_ai_session(uid)
+    else:
+        await _del_session(uid)
+
+
+async def _has_session(uid: int) -> bool:
+    if _use_redis:
+        return await redis_state.has_ai_session(uid)
+    return uid in _ai_sessions
+
+
+async def _append_msg(uid: int, role: str, content: str):
+    if _use_redis:
+        await redis_state.append_ai_message(uid, role, content)
+    else:
+        session = await _get_session(uid)
+        if session:
+            session["history"].append({"role": role, "content": content})
+            if len(session["history"]) > 20:
+                session["history"] = session["history"][-20:]
+            session["msg_count"] = session.get("msg_count", 0) + 1
 
 
 async def _get_char_media(char_id: str) -> dict | None:
@@ -665,7 +707,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     lang = await _lang(uid)
     char_id = callback.data.split(":", 1)[1]
     if char_id == "back":
-        _ai_sessions.pop(uid, None)
+        await _del_session(uid)
         _last_ai_msg.pop(uid, None)
         await state.clear()
         try:
@@ -710,7 +752,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     ai_bonus = u.get("ai_bonus", 0) if u else 0
     cost, max_energy = get_energy_info(char["tier"], user_tier, ai_bonus)
     db_history = await _get_ai_history(uid, char_id) if _get_ai_history else []
-    _ai_sessions[uid] = {"character": char_id, "history": db_history, "msg_count": 0}
+    await _set_session(uid, char_id, db_history)
     _last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
     # Send character GIF preview if available
@@ -740,7 +782,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
         greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u, notes=notes)
         if greeting:
-            _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
+            await _append_msg(uid, "assistant", greeting)
             if _save_ai_message:
                 await _save_ai_message(uid, char_id, "assistant", greeting)
             await callback.message.answer(greeting)
@@ -753,7 +795,7 @@ async def ai_choosing_text(message: types.Message, state: FSMContext):
     lang = await _lang(uid)
     txt = message.text or ""
     if txt in {t(lang, "btn_end_ai_chat"), t(lang, "btn_home")}:
-        _ai_sessions.pop(uid, None)
+        await _del_session(uid)
         _last_ai_msg.pop(uid, None)
         await state.clear()
         await message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
@@ -762,7 +804,7 @@ async def ai_choosing_text(message: types.Message, state: FSMContext):
         await message.answer(t(lang, "ai_select_from_buttons"))
         return
     if txt == t(lang, "btn_find_live"):
-        _ai_sessions.pop(uid, None)
+        await _del_session(uid)
         _last_ai_msg.pop(uid, None)
         await state.clear()
         await message.answer(t(lang, "searching"), reply_markup=kb_cancel_search(lang))
@@ -777,13 +819,13 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     lang = await _lang(uid)
     txt = message.text or ""
     if txt == t(lang, "btn_end_ai_chat"):
-        _ai_sessions.pop(uid, None)
+        await _del_session(uid)
         _last_ai_msg.pop(uid, None)
         await state.clear()
         await message.answer(t(lang, "ai_ended"), reply_markup=kb_main(lang))
         return
     if txt == t(lang, "btn_change_char"):
-        _ai_sessions.pop(uid, None)
+        await _del_session(uid)
         user_tier = await _get_premium_tier(uid)
         u = await _get_user(uid)
         mode = u.get("mode", "simple") if u else "simple"
@@ -791,19 +833,19 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         await message.answer(t(lang, "ai_select_char"), reply_markup=kb_ai_characters(user_tier, mode, lang))
         return
     if txt == t(lang, "btn_find_live"):
-        _ai_sessions.pop(uid, None)
+        await _del_session(uid)
         _last_ai_msg.pop(uid, None)
         await state.clear()
         await message.answer(t(lang, "searching"), reply_markup=kb_cancel_search(lang))
         await _cmd_find(message, state)
         return
     if txt == t(lang, "btn_home"):
-        _ai_sessions.pop(uid, None)
+        await _del_session(uid)
         await state.clear()
         await message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         return
     if txt == t(lang, "btn_erase_memory"):
-        session = _ai_sessions.get(uid)
+        session = await _get_session(uid)
         if session:
             char_id = session["character"]
             char = AI_CHARACTERS[char_id]
@@ -811,21 +853,21 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
                 await _clear_ai_history(uid, char_id)
             if _save_ai_notes:
                 await _save_ai_notes(uid, char_id, "")
-            session["history"] = []
-            session["msg_count"] = 0
+            # Re-create session with empty history
+            await _set_session(uid, char_id, [])
             await message.answer(t(lang, "memory_erased"))
             # Генерируем новое приветствие
             u = await _get_user(uid)
             greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u)
             if greeting:
-                session["history"].append({"role": "assistant", "content": greeting})
+                await _append_msg(uid, "assistant", greeting)
                 if _save_ai_message:
                     await _save_ai_message(uid, char_id, "assistant", greeting)
                 await message.answer(greeting)
         return
     # Обработка фото — vision через GPT-4o-mini
     if message.photo and not txt:
-        if uid not in _ai_sessions:
+        if not await _has_session(uid):
             await state.clear()
             await message.answer(t(lang, "ai_session_lost"), reply_markup=kb_main(lang))
             return
@@ -860,7 +902,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
 
     # Обработка голосовых — транскрипция через Gemini Flash
     if (message.voice or message.audio) and not txt:
-        if uid not in _ai_sessions:
+        if not await _has_session(uid):
             await state.clear()
             await message.answer(t(lang, "ai_session_lost"), reply_markup=kb_main(lang))
             return
@@ -891,11 +933,11 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
             await message.answer(voice_fallbacks.get(lang, voice_fallbacks['en']))
             return
 
-    if uid not in _ai_sessions:
+    if not await _has_session(uid):
         await state.clear()
         await message.answer(t(lang, "ai_session_lost"), reply_markup=kb_main(lang))
         return
-    session = _ai_sessions[uid]
+    session = await _get_session(uid)
     char_id = session["character"]
     char = AI_CHARACTERS[char_id]
     # Игнорируем пустые сообщения (стикеры, видеокружки и т.д.)
@@ -941,21 +983,23 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     # Загружаем заметки и медиа для инжекта в промпт
     notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
     media_info = await _get_char_media(char_id)
-    session["history"].append({"role": "user", "content": txt})
-    response = await ask_ai(char_id, session["history"][:-1], txt, lang, user=u,
-                            msg_count=session["msg_count"] + 1, notes=notes,
+    history_for_ai = list(session["history"])
+    msg_count_before = session["msg_count"]
+    response = await ask_ai(char_id, history_for_ai, txt, lang, user=u,
+                            msg_count=msg_count_before + 1, notes=notes,
                             media_info=media_info)
-    session["history"].append({"role": "assistant", "content": response})
-    # Sliding window: держим в памяти только последние 20 сообщений
-    if len(session["history"]) > 20:
-        session["history"] = session["history"][-20:]
+    # Persist messages (Redis or in-memory)
+    await _append_msg(uid, "user", txt)
+    await _append_msg(uid, "assistant", response)
     if _save_ai_message:
         await _save_ai_message(uid, char_id, "user", txt)
         await _save_ai_message(uid, char_id, "assistant", response)
-    session["msg_count"] += 1
+    new_msg_count = msg_count_before + 1
     # Summary: on 5th message (early capture) + every 10 messages
-    if session["msg_count"] == 5 or (session["msg_count"] > 5 and session["msg_count"] % 10 == 0):
-        asyncio.create_task(_generate_summary(uid, char_id, session["history"], lang))
+    if new_msg_count == 5 or (new_msg_count > 5 and new_msg_count % 10 == 0):
+        updated_session = await _get_session(uid)
+        if updated_session:
+            asyncio.create_task(_generate_summary(uid, char_id, updated_session["history"], lang))
     new_energy = energy_used + cost
     await _update_user(uid, ai_energy_used=new_energy)
     # Квест: AI-сообщение
@@ -984,7 +1028,7 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
                 except Exception: pass
     except Exception: pass
     # Content sending logic
-    cur_msg = session["msg_count"]
+    cur_msg = new_msg_count
     is_hot = _is_hot_photo_request(txt, lang)
     is_normal = not is_hot and _is_photo_request(txt, lang)
     # Check for hot GIF request (video/видео keywords)
@@ -1052,9 +1096,12 @@ async def goto_action(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_reply_markup(reply_markup=None)
     except Exception: pass
     if action == "ai":
-        async with _pairing_lock:
-            for q in _get_all_queues():
-                q.discard(uid)
+        if _use_redis:
+            await redis_state.remove_from_queues(uid)
+        else:
+            async with _pairing_lock:
+                for q in _get_all_queues():
+                    q.discard(uid)
         await state.clear()
         await _show_ai_menu(callback.message, state, uid)
     elif action == "settings":
@@ -1063,10 +1110,13 @@ async def goto_action(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer(t(lang, "ai_waiting_continue"))
         return
     elif action == "find":
-        _ai_sessions.pop(uid, None)
-        async with _pairing_lock:
-            for q in _get_all_queues():
-                q.discard(uid)
+        await _del_session(uid)
+        if _use_redis:
+            await redis_state.remove_from_queues(uid)
+        else:
+            async with _pairing_lock:
+                for q in _get_all_queues():
+                    q.discard(uid)
         await state.clear()
         await callback.message.answer(t(lang, "searching"), reply_markup=kb_cancel_search(lang))
         await _cmd_find(callback.message, state)
@@ -1085,9 +1135,12 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
     if char_id not in AI_CHARACTERS:
         await callback.answer(t(lang, "ai_char_not_found"), show_alert=True)
         return
-    async with _pairing_lock:
-        for q in _get_all_queues():
-            q.discard(uid)
+    if _use_redis:
+        await redis_state.remove_from_queues(uid)
+    else:
+        async with _pairing_lock:
+            for q in _get_all_queues():
+                q.discard(uid)
     await state.clear()
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
@@ -1098,7 +1151,7 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
     ai_bonus = u.get("ai_bonus", 0) if u else 0
     cost, max_energy = get_energy_info(char["tier"], user_tier, ai_bonus)
     db_history = await _get_ai_history(uid, char_id) if _get_ai_history else []
-    _ai_sessions[uid] = {"character": char_id, "history": db_history, "msg_count": 0}
+    await _set_session(uid, char_id, db_history)
     _last_ai_msg[uid] = datetime.now()
     await state.set_state(AIChat.chatting)
     energy_text = t(lang, "ai_energy_cost", cost=cost)
@@ -1117,7 +1170,7 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
         notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
         greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u, notes=notes)
         if greeting:
-            _ai_sessions[uid]["history"].append({"role": "assistant", "content": greeting})
+            await _append_msg(uid, "assistant", greeting)
             if _save_ai_message:
                 await _save_ai_message(uid, char_id, "assistant", greeting)
             await callback.message.answer(greeting)
