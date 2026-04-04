@@ -5,7 +5,7 @@ from aiogram.types import LabeledPrice
 
 from locales import t
 from keyboards import kb_energy_shop
-from constants import ENERGY_PACKS, PRICE_MULTIPLIERS
+from constants import ENERGY_PACKS, get_price
 
 router = Router()
 logger = logging.getLogger("matchme")
@@ -94,8 +94,7 @@ async def energy_buy(callback: types.CallbackQuery):
         await callback.answer(t(lang, "energy_pack_not_found"), show_alert=True)
         return
     pack = ENERGY_PACKS[pack_key]
-    mult = PRICE_MULTIPLIERS.get(lang, 2.0)
-    price = int(pack["stars"] * mult)
+    price = get_price(pack_key, lang)
     label = t(lang, pack["label_key"])
     await callback.answer()
     await _bot.send_invoice(

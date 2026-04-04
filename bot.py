@@ -32,7 +32,7 @@ from keyboards import (
 import db
 from constants import (
     PRICE_MULTIPLIERS, PREMIUM_PLANS, AB_PRICE_DISCOUNT_B, GIFTS, ENERGY_PACKS,
-    get_plan_price, get_chat_topics,
+    get_plan_price, get_price, get_chat_topics,
     LEVEL_THRESHOLDS, LEVEL_NAMES, STREAK_BONUSES,
     STOP_WORDS, PARTNER_ADS, filter_ads as _filter_ads,
 )
@@ -2475,10 +2475,10 @@ async def relay(message: types.Message, state: FSMContext):
                     t(lang, "gift_prompt"),
                     reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                         [
-                            InlineKeyboardButton(text=f"🌹 {t(lang, 'gift_rose')} — {GIFTS['rose']['stars']}⭐", callback_data=f"gift:rose:{partner}"),
-                            InlineKeyboardButton(text=f"💎 {t(lang, 'gift_diamond')} — {GIFTS['diamond']['stars']}⭐", callback_data=f"gift:diamond:{partner}"),
+                            InlineKeyboardButton(text=f"🌹 {t(lang, 'gift_rose')} — {get_price('rose', lang)}⭐", callback_data=f"gift:rose:{partner}"),
+                            InlineKeyboardButton(text=f"💎 {t(lang, 'gift_diamond')} — {get_price('diamond', lang)}⭐", callback_data=f"gift:diamond:{partner}"),
                         ],
-                        [InlineKeyboardButton(text=f"👑 {t(lang, 'gift_crown')} — {GIFTS['crown']['stars']}⭐", callback_data=f"gift:crown:{partner}")],
+                        [InlineKeyboardButton(text=f"👑 {t(lang, 'gift_crown')} — {get_price('crown', lang)}⭐", callback_data=f"gift:crown:{partner}")],
                     ])
                 )
             except Exception: pass
@@ -2570,7 +2570,7 @@ async def gift_select(callback: types.CallbackQuery):
         description=t(lang, "gift_desc", days=gift["days"]),
         payload=f"gift_{gift_type}_{partner_uid}",
         currency="XTR",
-        prices=[LabeledPrice(label=f"{gift['emoji']} Gift", amount=gift["stars"])],
+        prices=[LabeledPrice(label=f"{gift['emoji']} Gift", amount=get_price(gift_type, lang))],
     )
     await callback.answer()
 

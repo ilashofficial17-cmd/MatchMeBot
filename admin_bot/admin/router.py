@@ -135,8 +135,8 @@ async def btn_stats(message: types.Message):
     async with _db.db_pool.acquire() as conn:
         total = await conn.fetchval("SELECT COUNT(*) FROM users")
         today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '24 hours'")
-        banned = await conn.fetchval("SELECT COUNT(*) FROM users WHERE ban_until IS NOT NULL")
-        premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL")
+        banned = await conn.fetchval("SELECT COUNT(*) FROM users WHERE ban_until = 'permanent' OR (ban_until IS NOT NULL AND ban_until > NOW()::text)")
+        premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until = 'permanent' OR (premium_until IS NOT NULL AND premium_until > NOW()::text)")
         total_complaints = await conn.fetchval("SELECT COUNT(*) FROM complaints_log")
         pending = await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE")
     online_now = await get_stat("online_pairs", 0)
@@ -181,7 +181,7 @@ async def btn_retention(message: types.Message):
         d30_base = await conn.fetchval(
             "SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE - 30"
         ) or 1
-        premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL") or 0
+        premiums = await conn.fetchval("SELECT COUNT(*) FROM users WHERE premium_until = 'permanent' OR (premium_until IS NOT NULL AND premium_until > NOW()::text)") or 0
         avg_chats = await conn.fetchval("SELECT ROUND(AVG(total_chats)::numeric, 1) FROM users WHERE total_chats > 0") or 0
     prem_pct = round(premiums / max(total, 1) * 100, 1)
     await message.answer(
@@ -410,6 +410,12 @@ async def admin_find_user(message: types.Message, state: FSMContext):
         await message.answer(f"❌ Пользователь {target_uid} не найден.")
         return
     u = dict(u)
+    # Рейтинг из chat_ratings (avg stars) — в users таблице нет этих полей
+    async with _db.db_pool.acquire() as conn:
+        avg_rating = await conn.fetchval(
+            "SELECT ROUND(AVG(stars)::numeric, 1) FROM chat_ratings WHERE partner_uid=$1",
+            target_uid
+        ) or 0
     g_map = {"male": "Парень 👨", "female": "Девушка 👩", "other": "Другое ⚧"}
     ban_status = "Нет"
     if u.get("ban_until"):
@@ -419,9 +425,6 @@ async def admin_find_user(message: types.Message, state: FSMContext):
         prem_status = "Вечный ⭐" if u["premium_until"] == "permanent" else f"до {str(u['premium_until'])[:16]} ⭐"
     is_shadow = u.get("shadow_ban", False)
     shadow_status = "👻 ДА" if is_shadow else "Нет"
-    rating = u.get("total_rating", 0)
-    total_rates = u.get("total_rates", 0)
-    avg_rating = round(rating / max(total_rates, 1), 1)
     await message.answer(
         f"👤 {target_uid}:\n"
         f"Имя: {u.get('name','—')} | Возраст: {u.get('age','—')}\n"

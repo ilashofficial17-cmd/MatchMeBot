@@ -3,7 +3,7 @@ from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
 )
 from locales import t
-from constants import ENERGY_PACKS, PRICE_MULTIPLIERS
+from constants import ENERGY_PACKS, get_price
 
 CHANNEL_ID = "@MATCHMEHUB"
 
@@ -259,11 +259,10 @@ def kb_premium(lang="ru", plan_prices: dict | None = None):
 
 
 def kb_energy_shop(lang="ru"):
-    mult = PRICE_MULTIPLIERS.get(lang, 2.0)
     buttons = []
     pack_list = list(ENERGY_PACKS.items())
     for i, (key, pack) in enumerate(pack_list):
-        price = int(pack["stars"] * mult)
+        price = get_price(key, lang)
         label = t(lang, pack["label_key"])
         badge = ""
         if i == 1:
