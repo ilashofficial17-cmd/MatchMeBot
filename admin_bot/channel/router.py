@@ -151,9 +151,8 @@ async def btn_channel_stats(message: types.Message):
 
 
 # ====================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======================
-async def check_api_status(message: types.Message):
-    await message.answer("⏳ Проверяю API...")
-    results = []
+async def _check_openrouter(model: str, label: str) -> str:
+    """Check a single OpenRouter model."""
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -163,22 +162,35 @@ async def check_api_status(message: types.Message):
                     "Content-Type": "application/json",
                     "HTTP-Referer": "https://t.me/MatchMeBot",
                 },
-                json={"model": CHANNEL_AI_MODEL, "max_tokens": 10,
+                json={"model": model, "max_tokens": 10,
                       "messages": [{"role": "user", "content": "Hi"}]},
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 if resp.status == 200:
-                    results.append(f"🟢 OpenRouter ({CHANNEL_AI_MODEL}) — активен ✅")
+                    return f"🟢 OpenRouter ({label}: {model}) — активен ✅"
                 elif resp.status == 401:
-                    results.append("🔴 OpenRouter — неверный ключ ❌")
+                    return f"🔴 OpenRouter ({label}) — неверный ключ ❌"
                 elif resp.status == 402:
-                    results.append("🔴 OpenRouter — нет средств 💰")
+                    return f"🔴 OpenRouter ({label}) — нет средств 💰"
                 elif resp.status == 429:
-                    results.append("🟡 OpenRouter — лимит (но работает)")
+                    return f"🟡 OpenRouter ({label}) — лимит (но работает)"
                 else:
-                    results.append(f"🟡 OpenRouter — ошибка {resp.status}")
+                    return f"🟡 OpenRouter ({label}) — ошибка {resp.status}"
     except Exception as e:
-        results.append(f"🔴 OpenRouter — недоступен ({e})")
+        return f"🔴 OpenRouter ({label}) — недоступен ({e})"
+
+
+async def check_api_status(message: types.Message):
+    await message.answer("⏳ Проверяю API...")
+    results = []
+
+    # 1. OpenRouter — channel model (Gemini Flash)
+    results.append(await _check_openrouter(CHANNEL_AI_MODEL, "channel"))
+
+    # 2. OpenRouter — chat model (gpt-4o-mini)
+    results.append(await _check_openrouter("openai/gpt-4o-mini", "chat"))
+
+    # 3. Venice API
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -188,19 +200,38 @@ async def check_api_status(message: types.Message):
             ) as resp:
                 if resp.status == 200:
                     balance_usd = resp.headers.get("x-venice-balance-usd", "?")
-                    results.append(f"🟢 Venice API — активен ✅\n   💰 Баланс: ${balance_usd}")
+                    results.append(f"🟢 Venice API — активен ✅ (баланс: ${balance_usd})")
                 elif resp.status == 401:
                     results.append("🔴 Venice API — неверный ключ ❌")
                 else:
                     results.append(f"🟡 Venice API — ошибка {resp.status}")
     except Exception as e:
         results.append(f"🔴 Venice API — недоступен ({e})")
+
+    # 4. Redis
+    import os
+    redis_url = os.environ.get("REDIS_URL")
+    if redis_url:
+        try:
+            import redis.asyncio as aioredis
+            r = aioredis.from_url(redis_url, decode_responses=True)
+            await r.ping()
+            db_size = await r.dbsize()
+            await r.aclose()
+            results.append(f"🟢 Redis — подключён ✅ (ключей: {db_size})")
+        except Exception as e:
+            results.append(f"🔴 Redis — недоступен ({e})")
+    else:
+        results.append("⚪ Redis — REDIS_URL не задан")
+
+    # 5. PostgreSQL
     try:
         async with _db.db_pool.acquire() as conn:
-            await conn.fetchval("SELECT 1")
-        results.append("🟢 PostgreSQL — активна ✅")
+            user_count = await conn.fetchval("SELECT COUNT(*) FROM users")
+        results.append(f"🟢 PostgreSQL — подключён ✅ (юзеров: {user_count})")
     except Exception:
         results.append("🔴 PostgreSQL — недоступна ❌")
+
     await message.answer("🔌 Статус сервисов\n\n" + "\n".join(results))
 
 

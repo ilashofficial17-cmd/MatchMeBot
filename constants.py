@@ -28,14 +28,26 @@ GIFTS = {
 }
 
 
-def get_plan_price(plan_key: str, lang: str, ab_group: str = None) -> int:
-    """Returns plan price in Stars adjusted for region and A/B group."""
-    base = PREMIUM_PLANS[plan_key]["stars"]
+def get_price(product_key: str, lang: str, ab_group: str = None) -> int:
+    """Returns product price in Stars adjusted for region and A/B group.
+    Works for PREMIUM_PLANS, ENERGY_PACKS, and GIFTS."""
+    if product_key in PREMIUM_PLANS:
+        base = PREMIUM_PLANS[product_key]["stars"]
+    elif product_key in ENERGY_PACKS:
+        base = ENERGY_PACKS[product_key]["stars"]
+    elif product_key in GIFTS:
+        base = GIFTS[product_key]["stars"]
+    else:
+        raise ValueError(f"Unknown product: {product_key}")
     mult = PRICE_MULTIPLIERS.get(lang, 2.0)
     price = int(base * mult)
     if ab_group == "B":
         price = int(price * AB_PRICE_DISCOUNT_B)
-    return price
+    return max(1, price)
+
+
+# Backward-compatible alias
+get_plan_price = get_price
 
 
 def get_chat_topics(lang: str) -> list:
