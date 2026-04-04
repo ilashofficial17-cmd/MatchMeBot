@@ -13,6 +13,7 @@ from states import AdminState
 from keyboards import kb_main, kb_complaint_action, kb_user_actions
 from locales import t
 import moderation
+import redis_state
 
 MODE_NAMES = {"simple": "Общение 💬", "flirt": "Флирт 💋", "kink": "Kink 🔥"}
 
@@ -68,18 +69,19 @@ _PARTNER_ADS = None
 _filter_ads = None
 _get_chat_topics = None
 _auto_topic_sent = set()  # (uid, partner) pairs that got auto-topic
+_use_redis = False
 
 
 def init(*, bot, dp, db_pool, admin_id, active_chats, ai_sessions, last_ai_msg,
          pairing_lock, get_all_queues, chat_logs, last_msg_time, msg_count,
          mutual_likes, clear_chat_log, get_user, update_user, increment_user,
          get_rating, remove_chat_from_db, AI_CHARACTERS,
-         PARTNER_ADS=None, filter_ads=None, get_chat_topics=None):
+         PARTNER_ADS=None, filter_ads=None, get_chat_topics=None, use_redis=False):
     global _bot, _dp, _db_pool, _admin_id, _active_chats, _ai_sessions
     global _last_ai_msg, _pairing_lock, _get_all_queues, _chat_logs
     global _last_msg_time, _msg_count, _mutual_likes, _clear_chat_log
     global _get_user, _update_user, _increment_user, _get_rating
-    global _remove_chat_from_db, _AI_CHARACTERS, _PARTNER_ADS, _filter_ads, _get_chat_topics
+    global _remove_chat_from_db, _AI_CHARACTERS, _PARTNER_ADS, _filter_ads, _get_chat_topics, _use_redis
     _bot = bot
     _dp = dp
     _db_pool = db_pool
@@ -103,6 +105,7 @@ def init(*, bot, dp, db_pool, admin_id, active_chats, ai_sessions, last_ai_msg,
     _PARTNER_ADS = PARTNER_ADS or []
     _filter_ads = filter_ads
     _get_chat_topics = get_chat_topics
+    _use_redis = use_redis
 
 
 async def _get_lang(uid: int) -> str:
@@ -1006,16 +1009,29 @@ async def _inactivity_tick(_cleanup_counter):
     """Одна итерация inactivity_checker. Вызывается из цикла с try/except."""
     now = datetime.now()
 
+    # Получаем данные в зависимости от режима (Redis / fallback)
+    if _use_redis:
+        last_msg_data = await redis_state.get_all_active_last_msg()
+        # Строим пары: {uid: partner} из Redis active chats
+        active_pairs = {}
+        for uid in last_msg_data:
+            partner = await redis_state.get_active_partner(uid)
+            if partner:
+                active_pairs[uid] = partner
+    else:
+        last_msg_data = dict(_last_msg_time)
+        active_pairs = dict(_active_chats)
+
     # Авто-тема при тишине (2 мин без сообщений)
     if _get_chat_topics:
-        for uid, partner in list(_active_chats.items()):
+        for uid, partner in list(active_pairs.items()):
             if uid < partner:
                 chat_key = (min(uid, partner), max(uid, partner))
                 if chat_key in _auto_topic_sent:
                     continue
                 last = max(
-                    _last_msg_time.get(uid, now - timedelta(minutes=10)),
-                    _last_msg_time.get(partner, now - timedelta(minutes=10))
+                    last_msg_data.get(uid, now - timedelta(minutes=10)),
+                    last_msg_data.get(partner, now - timedelta(minutes=10))
                 )
                 silence = (now - last).total_seconds()
                 if 120 < silence < 300:  # 2-5 мин тишины
@@ -1035,17 +1051,23 @@ async def _inactivity_tick(_cleanup_counter):
 
     # Завершаем неактивные чаты
     to_end = []
-    for uid, partner in list(_active_chats.items()):
+    for uid, partner in list(active_pairs.items()):
         if uid < partner:
-            last = max(_last_msg_time.get(uid, now - timedelta(minutes=10)), _last_msg_time.get(partner, now - timedelta(minutes=10)))
+            last = max(
+                last_msg_data.get(uid, now - timedelta(minutes=10)),
+                last_msg_data.get(partner, now - timedelta(minutes=10))
+            )
             if (now - last).total_seconds() > 420:
                 to_end.append((uid, partner))
     for uid, partner in to_end:
-        async with _pairing_lock:
-            _active_chats.pop(uid, None)
-            _active_chats.pop(partner, None)
+        if _use_redis:
+            await redis_state.disconnect(uid)
+        else:
+            async with _pairing_lock:
+                _active_chats.pop(uid, None)
+                _active_chats.pop(partner, None)
         await _remove_chat_from_db(uid, partner)
-        _clear_chat_log(uid, partner)
+        await _clear_chat_log(uid, partner)
         _auto_topic_sent.discard((min(uid, partner), max(uid, partner)))
         for chat_uid in (uid, partner):
             try:
@@ -1063,28 +1085,34 @@ async def _inactivity_tick(_cleanup_counter):
         except Exception: pass
 
     # Завершаем неактивные AI чаты (10 мин)
-    ai_to_end = []
-    for uid_key in list(_ai_sessions.keys()):
-        last_ai = _last_ai_msg.get(uid_key)
-        if last_ai and (now - last_ai).total_seconds() > 600:
-            ai_to_end.append(uid_key)
-    for uid_key in ai_to_end:
-        _ai_sessions.pop(uid_key, None)
-        _last_ai_msg.pop(uid_key, None)
-        try:
-            key = StorageKey(bot_id=_bot.id, chat_id=uid_key, user_id=uid_key)
-            await FSMContext(_dp.storage, key=key).clear()
-        except Exception: pass
-        try:
-            ai_lang = await _get_lang(uid_key)
-            await _bot.send_message(uid_key, t(ai_lang, "inactivity_ai_end"), reply_markup=kb_main(ai_lang))
-        except Exception: pass
+    # Redis: AI sessions auto-expire via TTL (30 min), so only handle fallback
+    if not _use_redis:
+        ai_to_end = []
+        for uid_key in list(_ai_sessions.keys()):
+            last_ai = _last_ai_msg.get(uid_key)
+            if last_ai and (now - last_ai).total_seconds() > 600:
+                ai_to_end.append(uid_key)
+        for uid_key in ai_to_end:
+            _ai_sessions.pop(uid_key, None)
+            _last_ai_msg.pop(uid_key, None)
+            try:
+                key = StorageKey(bot_id=_bot.id, chat_id=uid_key, user_id=uid_key)
+                await FSMContext(_dp.storage, key=key).clear()
+            except Exception: pass
+            try:
+                ai_lang = await _get_lang(uid_key)
+                await _bot.send_message(uid_key, t(ai_lang, "inactivity_ai_end"), reply_markup=kb_main(ai_lang))
+            except Exception: pass
 
     # Обновляем bot_stats для admin_bot (live-данные)
     try:
-        online_pairs = len(_active_chats) // 2
-        searching_count = sum(len(q) for q in _get_all_queues())
-        ai_sessions_count = len(_ai_sessions)
+        if _use_redis:
+            online_pairs, searching_count = await redis_state.get_online_count()
+            ai_sessions_count = 0  # Redis sessions have auto-TTL, count not tracked
+        else:
+            online_pairs = len(_active_chats) // 2
+            searching_count = sum(len(q) for q in _get_all_queues())
+            ai_sessions_count = len(_ai_sessions)
         async with _db_pool.acquire() as conn:
             await conn.execute(
                 "INSERT INTO bot_stats (key, value, updated_at) VALUES ('online_pairs', $1, NOW()) "
@@ -1108,29 +1136,52 @@ async def _inactivity_tick(_cleanup_counter):
             for row in rows:
                 if row['command'] == 'kick':
                     uid = row['target_uid']
-                    if uid in _active_chats:
-                        partner = _active_chats[uid]
-                        async with _pairing_lock:
-                            _active_chats.pop(uid, None)
-                            _active_chats.pop(partner, None)
-                        await _remove_chat_from_db(uid, partner)
-                        _clear_chat_log(uid, partner)
-                        for chat_uid in (uid, partner):
+                    if _use_redis:
+                        partner = await redis_state.get_active_partner(uid)
+                        if partner:
+                            await redis_state.disconnect(uid)
+                            await _remove_chat_from_db(uid, partner)
+                            await _clear_chat_log(uid, partner)
+                            for chat_uid in (uid, partner):
+                                try:
+                                    key = StorageKey(bot_id=_bot.id, chat_id=chat_uid, user_id=chat_uid)
+                                    await FSMContext(_dp.storage, key=key).clear()
+                                except Exception:
+                                    pass
                             try:
-                                key = StorageKey(bot_id=_bot.id, chat_id=chat_uid, user_id=chat_uid)
-                                await FSMContext(_dp.storage, key=key).clear()
+                                uid_lang = await _get_lang(uid)
+                                await _bot.send_message(uid, t(uid_lang, "inactivity_end"), reply_markup=kb_main(uid_lang))
                             except Exception:
                                 pass
-                        try:
-                            uid_lang = await _get_lang(uid)
-                            await _bot.send_message(uid, t(uid_lang, "inactivity_end"), reply_markup=kb_main(uid_lang))
-                        except Exception:
-                            pass
-                        try:
-                            p_lang = await _get_lang(partner)
-                            await _bot.send_message(partner, t(p_lang, "inactivity_end"), reply_markup=kb_main(p_lang))
-                        except Exception:
-                            pass
+                            try:
+                                p_lang = await _get_lang(partner)
+                                await _bot.send_message(partner, t(p_lang, "inactivity_end"), reply_markup=kb_main(p_lang))
+                            except Exception:
+                                pass
+                    else:
+                        if uid in _active_chats:
+                            partner = _active_chats[uid]
+                            async with _pairing_lock:
+                                _active_chats.pop(uid, None)
+                                _active_chats.pop(partner, None)
+                            await _remove_chat_from_db(uid, partner)
+                            await _clear_chat_log(uid, partner)
+                            for chat_uid in (uid, partner):
+                                try:
+                                    key = StorageKey(bot_id=_bot.id, chat_id=chat_uid, user_id=chat_uid)
+                                    await FSMContext(_dp.storage, key=key).clear()
+                                except Exception:
+                                    pass
+                            try:
+                                uid_lang = await _get_lang(uid)
+                                await _bot.send_message(uid, t(uid_lang, "inactivity_end"), reply_markup=kb_main(uid_lang))
+                            except Exception:
+                                pass
+                            try:
+                                p_lang = await _get_lang(partner)
+                                await _bot.send_message(partner, t(p_lang, "inactivity_end"), reply_markup=kb_main(p_lang))
+                            except Exception:
+                                pass
                 await conn.execute(
                     "UPDATE admin_commands SET status='executed', executed_at=NOW() WHERE id=$1",
                     row['id']
@@ -1138,45 +1189,50 @@ async def _inactivity_tick(_cleanup_counter):
     except Exception:
         pass
 
-    # Очистка памяти: удаляем старые записи msg_count и last_msg_time
-    for uid_key in list(_last_msg_time.keys()):
-        last_time = _last_msg_time.get(uid_key)
-        if last_time and uid_key not in _active_chats and (now - last_time).total_seconds() > 600:
-            _last_msg_time.pop(uid_key, None)
-            _msg_count.pop(uid_key, None)
-
-    # Очистка мёртвых душ из очередей (по last_seen)
-    async with _pairing_lock:
-        for q in _get_all_queues():
-            for uid_key in list(q):
-                if uid_key in _active_chats:
-                    q.discard(uid_key)
-
-    # Очистка просроченных mutual_likes
-    for uid_key in list(_mutual_likes.keys()):
-        if not _mutual_likes[uid_key]:
-            del _mutual_likes[uid_key]
-
-    # Расширенная очистка раз в час (каждые 60 циклов)
-    _cleanup_counter += 1
-    if _cleanup_counter >= 60:
-        _cleanup_counter = 0
-        # chat_logs: удалить записи юзеров не в active_chats
-        for uid_key in list(_chat_logs.keys()):
-            if uid_key not in _active_chats:
-                _chat_logs.pop(uid_key, None)
-        # last_msg_time: удалить записи старше 30 минут (не в чате)
+    # Cleanup only needed for fallback mode (Redis uses TTL auto-cleanup)
+    if not _use_redis:
+        # Очистка памяти: удаляем старые записи msg_count и last_msg_time
         for uid_key in list(_last_msg_time.keys()):
-            lt = _last_msg_time.get(uid_key)
-            if lt and uid_key not in _active_chats and (now - lt).total_seconds() > 1800:
+            last_time = _last_msg_time.get(uid_key)
+            if last_time and uid_key not in _active_chats and (now - last_time).total_seconds() > 600:
                 _last_msg_time.pop(uid_key, None)
                 _msg_count.pop(uid_key, None)
-        # AI sessions: удалить сессии старше 2 часов
-        for uid_key in list(_last_ai_msg.keys()):
-            lt = _last_ai_msg.get(uid_key)
-            if lt and (now - lt).total_seconds() > 7200:
-                _ai_sessions.pop(uid_key, None)
-                _last_ai_msg.pop(uid_key, None)
+
+        # Очистка мёртвых душ из очередей (по last_seen)
+        async with _pairing_lock:
+            for q in _get_all_queues():
+                for uid_key in list(q):
+                    if uid_key in _active_chats:
+                        q.discard(uid_key)
+
+        # Очистка просроченных mutual_likes
+        for uid_key in list(_mutual_likes.keys()):
+            if not _mutual_likes[uid_key]:
+                del _mutual_likes[uid_key]
+
+        # Расширенная очистка раз в час (каждые 60 циклов)
+        _cleanup_counter += 1
+        if _cleanup_counter >= 60:
+            _cleanup_counter = 0
+            for uid_key in list(_chat_logs.keys()):
+                if uid_key not in _active_chats:
+                    _chat_logs.pop(uid_key, None)
+            for uid_key in list(_last_msg_time.keys()):
+                lt = _last_msg_time.get(uid_key)
+                if lt and uid_key not in _active_chats and (now - lt).total_seconds() > 1800:
+                    _last_msg_time.pop(uid_key, None)
+                    _msg_count.pop(uid_key, None)
+            for uid_key in list(_last_ai_msg.keys()):
+                lt = _last_ai_msg.get(uid_key)
+                if lt and (now - lt).total_seconds() > 7200:
+                    _ai_sessions.pop(uid_key, None)
+                    _last_ai_msg.pop(uid_key, None)
+
+    # msg_count cleanup always needed (stays in memory)
+    for uid_key in list(_msg_count.keys()):
+        entries = _msg_count.get(uid_key, [])
+        if entries and (now - entries[-1]).total_seconds() > 30:
+            _msg_count.pop(uid_key, None)
 
     return _cleanup_counter
 
@@ -1196,7 +1252,11 @@ async def reminder_task():
     while True:
         await asyncio.sleep(7200)  # каждые 2 часа
         try:
-            online_count = len(_active_chats) // 2 + sum(len(q) for q in _get_all_queues())
+            if _use_redis:
+                pairs, searching = await redis_state.get_online_count()
+                online_count = pairs * 2 + searching
+            else:
+                online_count = len(_active_chats) // 2 + sum(len(q) for q in _get_all_queues())
             char_data = random.choice(list(_AI_CHARACTERS.values()))
             char_name = t("ru", char_data["name_key"])
             async with _db_pool.acquire() as conn:
