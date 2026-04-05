@@ -271,3 +271,15 @@ def filter_ads(lang: str, mode: str) -> list:
             continue
         result.append(ad)
     return result
+
+
+# ====================== RATE LIMITS & BUDGET ======================
+RATE_LIMITS = {
+    "search": {"limit": 3, "window": 60},
+    "ai_message": {"limit": 30, "window": 60},
+    "complaint": {"limit": 3, "window": 300},
+    "mutual_like": {"limit": 10, "window": 60},
+}
+
+OPENROUTER_HOURLY_LIMIT = 500
+OPENROUTER_DAILY_BUDGET_USD = 10.0

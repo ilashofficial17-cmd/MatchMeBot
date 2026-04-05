@@ -128,6 +128,7 @@ TEXTS = {
         "partner_left": "Собеседник ушёл — бывает! Впереди ещё много интересных 💫",
         "not_in_chat": "Ты не в чате.",
         "spam_warning": "⚠️ Не спамь!",
+        "rate_limited": "⏳ Слишком быстро! Подожди немного.",
         "like_sent": "👍 Лайк улетел!",
         "like_received": "👍 Собеседник поставил тебе лайк! ⭐",
         "like_already": "👍 Ты уже ставил лайк этому собеседнику!",
@@ -437,9 +438,10 @@ TEXTS = {
         "energy_pack_not_found": "Пакет не найден.",
         "btn_buy_energy": "⚡ Пополнить энергию",
         "btn_energy_shop": "⚡ Магазин энергии",
-        "ai_unavailable": "😔 ИИ временно недоступен.",
+        "ai_unavailable": "🤖 AI временно недоступен. Попробуй позже или поищи живого собеседника!",
         "ai_no_funds": "💳 ИИ временно недоступен — нет средств на балансе.",
         "ai_error": "😔 ИИ временно недоступен. Попробуй позже.",
+        "ai_budget_limit": "🤖 AI-персонажи временно отдыхают. Попробуй через 30 минут или найди живого собеседника!",
         "ai_connection_error": "😔 Ошибка соединения с ИИ.",
         "ai_profile_required": "Сначала заполни анкету!",
         "ai_session_lost": "Сессия потеряна. Начни заново.",
@@ -611,6 +613,21 @@ TEXTS = {
         "adm_give_premium": "⭐ Дать Premium 30д",
         "adm_take_premium": "⭐ Забрать Premium",
         "adm_fulldelete": "🗑 Полное удаление",
+        # Мониторинг (только ru)
+        "adm_monitoring_btn": "📊 Мониторинг",
+        "adm_monitoring_refresh": "🔄 Обновить",
+        "monitoring_dashboard": (
+            "📊 Мониторинг MatchMe Bot\n\n"
+            "⏱ Uptime: {uptime}\n"
+            "📨 Requests: {requests}\n"
+            "❌ Errors: {errors} ({error_rate}/мин)\n\n"
+            "⚡ Response p95: {p95}ms\n"
+            "🔗 Redis: {redis}ms\n"
+            "🗄 PG pool: {pg_used}/20\n"
+            "💾 Memory: {memory} MB\n\n"
+            "🤖 AI calls: {ai_rate}/мин\n"
+            "🌐 OpenRouter: {openrouter}"
+        ),
         # Интересы (для отображения кнопок)
         "int_talk": "Разговор по душам 🗣",
         "int_humor": "Юмор и мемы 😂",
@@ -925,6 +942,7 @@ TEXTS = {
         "partner_left": "Partner left — happens! Plenty more interesting people ahead 💫",
         "not_in_chat": "You are not in a chat.",
         "spam_warning": "⚠️ Don't spam!",
+        "rate_limited": "⏳ Too fast! Please wait a moment.",
         "like_sent": "👍 Like sent!",
         "like_received": "👍 Your partner liked you! ⭐",
         "like_already": "👍 You already liked this partner!",
@@ -1247,9 +1265,10 @@ TEXTS = {
         "energy_pack_not_found": "Pack not found.",
         "btn_buy_energy": "⚡ Top Up Energy",
         "btn_energy_shop": "⚡ Energy Shop",
-        "ai_unavailable": "😔 AI is temporarily unavailable.",
+        "ai_unavailable": "🤖 AI is temporarily unavailable. Try later or find a real person to chat!",
         "ai_no_funds": "💳 AI temporarily unavailable — no balance.",
         "ai_error": "😔 AI temporarily unavailable. Try again later.",
+        "ai_budget_limit": "🤖 AI characters are taking a short break. Try again in 30 minutes or find a real person to chat with!",
         "ai_connection_error": "😔 AI connection error.",
         "ai_profile_required": "Fill out your profile first!",
         "ai_session_lost": "Session lost. Start again.",
@@ -1735,6 +1754,7 @@ TEXTS = {
         "partner_left": "Tu compañero se fue — ¡pasa! Hay mucha gente interesante por delante 💫",
         "not_in_chat": "No estás en un chat.",
         "spam_warning": "⚠️ ¡No hagas spam!",
+        "rate_limited": "⏳ ¡Demasiado rápido! Espera un momento.",
         "like_sent": "👍 ¡Me gusta enviado!",
         "like_received": "👍 ¡A tu compañero le gustaste! ⭐",
         "like_already": "👍 ¡Ya le diste me gusta a este compañero!",
@@ -2044,9 +2064,10 @@ TEXTS = {
         "energy_pack_not_found": "Paquete no encontrado.",
         "btn_buy_energy": "⚡ Recargar Energía",
         "btn_energy_shop": "⚡ Tienda de Energía",
-        "ai_unavailable": "😔 La IA no está disponible temporalmente.",
+        "ai_unavailable": "🤖 AI no está disponible temporalmente. ¡Inténtalo más tarde o busca a alguien real!",
         "ai_no_funds": "💳 IA no disponible temporalmente — sin saldo.",
         "ai_error": "😔 IA no disponible. Inténtalo más tarde.",
+        "ai_budget_limit": "🤖 Los personajes AI están descansando. ¡Inténtalo en 30 minutos o busca a alguien real!",
         "ai_connection_error": "😔 Error de conexión con la IA.",
         "ai_profile_required": "¡Completa tu perfil primero!",
         "ai_session_lost": "Sesión perdida. Comienza de nuevo.",
