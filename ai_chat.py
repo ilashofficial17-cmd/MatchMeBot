@@ -11,6 +11,10 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputPaidM
 from states import AIChat, Chat, Reg
 from keyboards import kb_main, kb_ai_characters, kb_ai_chat, kb_cancel_search
 from locales import t, TEXTS
+
+def _all(key):
+    """All language variants for a locale key."""
+    return {TEXTS[lang][key] for lang in TEXTS if key in TEXTS[lang]}
 import base64
 import io
 from ai_utils import get_ai_chat_response, describe_image, transcribe_voice
@@ -794,16 +798,16 @@ async def ai_choosing_text(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     lang = await _lang(uid)
     txt = message.text or ""
-    if txt in {t(lang, "btn_end_ai_chat"), t(lang, "btn_home")}:
+    if txt in _all("btn_end_ai_chat") | _all("btn_home"):
         await _del_session(uid)
         _last_ai_msg.pop(uid, None)
         await state.clear()
         await message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         return
-    if txt == t(lang, "btn_change_char"):
+    if txt in _all("btn_change_char"):
         await message.answer(t(lang, "ai_select_from_buttons"))
         return
-    if txt == t(lang, "btn_find_live"):
+    if txt in _all("btn_find_live"):
         await _del_session(uid)
         _last_ai_msg.pop(uid, None)
         await state.clear()
@@ -818,13 +822,13 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     lang = await _lang(uid)
     txt = message.text or ""
-    if txt == t(lang, "btn_end_ai_chat"):
+    if txt in _all("btn_end_ai_chat"):
         await _del_session(uid)
         _last_ai_msg.pop(uid, None)
         await state.clear()
         await message.answer(t(lang, "ai_ended"), reply_markup=kb_main(lang))
         return
-    if txt == t(lang, "btn_change_char"):
+    if txt in _all("btn_change_char"):
         await _del_session(uid)
         user_tier = await _get_premium_tier(uid)
         u = await _get_user(uid)
@@ -832,19 +836,19 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
         await state.set_state(AIChat.choosing)
         await message.answer(t(lang, "ai_select_char"), reply_markup=kb_ai_characters(user_tier, mode, lang))
         return
-    if txt == t(lang, "btn_find_live"):
+    if txt in _all("btn_find_live"):
         await _del_session(uid)
         _last_ai_msg.pop(uid, None)
         await state.clear()
         await message.answer(t(lang, "searching"), reply_markup=kb_cancel_search(lang))
         await _cmd_find(message, state)
         return
-    if txt == t(lang, "btn_home"):
+    if txt in _all("btn_home"):
         await _del_session(uid)
         await state.clear()
         await message.answer(t(lang, "btn_home"), reply_markup=kb_main(lang))
         return
-    if txt == t(lang, "btn_erase_memory"):
+    if txt in _all("btn_erase_memory"):
         session = await _get_session(uid)
         if session:
             char_id = session["character"]
