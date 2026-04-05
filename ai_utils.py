@@ -13,8 +13,11 @@ logger = logging.getLogger("matchme.ai_utils")
 OPEN_ROUTER_KEY = os.environ.get("OPEN_ROUTER")
 OPEN_ROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Semaphore: макс 10 одновременных запросов к API
-_api_semaphore = asyncio.Semaphore(10)
+# Semaphore: макс 20 одновременных запросов к API
+_api_semaphore = asyncio.Semaphore(20)
+
+# Budget fallback model (cheap, fast)
+_BUDGET_MODEL = "google/gemini-flash-1.5"
 
 # Singleton aiohttp session (переиспользуем TCP-соединения)
 _http_session: aiohttp.ClientSession | None = None
@@ -87,6 +90,7 @@ async def get_ai_chat_response(
     model_name: str,
     max_tokens: int = 300,
     temperature: float | None = None,
+    budget_mode: bool = False,
 ) -> str | None:
     """
     Отправляет запрос в OpenRouter с полной историей чата.
@@ -97,6 +101,7 @@ async def get_ai_chat_response(
         model_name:    Модель OpenRouter
         max_tokens:    Максимум токенов в ответе
         temperature:   Температура генерации (None = дефолт модели)
+        budget_mode:   При True — использовать дешёвую модель вместо запрошенной
 
     Returns:
         Строка с ответом или None при ошибке.
@@ -104,6 +109,9 @@ async def get_ai_chat_response(
     if not OPEN_ROUTER_KEY:
         logger.warning("Переменная окружения OPEN_ROUTER не задана")
         return None
+    actual_model = _BUDGET_MODEL if budget_mode else model_name
+    if budget_mode and actual_model != model_name:
+        logger.info(f"Budget mode: {model_name} → {actual_model}")
     headers = {
         "Authorization": f"Bearer {OPEN_ROUTER_KEY}",
         "Content-Type": "application/json",
@@ -111,7 +119,7 @@ async def get_ai_chat_response(
     }
     messages = [{"role": "system", "content": system_prompt}] + list(history)
     payload = {
-        "model": model_name,
+        "model": actual_model,
         "max_tokens": max_tokens,
         "messages": messages,
         "transforms": ["cache-prompt"],  # OpenRouter prompt caching
@@ -129,6 +137,11 @@ async def get_ai_chat_response(
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
+                    # Log token usage for cost tracking
+                    usage = data.get("usage")
+                    if usage:
+                        total_tokens = usage.get("total_tokens", 0)
+                        logger.info(f"Tokens: {total_tokens} model={actual_model}")
                     return data["choices"][0]["message"]["content"]
                 body = await resp.text()
                 logger.error(f"OpenRouter chat {resp.status}: {body[:300]}")
