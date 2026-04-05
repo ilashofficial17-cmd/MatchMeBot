@@ -7,6 +7,7 @@ import os
 import asyncio
 import aiohttp
 import logging
+from datetime import datetime
 
 logger = logging.getLogger("matchme.ai_utils")
 
@@ -15,6 +16,35 @@ OPEN_ROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Semaphore: макс 10 одновременных запросов к API
 _api_semaphore = asyncio.Semaphore(10)
+
+# AI budget cap: hourly limit
+AI_HOURLY_LIMIT = int(os.environ.get("AI_HOURLY_LIMIT", "500"))
+_ai_hour_counter = 0
+_ai_hour_reset = datetime.now()
+
+
+async def check_ai_budget() -> bool:
+    """Проверяет не превышен ли часовой лимит AI-запросов."""
+    global _ai_hour_counter, _ai_hour_reset
+    now = datetime.now()
+    if (now - _ai_hour_reset).total_seconds() >= 3600:
+        _ai_hour_counter = 0
+        _ai_hour_reset = now
+    if _ai_hour_counter >= AI_HOURLY_LIMIT:
+        logger.warning(f"AI budget cap reached: {_ai_hour_counter}/{AI_HOURLY_LIMIT} per hour")
+        return False
+    return True
+
+
+def _record_ai_call():
+    """Инкрементирует счётчик AI-запросов и пишет метрику в monitoring."""
+    global _ai_hour_counter
+    _ai_hour_counter += 1
+    try:
+        from monitoring import metrics
+        metrics.record_ai_call()
+    except ImportError:
+        pass
 
 # Singleton aiohttp session (переиспользуем TCP-соединения)
 _http_session: aiohttp.ClientSession | None = None
@@ -48,6 +78,8 @@ async def get_ai_answer(
     if not OPEN_ROUTER_KEY:
         logger.warning("Переменная окружения OPEN_ROUTER не задана")
         return None
+    if not await check_ai_budget():
+        return None
     headers = {
         "Authorization": f"Bearer {OPEN_ROUTER_KEY}",
         "Content-Type": "application/json",
@@ -72,6 +104,7 @@ async def get_ai_answer(
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
+                    _record_ai_call()
                     return data["choices"][0]["message"]["content"]
                 body = await resp.text()
                 logger.error(f"OpenRouter {resp.status}: {body[:300]}")
@@ -104,6 +137,8 @@ async def get_ai_chat_response(
     if not OPEN_ROUTER_KEY:
         logger.warning("Переменная окружения OPEN_ROUTER не задана")
         return None
+    if not await check_ai_budget():
+        return "AI временно недоступен, попробуйте через 30 минут"
     headers = {
         "Authorization": f"Bearer {OPEN_ROUTER_KEY}",
         "Content-Type": "application/json",
@@ -129,6 +164,7 @@ async def get_ai_chat_response(
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
+                    _record_ai_call()
                     return data["choices"][0]["message"]["content"]
                 body = await resp.text()
                 logger.error(f"OpenRouter chat {resp.status}: {body[:300]}")

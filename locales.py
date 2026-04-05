@@ -452,6 +452,7 @@ TEXTS = {
         "ai_greeting": "Поприветствуй собеседника и начни разговор. Коротко, 1-2 предложения на русском.",
         "ai_buy_sub": "⭐ Купить подписку",
         "searching": "🔍 Ищем...",
+        "rate_limited": "⏳ Слишком быстро! Подожди немного.",
         # Описания персонажей
         "char_danil_desc": "Общительный парень, поговорит на любые темы",
         "char_polina_desc": "Живая девушка, ироничная и с юмором",
@@ -1264,6 +1265,7 @@ TEXTS = {
         "ai_greeting": "Greet the user and start a conversation. Short, 1-2 sentences in English.",
         "ai_buy_sub": "⭐ Buy subscription",
         "searching": "🔍 Searching...",
+        "rate_limited": "⏳ Too fast! Please wait a moment.",
         # Character descriptions
         "char_danil_desc": "Sociable guy, will chat on any topic",
         "char_polina_desc": "Lively girl, ironic with a sense of humor",
@@ -2063,6 +2065,7 @@ TEXTS = {
         "ai_chatting_with": "✅ Estás chateando con {name}\n{description}\n\n{energy_text}\n\n¡Di algo!",
         "ai_buy_sub": "⭐ Comprar suscripción",
         "searching": "🔍 Buscando...",
+        "rate_limited": "⏳ ¡Demasiado rápido! Espera un momento.",
         # Descripciones de personajes
         "char_danil_desc": "Chico sociable, charla sobre cualquier tema",
         "char_polina_desc": "Chica animada, irónica y con sentido del humor",
