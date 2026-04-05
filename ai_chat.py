@@ -13,7 +13,7 @@ from keyboards import kb_main, kb_ai_characters, kb_ai_chat, kb_cancel_search
 from locales import t, TEXTS
 import base64
 import io
-from ai_utils import get_ai_chat_response, describe_image, transcribe_voice
+from ai_utils import get_ai_chat_response, describe_image, transcribe_voice, summarize_conversation
 import redis_state
 
 router = Router()
@@ -99,11 +99,42 @@ async def _set_session(uid: int, char_id: str, history: list):
         _ai_sessions[uid] = {"character": char_id, "history": history, "msg_count": 0}
 
 
+async def _save_session_memory(uid: int):
+    """Summarize current AI session and save long-term memory before closing."""
+    if not _use_redis:
+        return
+    try:
+        session = await redis_state.get_ai_session(uid)
+        if not session or not session.get("history") or len(session["history"]) < 4:
+            return  # Too short to summarize
+        char_id = session["character"]
+        history = session["history"]
+        summary, facts = await summarize_conversation(history)
+        if summary:
+            # Merge with existing memory (append new summary)
+            old_memory = await redis_state.get_memory(uid, char_id)
+            if old_memory:
+                summary = f"{old_memory}\n---\n{summary}"
+                # Keep last 2 summaries max (~500 chars)
+                parts = summary.split("\n---\n")
+                if len(parts) > 2:
+                    summary = "\n---\n".join(parts[-2:])
+            await redis_state.save_memory(uid, char_id, summary)
+        if facts:
+            # Merge with existing facts (keep unique, max 10)
+            old_facts = await redis_state.get_user_facts(uid, char_id)
+            merged = list(dict.fromkeys(old_facts + facts))[:10]
+            await redis_state.save_user_facts(uid, char_id, merged)
+    except Exception as e:
+        logger.warning(f"save_session_memory failed uid={uid}: {e}")
+
+
 async def _del_session(uid: int):
     if _use_redis:
+        await _save_session_memory(uid)
         await redis_state.delete_ai_session(uid)
     else:
-        await _del_session(uid)
+        _ai_sessions.pop(uid, None)
 
 
 async def _has_session(uid: int) -> bool:
@@ -773,14 +804,31 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     except Exception: pass
     await callback.message.answer(t(lang, "ai_chat_active"), reply_markup=kb_ai_chat(lang))
     u = await _get_user(uid)
+    # Load long-term memory from Redis
+    memory_notes = ""
+    if _use_redis:
+        try:
+            mem = await redis_state.get_memory(uid, char_id)
+            facts = await redis_state.get_user_facts(uid, char_id)
+            parts = []
+            if mem:
+                parts.append(mem)
+            if facts:
+                parts.append("Факты: " + ", ".join(facts))
+            if parts:
+                memory_notes = "\n".join(parts)
+        except Exception:
+            pass
+
     if db_history:
         # Показываем последнее сообщение персонажа чтобы юзер видел где остановились
         last_assistant = next((m for m in reversed(db_history) if m["role"] == "assistant"), None)
         if last_assistant:
             await callback.message.answer(last_assistant['content'])
     else:
-        notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
-        greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u, notes=notes)
+        db_notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
+        combined_notes = "\n".join(filter(None, [db_notes, memory_notes]))
+        greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u, notes=combined_notes)
         if greeting:
             await _append_msg(uid, "assistant", greeting)
             if _save_ai_message:
@@ -853,6 +901,13 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
                 await _clear_ai_history(uid, char_id)
             if _save_ai_notes:
                 await _save_ai_notes(uid, char_id, "")
+            # Clear long-term memory
+            if _use_redis:
+                try:
+                    await redis_state.save_memory(uid, char_id, "")
+                    await redis_state.save_user_facts(uid, char_id, [])
+                except Exception:
+                    pass
             # Re-create session with empty history
             await _set_session(uid, char_id, [])
             await message.answer(t(lang, "memory_erased"))
@@ -980,8 +1035,24 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     _last_ai_msg[uid] = datetime.now()
     await _bot.send_chat_action(uid, "typing")
     await _update_user(uid, last_seen=datetime.now())
-    # Загружаем заметки и медиа для инжекта в промпт
-    notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
+    # Загружаем заметки, memory и медиа для инжекта в промпт
+    db_notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
+    # Long-term memory (only on first message of session to save latency)
+    memory_notes = ""
+    if _use_redis and session["msg_count"] == 0:
+        try:
+            mem = await redis_state.get_memory(uid, char_id)
+            facts = await redis_state.get_user_facts(uid, char_id)
+            parts = []
+            if mem:
+                parts.append(mem)
+            if facts:
+                parts.append("Факты: " + ", ".join(facts))
+            if parts:
+                memory_notes = "\n".join(parts)
+        except Exception:
+            pass
+    notes = "\n".join(filter(None, [db_notes, memory_notes]))
     media_info = await _get_char_media(char_id)
     history_for_ai = list(session["history"])
     msg_count_before = session["msg_count"]
