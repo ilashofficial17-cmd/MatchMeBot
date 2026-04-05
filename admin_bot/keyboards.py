@@ -31,6 +31,7 @@ def kb_channel():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="📝 Создать пост"), KeyboardButton(text="⚡ Авто-постинг")],
         [KeyboardButton(text="📅 Расписание"), KeyboardButton(text="🔌 Статус API")],
+        [KeyboardButton(text="🔔 Режимы рубрик"), KeyboardButton(text="📋 Очередь")],
         [KeyboardButton(text="⬅️ Назад")],
     ], resize_keyboard=True)
 
