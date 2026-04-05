@@ -2276,7 +2276,12 @@ async def reg_mode(message: types.Message, state: FSMContext):
         await message.answer(t(lang, "welcome_tour"))
         await log_ab_event(uid, "onboarding_shown")
     # Автозапуск поиска
-    q_len = len(get_queue(mode, False)) + len(get_queue(mode, True))
+    if _use_redis:
+        q_free = await redis_state.get_queue_members(mode, False)
+        q_prem = await redis_state.get_queue_members(mode, True)
+        q_len = len(q_free) + len(q_prem)
+    else:
+        q_len = len(_get_fb_queue(mode, False)) + len(_get_fb_queue(mode, True))
     status = t(lang, "queue_searching")
     await message.answer(
         t(lang, "queue_info", mode=t(lang, f"mode_{mode}"), count=q_len, status=status),
@@ -2308,7 +2313,12 @@ async def reg_interest(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.answer(t(lang, "welcome_tour"))
             await log_ab_event(uid, "onboarding_shown")
         mode = u.get("mode", "simple") if u else "simple"
-        q_len = len(get_queue(mode, False)) + len(get_queue(mode, True))
+        if _use_redis:
+            q_free = await redis_state.get_queue_members(mode, False)
+            q_prem = await redis_state.get_queue_members(mode, True)
+            q_len = len(q_free) + len(q_prem)
+        else:
+            q_len = len(_get_fb_queue(mode, False)) + len(_get_fb_queue(mode, True))
         await callback.message.answer(
             t(lang, "queue_info", mode=t(lang, f"mode_{mode}"), count=q_len, status=t(lang, "queue_searching")),
             reply_markup=kb_cancel_search(lang)
@@ -3264,6 +3274,16 @@ async def main():
     )
     dp.include_router(ai_chat.router)
     dp.include_router(energy_shop_module.router)
+
+    # Fallback router: dismiss spinner on stale inline keyboards
+    # Must be last so it doesn't intercept valid callbacks
+    from aiogram import Router as _FallbackRouter
+    _fb_router = _FallbackRouter(name="fallback")
+    @_fb_router.callback_query()
+    async def _fallback_callback(callback: types.CallbackQuery):
+        await callback.answer()
+    dp.include_router(_fb_router)
+
     # admin_module.router перенесён в admin_bot/ — НЕ подключаем здесь
     # tasks (reminder, winback, streak) перенесены в admin_bot/tasks/ — НЕ запускаем здесь
     # inactivity_checker остаётся — reads from Redis when available
