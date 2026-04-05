@@ -1447,6 +1447,12 @@ async def _mutual_timeout(uid, partner_uid):
     except Exception: pass
 
 # ====================== СТАРТ ======================
+
+@dp.errors()
+async def error_handler(event, exception):
+    logger.error(f"Update error: {exception}", exc_info=True)
+    return True
+
 @dp.message(Command("start"), StateFilter("*"))
 async def cmd_start(message: types.Message, state: FSMContext):
     uid = message.from_user.id
