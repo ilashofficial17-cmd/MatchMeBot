@@ -71,6 +71,20 @@ CHANNEL_SCHEDULE = {
 
 MILESTONE_THRESHOLDS = [50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000]
 
+# Режим публикации per-rubric: "auto" — сразу в канал, "moderated" — превью админу
+RUBRIC_MODE = {
+    "daily_stats":  "auto",
+    "chat_story":   "moderated",
+    "would_you":    "moderated",
+    "dating_tip":   "moderated",
+    "joke":         "moderated",
+    "poll":         "auto",
+    "weekly_recap": "moderated",
+    "hot_take":     "moderated",
+    "night_vibe":   "moderated",
+    "milestone":    "auto",
+}
+
 POLL_BANK = [
     # --- оригинальные ---
     ("Что главное в первом сообщении?", ["Юмор 😄", "Комплимент 💐", "Вопрос ❓", "Просто 'Привет' 👋"]),
