@@ -264,7 +264,7 @@ async def get_all_active_last_msg() -> dict[int, datetime]:
     """Get all last_msg_time entries for inactivity checking.
     Scans active chats and returns their last msg times."""
     result = {}
-    cursor = "0"
+    cursor = 0
     while True:
         cursor, keys = await redis_pool.scan(
             cursor=cursor, match="mm:chat:active:*", count=200
@@ -277,7 +277,7 @@ async def get_all_active_last_msg() -> dict[int, datetime]:
                     result[uid] = datetime.fromisoformat(ts)
                 except (ValueError, TypeError):
                     pass
-        if cursor == "0":
+        if not cursor:
             break
     return result
 
@@ -389,13 +389,13 @@ async def get_online_count() -> tuple[int, int]:
     """Returns (active_pairs, searching_count)."""
     # Count active chats
     active_count = 0
-    cursor = "0"
+    cursor = 0
     while True:
         cursor, keys = await redis_pool.scan(
             cursor=cursor, match="mm:chat:active:*", count=500
         )
         active_count += len(keys)
-        if cursor == "0":
+        if not cursor:
             break
     pairs = active_count // 2
 
