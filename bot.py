@@ -852,10 +852,9 @@ async def needs_onboarding(message: types.Message, state: FSMContext) -> bool:
     if not u or not u.get("accepted_rules") or not u.get("accepted_privacy"):
         await cmd_start(message, state)
         return True
-    # Auto-detect lang if somehow missing
+    # Default lang to 'ru' if somehow missing — never auto-detect for existing users
     if not u.get("lang"):
-        lang = _detect_lang(message.from_user.language_code)
-        await update_user(uid, lang=lang)
+        await update_user(uid, lang="ru")
     return False
 
 async def get_pending_complaints():
@@ -1471,14 +1470,17 @@ async def cmd_start(message: types.Message, state: FSMContext):
         except (ValueError, TypeError):
             pass
 
-    # Автоопределение языка
+    # Автоопределение языка — только для новых пользователей
     u = await get_user(uid)
-    if not u or not u.get("lang"):
+    if not u:
         lang = _detect_lang(message.from_user.language_code)
         await update_user(uid, lang=lang)
-        logger.info(f"[{uid}] lang auto-detected: {lang} (tg={message.from_user.language_code}, user_existed={u is not None})")
+        logger.info(f"[{uid}] new user, lang={lang} (tg={message.from_user.language_code})")
     else:
-        lang = u.get("lang", "ru")
+        lang = u.get("lang") or "ru"
+        if not u.get("lang"):
+            await update_user(uid, lang=lang)
+            logger.info(f"[{uid}] lang was NULL, set to default 'ru'")
 
     # Автозахват имени из Telegram
     tg_name = (message.from_user.first_name or "User")[:30]
