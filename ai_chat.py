@@ -100,6 +100,34 @@ async def _set_session(uid: int, char_id: str, history: list):
         _ai_sessions[uid] = {"character": char_id, "history": history, "msg_count": 0}
 
 
+async def _load_memory_cached(uid: int, char_id: str) -> str:
+    """Load long-term memory from Redis, caching result in the session hash.
+    On first call: fetches from Redis and stores as 'loaded_memory' in session.
+    On subsequent calls: reads from session hash (saves 2 Redis GETs per message).
+    """
+    if not _use_redis:
+        return ""
+    try:
+        key = f"mm:ai:session:{uid}"
+        cached = await redis_state.redis_pool.hget(key, "loaded_memory")
+        if cached is not None:
+            return cached
+        # First load — fetch from long-term storage
+        mem = await redis_state.get_memory(uid, char_id)
+        facts = await redis_state.get_user_facts(uid, char_id)
+        parts = []
+        if mem:
+            parts.append(mem)
+        if facts:
+            parts.append("Факты: " + ", ".join(facts))
+        memory_notes = "\n".join(parts) if parts else ""
+        # Cache in session hash
+        await redis_state.redis_pool.hset(key, "loaded_memory", memory_notes)
+        return memory_notes
+    except Exception:
+        return ""
+
+
 async def _save_session_memory(uid: int):
     """Summarize current AI session and save long-term memory before closing."""
     if not _use_redis:
@@ -112,6 +140,8 @@ async def _save_session_memory(uid: int):
         history = session["history"]
         summary, facts = await summarize_conversation(history)
         if summary:
+            word_count = sum(len(m.get("content", "").split()) for m in history)
+            logger.info(f"Memory save uid={uid} char={char_id} words={word_count} facts={len(facts)}")
             # Merge with existing memory (append new summary)
             old_memory = await redis_state.get_memory(uid, char_id)
             if old_memory:
@@ -811,21 +841,7 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
         if last_assistant:
             await callback.message.answer(last_assistant['content'])
     else:
-        # Load long-term memory from Redis
-        memory_notes = ""
-        if _use_redis:
-            try:
-                mem = await redis_state.get_memory(uid, char_id)
-                facts = await redis_state.get_user_facts(uid, char_id)
-                parts = []
-                if mem:
-                    parts.append(mem)
-                if facts:
-                    parts.append("Факты: " + ", ".join(facts))
-                if parts:
-                    memory_notes = "\n".join(parts)
-            except Exception:
-                pass
+        memory_notes = await _load_memory_cached(uid, char_id)
         db_notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
         combined_notes = "\n".join(filter(None, [db_notes, memory_notes]))
         greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u, notes=combined_notes)
@@ -1037,21 +1053,8 @@ async def ai_chat_message(message: types.Message, state: FSMContext):
     await _update_user(uid, last_seen=datetime.now())
     # Загружаем заметки, memory и медиа для инжекта в промпт
     db_notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
-    # Long-term memory (only on first message of session to save latency)
-    memory_notes = ""
-    if _use_redis and session["msg_count"] == 0:
-        try:
-            mem = await redis_state.get_memory(uid, char_id)
-            facts = await redis_state.get_user_facts(uid, char_id)
-            parts = []
-            if mem:
-                parts.append(mem)
-            if facts:
-                parts.append("Факты: " + ", ".join(facts))
-            if parts:
-                memory_notes = "\n".join(parts)
-        except Exception:
-            pass
+    # Long-term memory (cached in session hash — no extra Redis GETs after first load)
+    memory_notes = await _load_memory_cached(uid, char_id) if session["msg_count"] == 0 else ""
     notes = "\n".join(filter(None, [db_notes, memory_notes]))
     media_info = await _get_char_media(char_id)
     history_for_ai = list(session["history"])
@@ -1238,21 +1241,7 @@ async def ai_quick_start(callback: types.CallbackQuery, state: FSMContext):
         if last_assistant:
             await callback.message.answer(last_assistant['content'])
     else:
-        # Load long-term memory from Redis
-        memory_notes = ""
-        if _use_redis:
-            try:
-                mem = await redis_state.get_memory(uid, char_id)
-                facts = await redis_state.get_user_facts(uid, char_id)
-                parts = []
-                if mem:
-                    parts.append(mem)
-                if facts:
-                    parts.append("Факты: " + ", ".join(facts))
-                if parts:
-                    memory_notes = "\n".join(parts)
-            except Exception:
-                pass
+        memory_notes = await _load_memory_cached(uid, char_id)
         db_notes = await _get_ai_notes(uid, char_id) if _get_ai_notes else ""
         combined_notes = "\n".join(filter(None, [db_notes, memory_notes]))
         greeting = await ask_ai(char_id, [], t(lang, "ai_greeting"), lang, user=u, notes=combined_notes)
