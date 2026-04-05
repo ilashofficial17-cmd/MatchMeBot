@@ -203,10 +203,12 @@ async def alert_checker():
             snap = metrics.get_snapshot()
             alerts: list[str] = []
 
-            # Redis
+            # Redis (Railway network latency is typically 50-150ms)
             if snap["redis_latency_ms"] < 0:
                 alerts.append("🔴 Redis DISCONNECTED")
-            elif snap["redis_latency_ms"] > 50:
+            elif snap["redis_latency_ms"] > 500:
+                alerts.append(f"🔴 Redis latency CRITICAL: {snap['redis_latency_ms']:.0f}ms")
+            elif snap["redis_latency_ms"] > 200:
                 alerts.append(f"🟡 Redis latency: {snap['redis_latency_ms']:.0f}ms")
 
             # PG pool
