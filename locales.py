@@ -53,14 +53,13 @@ TEXTS = {
         ),
         "rules_accepted": "✅ Правила приняты! Добро пожаловать в MatchMe! 🎉",
         "rules_choose_lang": "👆 Выбери язык чтобы продолжить.",
-        "welcome_back": "С возвращением!{badge} Тут без тебя было скучновато 😏",
-        "welcome_new": "👋 Добро пожаловать в MatchMe!{badge}",
+        "welcome_back": "Вернулся{badge} 😏 Думали уже не придёшь.",
+        "welcome_new": "Ты в MatchMe{badge} — тут знакомятся вслепую. Погнали 👇",
         "welcome_intro": (
-            "{name}, тебя тут ждали 😏\n\n"
-            "Представь: ты открываешь чат — и через 10 секунд уже болтаешь с кем-то новым.\n"
-            "Никто не знает кто ты. Ты не знаешь кого встретишь.\n"
-            "Вот в этом и кайф.\n\n"
-            "Жми кнопку и погнали!"
+            "{name}, тут никто не знает кто ты 😏\n\n"
+            "Открываешь чат — и через секунды уже разговариваешь с кем-то новым.\n"
+            "Анонимно, честно, иногда дерзко.\n\n"
+            "Жми кнопку — первый шаг уже сделан."
         ),
         "btn_accept_all": "✅ Принимаю",
         "banned_permanent": "🚫 Ты заблокирован навсегда.",
@@ -304,16 +303,16 @@ TEXTS = {
         ),
         "unavailable": "⚠️ Сейчас недоступно — {reason}.",
         "no_partner_wait": (
-            "Поиск затянулся... Но есть идея 💡\n\n"
-            "Пока ждёшь — поболтай с {name}!\n"
-            "Отвечает моментально и всегда в настроении 🤖"
+            "Поиск ещё идёт 🔍\n\n"
+            "Пока ждёшь — {name} уже онлайн.\n"
+            "Характер есть, скучать не даст."
         ),
         "upsell": (
-            "Хороший чат? С Premium следующий будет ещё быстрее 🚀\n\n"
-            "Приоритет в поиске, VIP-персонажи, без рекламы.\n"
-            "Пока думаешь — кто-то уже общается на твоём месте."
+            "Хороший чат? Представь следующий — но без очереди 🚀\n\n"
+            "Premium даёт приоритет в поиске, VIP-персонажей и ноль рекламы.\n"
+            "Если подумываешь — /premium"
         ),
-        "ad_message": "📢 Рекламная пауза\n\nНадоело? С Premium рекламы нет — вообще никакой.\n⭐ /premium",
+        "ad_message": "Секунда — и снова чат 😏\nСовсем без этого — с Premium. Совсем.\n⭐ /premium",
         # --- Реклама: нейтральная (все режимы) ---
         "ad_dzen_1": (
             "🔓 YouTube, TikTok и другие сервисы без блокировок?\n\n"
@@ -703,8 +702,8 @@ TEXTS = {
         "trial_activated": "🎉 Premium активирован на 3 дня!\nДо {until}",
         "trial_already_used": "Ты уже использовал пробный период!",
         # Retention
-        "retention_miss_you": "👋 Давно тебя не было! В MatchMe сейчас {count} человек онлайн. Заходи пообщаться!",
-        "retention_ai_miss": "💬 {name} скучает по тебе! Зайди продолжить разговор.",
+        "retention_miss_you": "Давно не заходил. {count} человек сейчас онлайн — и кто-то из них точно интересный 👀",
+        "retention_ai_miss": "{name} всё ещё думает о том разговоре... Зайди? 💬",
         # Social proof
         "online_count": "Сейчас в сети: {count}",
         # Streak
@@ -757,20 +756,19 @@ TEXTS = {
         # Auto-topic
         "auto_topic": "💡 Тишина в чате? Вот тема для разговора:\n\n{topic}",
         # Streak reminder
-        "streak_reminder": "🔥 {days} дней подряд — не ломай серию! Загляни сегодня и продолжи.",
-        "streak_lost": "Стрик обнулился, ну и ладно 🤷 Новый можно начать прямо сейчас!",
+        "streak_reminder": "🔥 {days} дней подряд — грех останавливаться. Один чат и стрик жив.",
+        "streak_lost": "Стрик сбросился. Бывает 🤷\nЗато новый начнётся прямо сейчас — первый чат уже считается.",
         # Ачивки — доп. ключи
         "ach_unlocked": "🏅 Новая ачивка: {name}!",
         "ach_mutual_match": "❤️ Взаимный матч",
         # AI miss-you
-        "ai_miss_you": "{emoji} {name} думает о тебе... Загляни, а? 💬",
+        "ai_miss_you": "{emoji} {name}: «ты куда пропал? Тут скучно без тебя...»",
         # Onboarding
         "welcome_tour": (
-            "Окей, коротко — что тут можно:\n\n"
-            "💬 Анонимные чаты с живыми людьми — подбор за секунды\n"
-            "🤖 AI-собеседники — отвечают мгновенно, у каждого свой характер\n"
-            "📸 Они видят твои фото и слышат голосовые\n\n"
-            "Заполни короткую анкету — и вперёд!"
+            "Вот что тебя ждёт:\n\n"
+            "Живые анонимные чаты — собеседник за секунды 💬\n"
+            "AI-персонажи с характером — каждый по-своему цепляет 🤖\n\n"
+            "Никто не знает кто ты. Пока сам не скажешь."
         ),
         # Smart recommendation
         "ai_recommended": "💡 Тебе может понравиться {name} — попробуй!",
@@ -852,14 +850,13 @@ TEXTS = {
         ),
         "rules_accepted": "✅ Rules accepted! Welcome to MatchMe! 🎉",
         "rules_choose_lang": "👆 Choose a language to continue.",
-        "welcome_back": "Welcome back!{badge} It was kinda boring without you 😏",
-        "welcome_new": "👋 Welcome to MatchMe!{badge}",
+        "welcome_back": "Back{badge} 😏 Figured you'd show up.",
+        "welcome_new": "You're in MatchMe{badge} — anonymous chats, real people. Let's go 👇",
         "welcome_intro": (
-            "{name}, we've been expecting you 😏\n\n"
-            "Imagine: you open a chat — and in 10 seconds you're already talking to someone new.\n"
-            "Nobody knows who you are. You don't know who you'll meet.\n"
-            "That's the whole point.\n\n"
-            "Hit the button and let's go!"
+            "{name}, nobody here knows who you are 😏\n\n"
+            "Open a chat — and in seconds you're talking to someone new.\n"
+            "Anonymous. Real. Sometimes bold.\n\n"
+            "Hit the button — first step's already done."
         ),
         "btn_accept_all": "✅ I accept",
         "banned_permanent": "🚫 You are permanently banned.",
@@ -1103,16 +1100,16 @@ TEXTS = {
         ),
         "unavailable": "⚠️ Not available right now — {reason}.",
         "no_partner_wait": (
-            "Search is taking a while... But here's an idea 💡\n\n"
-            "While you wait — chat with {name}!\n"
-            "Always available, always in the mood 🤖"
+            "Still searching 🔍\n\n"
+            "While you wait — {name} is already online.\n"
+            "Has personality. Won't bore you."
         ),
         "upsell": (
-            "Good chat? With Premium the next one comes even faster 🚀\n\n"
-            "Priority search, VIP characters, no ads.\n"
-            "While you're thinking — someone else is chatting in your spot."
+            "Good chat? Picture the next one — but with no waiting 🚀\n\n"
+            "Premium gets you priority search, VIP characters, zero ads.\n"
+            "If you're thinking about it — /premium"
         ),
-        "ad_message": "📢 Ad break\n\nAnnoyed? With Premium there are no ads — none at all.\n⭐ /premium",
+        "ad_message": "One sec — then back to chatting 😏\nNo ads at all with Premium. Zero.\n⭐ /premium",
         # --- Ads: neutral (all modes) ---
         "ad_dzen_1": (
             "🔓 YouTube, TikTok and more — no blocks?\n\n"
@@ -1515,8 +1512,8 @@ TEXTS = {
         "trial_activated": "🎉 Premium activated for 3 days!\nUntil {until}",
         "trial_already_used": "You've already used the free trial!",
         # Retention
-        "retention_miss_you": "👋 We miss you! {count} people are online on MatchMe right now. Come chat!",
-        "retention_ai_miss": "💬 {name} misses you! Come back to continue the conversation.",
+        "retention_miss_you": "Been a while. {count} people online right now — and one of them is definitely worth talking to 👀",
+        "retention_ai_miss": "{name} still thinks about that conversation... Drop by? 💬",
         # Social proof
         "online_count": "Online now: {count}",
         # Streak
@@ -1569,20 +1566,19 @@ TEXTS = {
         # Auto-topic
         "auto_topic": "💡 Silence in chat? Here's a topic:\n\n{topic}",
         # Streak reminder
-        "streak_reminder": "🔥 {days} days in a row — don't break the streak! Drop by today and keep going.",
-        "streak_lost": "Streak reset, oh well 🤷 You can start a new one right now!",
+        "streak_reminder": "🔥 {days} days straight — shame to stop now. One chat and the streak lives.",
+        "streak_lost": "Streak's gone. Happens 🤷\nA new one starts the moment you open your next chat.",
         # Achievements — extra keys
         "ach_unlocked": "🏅 Achievement unlocked: {name}!",
         "ach_mutual_match": "❤️ Mutual Match",
         # AI miss-you
-        "ai_miss_you": "{emoji} {name} is thinking about you... Come say hi? 💬",
+        "ai_miss_you": "{emoji} {name}: «where'd you go? It's boring without you here...»",
         # Onboarding
         "welcome_tour": (
-            "Alright, here's the deal:\n\n"
-            "💬 Anonymous chats with real people — matched in seconds\n"
-            "🤖 AI companions — instant replies, each with their own personality\n"
-            "📸 They see your photos and hear your voice messages\n\n"
-            "Fill out a quick profile — and let's go!"
+            "Here's what's waiting:\n\n"
+            "Anonymous live chats — someone to talk to in seconds 💬\n"
+            "AI characters with personality — each one hits differently 🤖\n\n"
+            "No one knows who you are. Until you say so."
         ),
         # Smart recommendation
         "ai_recommended": "💡 You might like {name} — try it!",
@@ -1664,14 +1660,13 @@ TEXTS = {
         ),
         "rules_accepted": "✅ ¡Reglas aceptadas! ¡Bienvenido a MatchMe! 🎉",
         "rules_choose_lang": "👆 Elige un idioma para continuar.",
-        "welcome_back": "¡De vuelta!{badge} Esto estaba aburrido sin ti 😏",
-        "welcome_new": "👋 ¡Bienvenido a MatchMe!{badge}",
+        "welcome_back": "De vuelta{badge} 😏 Sabíamos que aparecerías.",
+        "welcome_new": "Estás en MatchMe{badge} — chats anónimos, gente real. Vamos 👇",
         "welcome_intro": (
-            "{name}, te estábamos esperando 😏\n\n"
-            "Imagina: abres un chat — y en 10 segundos ya estás hablando con alguien nuevo.\n"
-            "Nadie sabe quién eres. No sabes a quién conocerás.\n"
-            "Esa es la gracia.\n\n"
-            "¡Dale al botón y vamos!"
+            "{name}, aquí nadie sabe quién eres 😏\n\n"
+            "Abres un chat — y en segundos ya estás hablando con alguien nuevo.\n"
+            "Anónimo. Real. A veces atrevido.\n\n"
+            "Dale al botón — el primer paso ya está hecho."
         ),
         "btn_accept_all": "✅ Acepto",
         "banned_permanent": "🚫 Estás baneado permanentemente.",
@@ -1915,16 +1910,16 @@ TEXTS = {
         ),
         "unavailable": "⚠️ No disponible ahora — {reason}.",
         "no_partner_wait": (
-            "La búsqueda se alarga... Pero tengo una idea 💡\n\n"
-            "Mientras esperas — ¡habla con {name}!\n"
-            "Siempre disponible y siempre de humor 🤖"
+            "Aún buscando 🔍\n\n"
+            "Mientras esperas — {name} ya está en línea.\n"
+            "Tiene carácter. No te aburrirá."
         ),
         "upsell": (
-            "¿Buen chat? Con Premium el siguiente llega aún más rápido 🚀\n\n"
-            "Prioridad en búsqueda, personajes VIP, sin anuncios.\n"
-            "Mientras lo piensas — alguien ya está chateando en tu lugar."
+            "¿Buen chat? Imagina el siguiente — pero sin espera 🚀\n\n"
+            "Premium te da prioridad en búsqueda, personajes VIP y cero anuncios.\n"
+            "Si lo estás pensando — /premium"
         ),
-        "ad_message": "📢 Pausa publicitaria\n\n¿Molesto? Con Premium no hay anuncios — ninguno.\n⭐ /premium",
+        "ad_message": "Un segundo — y de vuelta al chat 😏\nCon Premium, cero anuncios. Ninguno.\n⭐ /premium",
         # --- Anuncios: neutral (todos los modos) ---
         "ad_dzen_1": (
             "🔓 ¿YouTube, TikTok y más sin bloqueos?\n\n"
@@ -2314,8 +2309,8 @@ TEXTS = {
         "trial_activated": "🎉 ¡Premium activado por 3 días!\nHasta {until}",
         "trial_already_used": "¡Ya usaste el periodo de prueba!",
         # Retention
-        "retention_miss_you": "👋 ¡Te extrañamos! Hay {count} personas en línea en MatchMe. ¡Ven a chatear!",
-        "retention_ai_miss": "💬 ¡{name} te extraña! Vuelve a continuar la conversación.",
+        "retention_miss_you": "Hace tiempo que no aparecías. {count} personas en línea ahora — y alguna vale la pena 👀",
+        "retention_ai_miss": "{name} sigue pensando en esa conversación... ¿Te pasas? 💬",
         # Social proof
         "online_count": "En línea ahora: {count}",
         # Streak
@@ -2368,20 +2363,19 @@ TEXTS = {
         # Auto-topic
         "auto_topic": "💡 ¿Silencio en el chat? Aquí tienes un tema:\n\n{topic}",
         # Streak reminder
-        "streak_reminder": "🔥 {days} días seguidos — ¡no rompas la racha! Pásate hoy y sigue.",
-        "streak_lost": "Se acabó la racha, bueno 🤷 ¡Puedes empezar una nueva ahora mismo!",
+        "streak_reminder": "🔥 {days} días seguidos — una pena parar ahora. Un chat y la racha sigue.",
+        "streak_lost": "Se acabó la racha. Pasa 🤷\nLa nueva empieza en cuanto abras el próximo chat.",
         # Logros — extra keys
         "ach_unlocked": "🏅 ¡Nuevo logro: {name}!",
         "ach_mutual_match": "❤️ Match Mutuo",
         # AI miss-you
-        "ai_miss_you": "{emoji} {name} está pensando en ti... ¿Vienes a saludar? 💬",
+        "ai_miss_you": "{emoji} {name}: «¿adónde te fuiste? Aquí está aburrido sin ti...»",
         # Onboarding
         "welcome_tour": (
-            "Vale, en resumen — qué puedes hacer aquí:\n\n"
-            "💬 Chats anónimos con personas reales — emparejamiento en segundos\n"
-            "🤖 Compañeros IA — responden al instante, cada uno con su personalidad\n"
-            "📸 Ven tus fotos y escuchan tus audios\n\n"
-            "Llena un perfil rápido — ¡y adelante!"
+            "Esto es lo que te espera:\n\n"
+            "Chats anónimos en vivo — alguien con quien hablar en segundos 💬\n"
+            "Personajes IA con carácter — cada uno te engancha a su manera 🤖\n\n"
+            "Nadie sabe quién eres. Hasta que tú lo digas."
         ),
         # Smart recommendation
         "ai_recommended": "💡 Te puede gustar {name} — ¡pruébalo!",
