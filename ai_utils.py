@@ -19,6 +19,35 @@ _api_semaphore = asyncio.Semaphore(20)
 # Budget fallback model (cheap, fast)
 _BUDGET_MODEL = "google/gemini-flash-1.5"
 
+# Hourly budget cap
+from datetime import datetime as _dt
+_AI_HOURLY_LIMIT = int(os.environ.get("AI_HOURLY_LIMIT", "500"))
+_ai_hour_counter = 0
+_ai_hour_reset = _dt.now()
+
+
+def check_ai_budget() -> bool:
+    """Returns True if within hourly AI call limit."""
+    global _ai_hour_counter, _ai_hour_reset
+    now = _dt.now()
+    if (now - _ai_hour_reset).total_seconds() > 3600:
+        _ai_hour_counter = 0
+        _ai_hour_reset = now
+    if _ai_hour_counter >= _AI_HOURLY_LIMIT:
+        return False
+    _ai_hour_counter += 1
+    return True
+
+
+def _record_ai_call():
+    """Record AI call in monitoring if available."""
+    try:
+        from monitoring import metrics
+        metrics.record_ai_call()
+    except ImportError:
+        pass
+
+
 # Singleton aiohttp session (переиспользуем TCP-соединения)
 _http_session: aiohttp.ClientSession | None = None
 
@@ -51,6 +80,10 @@ async def get_ai_answer(
     if not OPEN_ROUTER_KEY:
         logger.warning("Переменная окружения OPEN_ROUTER не задана")
         return None
+    if not check_ai_budget():
+        logger.warning("AI hourly budget exceeded")
+        return None
+    _record_ai_call()
     headers = {
         "Authorization": f"Bearer {OPEN_ROUTER_KEY}",
         "Content-Type": "application/json",
@@ -109,6 +142,10 @@ async def get_ai_chat_response(
     if not OPEN_ROUTER_KEY:
         logger.warning("Переменная окружения OPEN_ROUTER не задана")
         return None
+    if not check_ai_budget():
+        logger.warning("AI hourly budget exceeded")
+        return None
+    _record_ai_call()
     actual_model = _BUDGET_MODEL if budget_mode else model_name
     if budget_mode and actual_model != model_name:
         logger.info(f"Budget mode: {model_name} → {actual_model}")

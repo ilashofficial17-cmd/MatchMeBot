@@ -41,6 +41,14 @@ import admin as admin_module
 import energy_shop as energy_shop_module
 import redis_state
 
+# monitoring.py — безопасный импорт
+try:
+    import monitoring
+    _has_monitoring = True
+except ImportError:
+    monitoring = None
+    _has_monitoring = False
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("matchme")
 
@@ -85,7 +93,13 @@ _fb_pairing_lock = asyncio.Lock()
 # ====================== БД ======================
 async def init_db():
     global db_pool
-    db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=5, max_size=20)
+    db_pool = await asyncpg.create_pool(
+        DATABASE_URL,
+        min_size=5,
+        max_size=20,
+        command_timeout=10,
+        max_inactive_connection_lifetime=300,
+    )
     async with db_pool.acquire() as conn:
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -960,6 +974,15 @@ async def send_ad_message(uid, source: str = "search"):
     except Exception: pass
 
 async def do_find(uid, state):
+    # Rate limit: max 3 searches per 60 seconds
+    if _has_monitoring:
+        lang_rl = await get_lang(uid)
+        if not await monitoring.check_rate_limit(uid, "search", 3, 60):
+            try:
+                await bot.send_message(uid, t(lang_rl, "rate_limited"))
+            except Exception:
+                pass
+            return False
     if _use_redis:
         if await redis_state.is_in_chat(uid):
             return False
@@ -979,11 +1002,8 @@ async def do_find(uid, state):
     search_age_min = u.get("search_age_min", 16) or 16
     search_age_max = u.get("search_age_max", 99) or 99
     my_search_range = u.get("search_range", "local")
+    my_age = u.get("age") or 0
 
-    # Собираем кандидатов ВНЕ лока (await-запросы к БД)
-    # Общение — всегда изолировано, кросс-режим только Флирт↔Kink
-    # Обе очереди (premium + non-premium) всегда доступны для поиска,
-    # premium-кандидаты получают приоритет через сортировку ниже
     queue_configs = [(mode, True), (mode, False)]
     if cross and mode == "flirt":
         queue_configs += [("kink", True), ("kink", False)]
@@ -991,55 +1011,134 @@ async def do_find(uid, state):
         queue_configs += [("flirt", True), ("flirt", False)]
 
     candidates = []
-    for q_mode, q_prem in queue_configs:
-        if _use_redis:
-            q_members = await redis_state.get_queue_members(q_mode, q_prem)
+
+    if _use_redis:
+        # ── Фаза 1: Redis-фильтрация (без DB) ──
+        available_by_queue = {}
+        for q_mode, q_prem in queue_configs:
             qkey = redis_state.queue_key(q_mode, q_prem)
-        else:
+            raw = await redis_state.redis_pool.srandmember(qkey, 50)
+            if not raw:
+                continue
+            pids = [int(m) for m in raw if int(m) != uid]
+            if not pids:
+                continue
+            pipe = redis_state.redis_pool.pipeline()
+            for pid in pids:
+                pipe.exists(f"mm:chat:active:{pid}")
+            results = await pipe.execute()
+            free = [pid for pid, busy in zip(pids, results) if not busy]
+            if free:
+                available_by_queue[qkey] = free
+
+        # ── Фаза 2: Batch DB-обогащение + фильтрация ──
+        all_pids = []
+        pid_to_qkey = {}
+        for qkey, pids in available_by_queue.items():
+            for pid in pids[:20]:
+                if pid not in pid_to_qkey:
+                    all_pids.append(pid)
+                    pid_to_qkey[pid] = qkey
+
+        if all_pids:
+            rows = await db_pool.fetch(
+                "SELECT * FROM users WHERE uid = ANY($1::bigint[])", all_pids
+            )
+            for pu in (dict(r) for r in rows):
+                pid = pu["uid"]
+                if not pu.get("name") or not pu.get("gender") or not pu.get("mode"):
+                    continue
+                if pu.get("ban_until"):
+                    ban_v = pu["ban_until"]
+                    if ban_v == "permanent":
+                        continue
+                    try:
+                        if datetime.now() < datetime.fromisoformat(ban_v):
+                            continue
+                    except Exception:
+                        pass
+                p_lang_val = pu.get("lang") or "ru"
+                p_search_range = pu.get("search_range", "local")
+                if my_lang != p_lang_val and my_search_range == "local" and p_search_range == "local":
+                    continue
+                p_shadow = pu.get("shadow_ban", False)
+                if my_shadow != p_shadow:
+                    continue
+                if search_gender != "any" and pu.get("gender") != search_gender:
+                    continue
+                p_search_gender = pu.get("search_gender", "any")
+                if p_search_gender != "any" and u.get("gender") != p_search_gender:
+                    continue
+                p_age = pu.get("age") or 0
+                if p_age and (p_age < search_age_min or p_age > search_age_max):
+                    continue
+                p_age_min = pu.get("search_age_min", 16) or 16
+                p_age_max = pu.get("search_age_max", 99) or 99
+                if my_age and (my_age < p_age_min or my_age > p_age_max):
+                    continue
+                p_mode = pu.get("mode", "simple")
+                if mode == "simple" and p_mode != "simple":
+                    continue
+                if p_mode != mode and not pu.get("accept_cross_mode", False):
+                    continue
+                p_interests = set(filter(None, pu.get("interests", "").split(","))) if pu.get("interests") else set()
+                common = len(my_interests & p_interests)
+                rating_diff = abs(get_rating(pu) - my_rating)
+                p_premium = await is_premium(pid)
+                priority = 0 if p_premium else 1
+                candidates.append((pid, common, rating_diff, priority, pid_to_qkey[pid]))
+    else:
+        # ── Fallback: in-memory очереди (без Redis) ──
+        for q_mode, q_prem in queue_configs:
             q_obj = _get_fb_queue(q_mode, q_prem)
             q_members = set(q_obj)
-            qkey = None
-        for pid in q_members:
-            if pid == uid: continue
-            if _use_redis:
-                if await redis_state.is_in_chat(pid): continue
-            else:
-                if pid in _fb_active_chats: continue
-            pu = await get_user(pid)
-            if not pu or not pu.get("name") or not pu.get("gender") or not pu.get("mode"): continue
-            if pu.get("ban_until"):
-                ban_v = pu["ban_until"]
-                if ban_v == "permanent":
+            for pid in q_members:
+                if pid == uid:
                     continue
-                try:
-                    if datetime.now() < datetime.fromisoformat(ban_v):
+                if pid in _fb_active_chats:
+                    continue
+                pu = await get_user(pid)
+                if not pu or not pu.get("name") or not pu.get("gender") or not pu.get("mode"):
+                    continue
+                if pu.get("ban_until"):
+                    ban_v = pu["ban_until"]
+                    if ban_v == "permanent":
                         continue
-                except Exception:
-                    pass
-            p_lang_val = pu.get("lang") or "ru"
-            p_search_range = pu.get("search_range", "local")
-            if my_lang != p_lang_val and my_search_range == "local" and p_search_range == "local":
-                continue
-            p_shadow = pu.get("shadow_ban", False)
-            if my_shadow != p_shadow: continue
-            if search_gender != "any" and pu.get("gender") != search_gender: continue
-            p_search_gender = pu.get("search_gender", "any")
-            if p_search_gender != "any" and u.get("gender") != p_search_gender: continue
-            p_age = pu.get("age") or 0
-            my_age = u.get("age") or 0
-            if p_age and (p_age < search_age_min or p_age > search_age_max): continue
-            p_age_min = pu.get("search_age_min", 16) or 16
-            p_age_max = pu.get("search_age_max", 99) or 99
-            if my_age and (my_age < p_age_min or my_age > p_age_max): continue
-            p_mode = pu.get("mode", "simple")
-            if mode == "simple" and p_mode != "simple": continue
-            if p_mode != mode and not pu.get("accept_cross_mode", False): continue
-            p_interests = set(filter(None, pu.get("interests", "").split(","))) if pu.get("interests") else set()
-            common = len(my_interests & p_interests)
-            rating_diff = abs(get_rating(pu) - my_rating)
-            p_premium = await is_premium(pid)
-            priority = 0 if p_premium else 1
-            candidates.append((pid, common, rating_diff, priority, qkey if _use_redis else _get_fb_queue(q_mode, q_prem)))
+                    try:
+                        if datetime.now() < datetime.fromisoformat(ban_v):
+                            continue
+                    except Exception:
+                        pass
+                p_lang_val = pu.get("lang") or "ru"
+                p_search_range = pu.get("search_range", "local")
+                if my_lang != p_lang_val and my_search_range == "local" and p_search_range == "local":
+                    continue
+                p_shadow = pu.get("shadow_ban", False)
+                if my_shadow != p_shadow:
+                    continue
+                if search_gender != "any" and pu.get("gender") != search_gender:
+                    continue
+                p_search_gender = pu.get("search_gender", "any")
+                if p_search_gender != "any" and u.get("gender") != p_search_gender:
+                    continue
+                p_age = pu.get("age") or 0
+                if p_age and (p_age < search_age_min or p_age > search_age_max):
+                    continue
+                p_age_min = pu.get("search_age_min", 16) or 16
+                p_age_max = pu.get("search_age_max", 99) or 99
+                if my_age and (my_age < p_age_min or my_age > p_age_max):
+                    continue
+                p_mode = pu.get("mode", "simple")
+                if mode == "simple" and p_mode != "simple":
+                    continue
+                if p_mode != mode and not pu.get("accept_cross_mode", False):
+                    continue
+                p_interests = set(filter(None, pu.get("interests", "").split(","))) if pu.get("interests") else set()
+                common = len(my_interests & p_interests)
+                rating_diff = abs(get_rating(pu) - my_rating)
+                p_premium = await is_premium(pid)
+                priority = 0 if p_premium else 1
+                candidates.append((pid, common, rating_diff, priority, _get_fb_queue(q_mode, q_prem)))
 
     if candidates:
         candidates.sort(key=lambda x: (x[3], -x[1], x[2]))
@@ -1450,6 +1549,8 @@ async def _mutual_timeout(uid, partner_uid):
 @dp.errors()
 async def error_handler(event, exception):
     logger.error(f"Update error: {exception}", exc_info=True)
+    if _has_monitoring:
+        monitoring.metrics.record_error()
     return True
 
 @dp.message(Command("start"), StateFilter("*"))
@@ -2613,6 +2714,12 @@ async def complaint_cancel(callback: types.CallbackQuery, state: FSMContext):
 @dp.callback_query(F.data.startswith("rep:"), StateFilter(Complaint.reason))
 async def handle_complaint(callback: types.CallbackQuery, state: FSMContext):
     uid = callback.from_user.id
+    # Rate limit: max 3 complaints per 300 seconds
+    if _has_monitoring:
+        if not await monitoring.check_rate_limit(uid, "complaint", 3, 300):
+            lang_rl = await get_lang(uid)
+            await callback.answer(t(lang_rl, "rate_limited"), show_alert=True)
+            return
     reason_map = {
         "minor": "Несовершеннолетние", "spam": "Спам/Реклама",
         "abuse": "Угрозы/Оскорбления", "nsfw": "Пошлятина без согласия", "other": "Другое"
@@ -3207,6 +3314,14 @@ async def main():
     else:
         logger.warning("Running with MemoryStorage (no Redis)")
 
+    # --- Monitoring init ---
+    if _has_monitoring:
+        monitoring.init(bot=bot, db_pool=db_pool, admin_id=ADMIN_ID, redis_pool=redis_state.redis_pool if _use_redis else None)
+        asyncio.create_task(monitoring.monitoring_task())
+        asyncio.create_task(monitoring.alert_checker())
+        asyncio.create_task(monitoring.openrouter_health_probe())
+        logger.info("Monitoring tasks started")
+
     # Create Telegraph legal pages on startup
     try:
         legal_urls = await create_legal_pages()
@@ -3239,6 +3354,7 @@ async def main():
         db_pool=db_pool,
         send_ad_message=send_ad_message,
         use_redis=_use_redis,
+        check_rate_limit=monitoring.check_rate_limit if _has_monitoring else None,
     )
     admin_module.init(
         bot=bot,
@@ -3272,6 +3388,9 @@ async def main():
         update_user=update_user,
         get_lang=get_lang,
     )
+    if _has_monitoring:
+        dp.message.middleware(monitoring.MetricsMiddleware())
+        dp.callback_query.middleware(monitoring.MetricsMiddleware())
     dp.include_router(ai_chat.router)
     dp.include_router(energy_shop_module.router)
 
