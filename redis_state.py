@@ -408,3 +408,38 @@ async def get_online_count() -> tuple[int, int]:
     searching = sum(counts)
 
     return pairs, searching
+
+
+# ---- AI Character Memory (long-term) ----
+
+_MEMORY_TTL = 30 * 24 * 3600  # 30 days
+
+
+async def save_memory(uid: int, char_id: str, summary: str):
+    """Save conversation summary for uid+character. TTL 30 days."""
+    key = f"mm:ai:memory:{uid}:{char_id}"
+    await redis_pool.set(key, summary, ex=_MEMORY_TTL)
+
+
+async def get_memory(uid: int, char_id: str) -> str | None:
+    """Get last conversation summary for uid+character."""
+    key = f"mm:ai:memory:{uid}:{char_id}"
+    return await redis_pool.get(key)
+
+
+async def save_user_facts(uid: int, char_id: str, facts: list[str]):
+    """Save key facts about user (max 10). TTL 30 days."""
+    key = f"mm:ai:facts:{uid}:{char_id}"
+    pipe = redis_pool.pipeline()
+    pipe.delete(key)
+    for fact in facts[:10]:
+        pipe.sadd(key, fact)
+    pipe.expire(key, _MEMORY_TTL)
+    await pipe.execute()
+
+
+async def get_user_facts(uid: int, char_id: str) -> list[str]:
+    """Get stored facts about user for this character."""
+    key = f"mm:ai:facts:{uid}:{char_id}"
+    members = await redis_pool.smembers(key)
+    return list(members) if members else []
