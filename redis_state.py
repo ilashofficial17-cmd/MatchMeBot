@@ -9,6 +9,8 @@ import logging
 from datetime import datetime
 
 import redis.asyncio as aioredis
+from redis.backoff import ExponentialBackoff
+from redis.retry import Retry
 
 logger = logging.getLogger("matchme.redis_state")
 
@@ -139,10 +141,17 @@ async def init_redis(url: str | None = None) -> bool:
         return False
 
     try:
+        retry = Retry(ExponentialBackoff(cap=2, base=0.1), retries=3)
         redis_pool = aioredis.from_url(
             url,
             decode_responses=True,
-            max_connections=20,
+            max_connections=30,
+            retry_on_timeout=True,
+            socket_timeout=5,
+            socket_connect_timeout=5,
+            health_check_interval=30,
+            retry=retry,
+            retry_on_error=[ConnectionError, TimeoutError],
         )
         await redis_pool.ping()
         logger.info("Redis connected successfully")
