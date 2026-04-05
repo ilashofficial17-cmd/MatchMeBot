@@ -239,6 +239,59 @@ async def transcribe_voice(audio_base64: str, lang: str = "ru") -> str | None:
         return None
 
 
+_SUMMARIZE_MODEL = "google/gemini-2.0-flash-001"
+
+_SUMMARIZE_PROMPT = (
+    "Ты анализируешь диалог между пользователем и AI-персонажем в чате знакомств.\n"
+    "Напиши:\n"
+    "1. Краткое резюме разговора (2-3 предложения, что обсуждали, какая была атмосфера)\n"
+    "2. Ключевые факты о пользователе (имя, возраст, интересы, что рассказал о себе, настроение)\n\n"
+    "Формат ответа СТРОГО:\n"
+    "SUMMARY: <резюме>\n"
+    "FACTS: <факт1> | <факт2> | <факт3>\n\n"
+    "Если фактов нет — напиши FACTS: none\n"
+    "Пиши кратко. Только факты из диалога, не додумывай."
+)
+
+
+async def summarize_conversation(history: list[dict]) -> tuple[str, list[str]]:
+    """
+    Summarize a conversation and extract user facts.
+    Returns (summary, [fact1, fact2, ...]).
+    Uses Gemini Flash for cost efficiency (~$0.001 per call).
+    """
+    if not history:
+        return "", []
+
+    # Format last 10 messages for summarization
+    messages = history[-10:]
+    chat_text = "\n".join(
+        f"{'User' if m['role'] == 'user' else 'AI'}: {m['content']}"
+        for m in messages
+    )
+
+    raw = await get_ai_answer(
+        prompt=f"Диалог:\n{chat_text}",
+        system_prompt=_SUMMARIZE_PROMPT,
+        model_name=_SUMMARIZE_MODEL,
+        max_tokens=300,
+    )
+    if not raw:
+        return "", []
+
+    summary = ""
+    facts = []
+    for line in raw.strip().split("\n"):
+        line = line.strip()
+        if line.upper().startswith("SUMMARY:"):
+            summary = line[len("SUMMARY:"):].strip()
+        elif line.upper().startswith("FACTS:"):
+            facts_raw = line[len("FACTS:"):].strip()
+            if facts_raw.lower() != "none":
+                facts = [f.strip() for f in facts_raw.split("|") if f.strip()]
+    return summary, facts[:10]
+
+
 _LANG_NAMES = {"ru": "Russian", "en": "English", "es": "Spanish"}
 
 
