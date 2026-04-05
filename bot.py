@@ -1476,6 +1476,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
     if not u or not u.get("lang"):
         lang = _detect_lang(message.from_user.language_code)
         await update_user(uid, lang=lang)
+        logger.info(f"[{uid}] lang auto-detected: {lang} (tg={message.from_user.language_code}, user_existed={u is not None})")
     else:
         lang = u.get("lang", "ru")
 
