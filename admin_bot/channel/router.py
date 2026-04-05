@@ -1,6 +1,7 @@
 """
 Admin Bot — хэндлеры канала + главное меню навигации.
 Reply keyboard навигация: главное меню → разделы → действия.
+Модерация постов: approve / regen / edit / dismiss.
 """
 
 import logging
@@ -9,18 +10,22 @@ from datetime import datetime
 
 from aiogram import Router, types, F
 from aiogram.filters import Command, StateFilter
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
 )
 
 from admin_bot.config import (
     ADMIN_ID, ANTHROPIC_API_KEY, VENICE_API_KEY, CHANNEL_ID, BOT_USERNAME,
-    OPEN_ROUTER_KEY, OPEN_ROUTER_URL, CHANNEL_AI_MODEL,
+    OPEN_ROUTER_KEY, OPEN_ROUTER_URL, CHANNEL_AI_MODEL, RUBRIC_MODE,
 )
 import admin_bot.db as _db
-from admin_bot.db import get_stat, set_stat
-from admin_bot.channel.content import CHANNEL_GENERATORS, generate_poll
-from admin_bot.channel.scheduler import last_channel_post
+from admin_bot.db import get_stat, set_stat, get_rubric_mode, set_rubric_mode
+from admin_bot.channel.content import CHANNEL_GENERATORS, generate_poll, generate_image
+from admin_bot.channel.scheduler import (
+    last_channel_post, pending_posts, create_pending_post,
+    RUBRIC_EMOJI, MAX_REGEN_ATTEMPTS, _moderation_kb,
+)
 from admin_bot.keyboards import kb_main_menu, kb_admin, kb_channel, kb_analytics, kb_marketing, kb_support_user
 from locales import t
 
@@ -28,18 +33,26 @@ logger = logging.getLogger("admin-bot")
 
 router = Router()
 
-# Кэш превью постов: msg_id -> (rubric, text, poll_data)
+# Кэш превью постов (ручной постинг): msg_id -> (rubric, text, poll_data)
 channel_preview_cache = {}
+
+
+# ====================== FSM ======================
+class ChannelPostEdit(StatesGroup):
+    waiting_text = State()
 
 
 def kb_post_types():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Статистика дня", callback_data="chpost:daily_stats")],
-        [InlineKeyboardButton(text="🔥 Пик активности", callback_data="chpost:peak_hour")],
+        [InlineKeyboardButton(text="💬 Истории чатов", callback_data="chpost:chat_story")],
+        [InlineKeyboardButton(text="🤔 А ты бы?", callback_data="chpost:would_you")],
         [InlineKeyboardButton(text="💡 Совет по общению", callback_data="chpost:dating_tip")],
         [InlineKeyboardButton(text="😂 Шутка / мем", callback_data="chpost:joke")],
         [InlineKeyboardButton(text="📋 Опрос", callback_data="chpost:poll")],
         [InlineKeyboardButton(text="📈 Итоги недели", callback_data="chpost:weekly_recap")],
+        [InlineKeyboardButton(text="🔥 Hot take", callback_data="chpost:hot_take")],
+        [InlineKeyboardButton(text="🌙 Ночной вайб", callback_data="chpost:night_vibe")],
     ])
 
 
@@ -125,12 +138,13 @@ async def btn_schedule(message: types.Message):
     await message.answer(
         f"📅 Расписание авто-постинга ({status})\n\n"
         f"12:00 — 💡 Совет по общению\n"
-        f"13:00 — 🔥 Пик активности\n"
-        f"15:00 — 😂 Шутка / мем\n"
+        f"14:00 — 💬 История из чатов\n"
+        f"16:00 — 🤔 А ты бы?\n"
         f"18:00 — 📋 Опрос (через день)\n"
         f"19:00 — 📈 Итоги недели (воскресенье)\n"
-        f"20:00 — 🔥 Пик активности\n"
-        f"21:00 — 📊 Статистика дня\n\n"
+        f"20:00 — 🔥 Hot take\n"
+        f"21:00 — 📊 Статистика дня\n"
+        f"23:00 — 🌙 Ночной вайб\n\n"
         f"Milestone — при достижении порогов юзеров"
     )
 
@@ -148,6 +162,51 @@ async def btn_channel_stats(message: types.Message):
     if message.from_user.id != ADMIN_ID:
         return
     await show_channel_stats(message)
+
+
+# ====================== МОДЕРАЦИЯ: reply buttons ======================
+@router.message(F.text == "🔔 Режимы рубрик")
+async def btn_rubric_modes(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    buttons = []
+    for rubric in RUBRIC_MODE:
+        mode = await get_rubric_mode(rubric)
+        emoji = RUBRIC_EMOJI.get(rubric, "📝")
+        mode_label = "🤖 АВТО" if mode == "auto" else "👁 МОДЕР"
+        buttons.append([InlineKeyboardButton(
+            text=f"{emoji} {rubric} — {mode_label}",
+            callback_data=f"chmod:mode:{rubric}",
+        )])
+    await message.answer(
+        "🔔 Режимы публикации\n\nНажми на рубрику чтобы переключить режим:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+    )
+
+
+@router.message(F.text == "📋 Очередь")
+async def btn_queue(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    if not pending_posts:
+        await message.answer("Очередь пуста — все посты опубликованы ✅")
+        return
+    now = datetime.now()
+    lines = [f"📋 На модерации: {len(pending_posts)} пост(ов)\n"]
+    buttons = []
+    for i, (pid, post) in enumerate(pending_posts.items(), 1):
+        emoji = RUBRIC_EMOJI.get(post["rubric"], "📝")
+        age = int((now - post["created_at"]).total_seconds() / 60)
+        time_str = post["created_at"].strftime("%H:%M")
+        lines.append(f"{i}. {emoji} {post['rubric']} — {time_str} ({age} мин назад)")
+        buttons.append([InlineKeyboardButton(
+            text=f"Открыть #{i} ({post['rubric']})",
+            callback_data=f"chmod:open:{pid}",
+        )])
+    await message.answer(
+        "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons) if buttons else None,
+    )
 
 
 # ====================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======================
@@ -260,7 +319,7 @@ async def show_channel_stats(message: types.Message):
         await message.answer(f"❌ Ошибка: {e}")
 
 
-# ====================== КОМАНДЫ (legacy, чтобы /post /toggle /status /stats /schedule продолжали работать) ======================
+# ====================== КОМАНДЫ (legacy) ======================
 @router.message(Command("post"))
 async def cmd_post(message: types.Message):
     if message.from_user.id != ADMIN_ID:
@@ -300,7 +359,7 @@ async def cmd_schedule(message: types.Message):
     await btn_schedule(message)
 
 
-# ====================== INLINE CALLBACKS ======================
+# ====================== INLINE CALLBACKS: ручной постинг ======================
 @router.callback_query(F.data.startswith("chpost:"))
 async def admin_channel_post(callback: types.CallbackQuery):
     if callback.from_user.id != ADMIN_ID:
@@ -369,3 +428,237 @@ async def admin_channel_dismiss(callback: types.CallbackQuery):
     except Exception:
         pass
     await callback.answer()
+
+
+# ====================== INLINE CALLBACKS: модерация ======================
+@router.callback_query(F.data.startswith("chmod:approve:"))
+async def chmod_approve(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        return
+    post_id = int(callback.data.split(":")[2])
+    post = pending_posts.pop(post_id, None)
+    if not post:
+        await callback.answer("Пост не найден или уже обработан.", show_alert=True)
+        return
+
+    from admin_bot.main import admin_bot
+    rubric = post["rubric"]
+    try:
+        if post["poll_data"]:
+            question, options = post["poll_data"]
+            await admin_bot.send_poll(CHANNEL_ID, question=question, options=options, is_anonymous=True)
+        else:
+            image_bytes = await generate_image(rubric, post["text"])
+            if image_bytes:
+                from aiogram.types import BufferedInputFile
+                photo = BufferedInputFile(image_bytes, filename=f"{rubric}.png")
+                await admin_bot.send_photo(CHANNEL_ID, photo=photo, caption=post["text"])
+            else:
+                await admin_bot.send_message(CHANNEL_ID, post["text"])
+        last_channel_post[rubric] = datetime.now()
+        try:
+            await callback.message.edit_text(f"✅ Опубликовано в {CHANNEL_ID}! [{rubric}]")
+        except Exception:
+            pass
+        logger.info(f"Moderated post #{post_id} [{rubric}] approved and published")
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка отправки: {e}")
+        # Вернуть пост обратно в очередь
+        pending_posts[post_id] = post
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("chmod:regen:"))
+async def chmod_regen(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        return
+    post_id = int(callback.data.split(":")[2])
+    post = pending_posts.get(post_id)
+    if not post:
+        await callback.answer("Пост не найден.", show_alert=True)
+        return
+    if post["attempts"] >= MAX_REGEN_ATTEMPTS:
+        await callback.answer(
+            f"Лимит перегенераций ({MAX_REGEN_ATTEMPTS}). Отредактируй вручную или отклони.",
+            show_alert=True,
+        )
+        return
+
+    rubric = post["rubric"]
+    await callback.answer("⏳ Генерирую новый вариант...")
+    try:
+        if rubric == "poll":
+            poll_data = await generate_poll()
+            question, options = poll_data
+            new_text = f"📋 Опрос: {question}\n" + "\n".join(f"  • {o}" for o in options)
+            post["poll_data"] = poll_data
+        elif rubric in CHANNEL_GENERATORS:
+            new_text = await CHANNEL_GENERATORS[rubric]()
+        else:
+            await callback.message.answer("❌ Генератор не найден.")
+            return
+
+        if not new_text:
+            await callback.message.answer("❌ Не удалось сгенерировать.")
+            return
+
+        post["text"] = new_text
+        post["attempts"] += 1
+        emoji = RUBRIC_EMOJI.get(rubric, "📝")
+        time_str = post["created_at"].strftime("%H:%M")
+
+        preview_text = (
+            f"📋 Пост на модерации (вариант #{post['attempts']})\n\n"
+            f"Рубрика: {emoji} {rubric}\n"
+            f"Время: {time_str}\n\n"
+            f"{'─' * 20}\n"
+            f"{new_text}\n"
+            f"{'─' * 20}"
+        )
+        try:
+            await callback.message.edit_text(
+                preview_text,
+                reply_markup=_moderation_kb(post_id),
+            )
+        except Exception:
+            pass
+        logger.info(f"Moderated post #{post_id} [{rubric}] regenerated (attempt {post['attempts']})")
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка генерации: {e}")
+
+
+@router.callback_query(F.data.startswith("chmod:edit:"))
+async def chmod_edit(callback: types.CallbackQuery, state):
+    if callback.from_user.id != ADMIN_ID:
+        return
+    post_id = int(callback.data.split(":")[2])
+    post = pending_posts.get(post_id)
+    if not post:
+        await callback.answer("Пост не найден.", show_alert=True)
+        return
+    await state.update_data(editing_post_id=post_id)
+    await state.set_state(ChannelPostEdit.waiting_text)
+    await callback.message.answer(
+        f"✏️ Отправь новый текст поста (или /cancel для отмены)\n\n"
+        f"Текущий текст:\n{post['text']}"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("chmod:dismiss:"))
+async def chmod_dismiss(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        return
+    post_id = int(callback.data.split(":")[2])
+    post = pending_posts.pop(post_id, None)
+    if not post:
+        await callback.answer("Пост не найден.", show_alert=True)
+        return
+    try:
+        await callback.message.edit_text(f"❌ Пост [{post['rubric']}] отклонён")
+    except Exception:
+        pass
+    logger.info(f"Moderated post #{post_id} [{post['rubric']}] dismissed by admin")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("chmod:mode:"))
+async def chmod_toggle_mode(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        return
+    rubric = callback.data.split(":", 2)[2]
+    current = await get_rubric_mode(rubric)
+    new_mode = "auto" if current == "moderated" else "moderated"
+    await set_rubric_mode(rubric, new_mode)
+
+    # Rebuild keyboard
+    buttons = []
+    for r in RUBRIC_MODE:
+        mode = await get_rubric_mode(r)
+        emoji = RUBRIC_EMOJI.get(r, "📝")
+        mode_label = "🤖 АВТО" if mode == "auto" else "👁 МОДЕР"
+        buttons.append([InlineKeyboardButton(
+            text=f"{emoji} {r} — {mode_label}",
+            callback_data=f"chmod:mode:{r}",
+        )])
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+        )
+    except Exception:
+        pass
+    new_label = "🤖 АВТО" if new_mode == "auto" else "👁 МОДЕР"
+    await callback.answer(f"{rubric} → {new_label}")
+
+
+@router.callback_query(F.data.startswith("chmod:open:"))
+async def chmod_open_pending(callback: types.CallbackQuery):
+    """Открывает конкретный pending post из очереди."""
+    if callback.from_user.id != ADMIN_ID:
+        return
+    post_id = int(callback.data.split(":")[2])
+    post = pending_posts.get(post_id)
+    if not post:
+        await callback.answer("Пост уже обработан.", show_alert=True)
+        return
+    emoji = RUBRIC_EMOJI.get(post["rubric"], "📝")
+    time_str = post["created_at"].strftime("%H:%M")
+    preview_text = (
+        f"📋 Пост на модерации (вариант #{post['attempts']})\n\n"
+        f"Рубрика: {emoji} {post['rubric']}\n"
+        f"Время: {time_str}\n\n"
+        f"{'─' * 20}\n"
+        f"{post['text']}\n"
+        f"{'─' * 20}"
+    )
+    new_msg = await callback.message.answer(
+        preview_text,
+        reply_markup=_moderation_kb(post_id),
+    )
+    # Update preview_msg_id to the new message
+    post["preview_msg_id"] = new_msg.message_id
+    await callback.answer()
+
+
+# ====================== FSM: редактирование поста ======================
+@router.message(Command("cancel"), StateFilter(ChannelPostEdit.waiting_text))
+async def cancel_edit(message: types.Message, state):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await state.clear()
+    await message.answer("Редактирование отменено.")
+
+
+@router.message(StateFilter(ChannelPostEdit.waiting_text))
+async def receive_edited_text(message: types.Message, state):
+    if message.from_user.id != ADMIN_ID:
+        return
+    data = await state.get_data()
+    post_id = data.get("editing_post_id")
+    post = pending_posts.get(post_id) if post_id else None
+    if not post:
+        await state.clear()
+        await message.answer("Пост не найден, редактирование отменено.")
+        return
+
+    new_text = message.text.strip()
+    post["text"] = new_text
+    post["poll_data"] = None  # При ручном редактировании poll_data сбрасывается
+
+    emoji = RUBRIC_EMOJI.get(post["rubric"], "📝")
+    time_str = post["created_at"].strftime("%H:%M")
+    preview_text = (
+        f"📋 Пост отредактирован\n\n"
+        f"Рубрика: {emoji} {post['rubric']}\n"
+        f"Время: {time_str}\n\n"
+        f"{'─' * 20}\n"
+        f"{new_text}\n"
+        f"{'─' * 20}"
+    )
+    new_msg = await message.answer(
+        preview_text,
+        reply_markup=_moderation_kb(post_id),
+    )
+    post["preview_msg_id"] = new_msg.message_id
+    await state.clear()
+    logger.info(f"Moderated post #{post_id} [{post['rubric']}] edited by admin")

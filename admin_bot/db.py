@@ -123,3 +123,18 @@ async def set_stat(key, value):
             "INSERT INTO bot_stats (key, value, updated_at) VALUES ($1, $2, NOW()) "
             "ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW()", key, value
         )
+
+
+async def get_rubric_mode(rubric: str) -> str:
+    """Возвращает режим рубрики: 'auto' или 'moderated'.
+    Сначала проверяет bot_stats, потом дефолт из config."""
+    from admin_bot.config import RUBRIC_MODE
+    stat = await get_stat(f"rubric_mode:{rubric}", -1)
+    if stat == -1:
+        return RUBRIC_MODE.get(rubric, "auto")
+    return "moderated" if stat else "auto"
+
+
+async def set_rubric_mode(rubric: str, mode: str):
+    """Сохраняет режим рубрики в bot_stats (0=auto, 1=moderated)."""
+    await set_stat(f"rubric_mode:{rubric}", 1 if mode == "moderated" else 0)
