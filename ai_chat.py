@@ -15,6 +15,7 @@ from locales import t, TEXTS
 def _all(key):
     """All language variants for a locale key."""
     return {TEXTS[lang][key] for lang in TEXTS if key in TEXTS[lang]}
+
 import base64
 import io
 from ai_utils import get_ai_chat_response, describe_image, transcribe_voice
@@ -29,10 +30,6 @@ from ai_characters import AI_CHARACTERS
 ENERGY_COST = {"basic": 1, "vip": 2, "vip_plus": 3}
 DAILY_ENERGY = {"free": 30, "premium": 200}
 
-
-
-def _all(key):
-    return {TEXTS[lang][key] for lang in TEXTS if key in TEXTS[lang]}
 
 # ====================== Injected dependencies ======================
 _bot = None
