@@ -229,10 +229,10 @@ async def alert_checker():
             elif snap["error_rate_per_min"] > 5:
                 alerts.append(f"🟡 Error rate: {snap['error_rate_per_min']:.1f}/min")
 
-            # Response time
-            if snap["p95_response_ms"] > 5000:
+            # Response time (AI requests take 2-7s normally, so high threshold)
+            if snap["p95_response_ms"] > 15000:
                 alerts.append(f"🔴 p95 response: {snap['p95_response_ms']:.0f}ms")
-            elif snap["p95_response_ms"] > 2000:
+            elif snap["p95_response_ms"] > 10000:
                 alerts.append(f"🟡 p95 response: {snap['p95_response_ms']:.0f}ms")
 
             # OpenRouter
