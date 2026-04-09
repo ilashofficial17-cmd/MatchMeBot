@@ -1711,20 +1711,6 @@ async def switch_lang_onboarding(callback: types.CallbackQuery, state: FSMContex
     except Exception: pass
     await callback.answer()
 
-# ====================== ВЫБОР ЯЗЫКА (legacy) ======================
-@dp.message(StateFilter(LangSelect.choosing), F.text.in_(list(LANG_BUTTONS.keys())))
-async def choose_language(message: types.Message, state: FSMContext):
-    uid = message.from_user.id
-    lang = LANG_BUTTONS[message.text]
-    await update_user(uid, lang=lang)
-    await state.clear()
-    legal_url = get_legal_url(lang)
-    await message.answer(t(lang, "privacy", legal_url=legal_url), reply_markup=kb_privacy(lang), disable_web_page_preview=True)
-
-@dp.message(StateFilter(LangSelect.choosing))
-async def lang_other(message: types.Message):
-    await message.answer("👆 Выбери язык / Choose language / Elige idioma")
-
 # ====================== ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ ======================
 @dp.callback_query(F.data == "privacy:accept", StateFilter("*"))
 async def privacy_accept(callback: types.CallbackQuery, state: FSMContext):

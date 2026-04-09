@@ -228,7 +228,7 @@ async def admin_actions(callback: types.CallbackQuery, state: FSMContext):
             f"👥 Онлайн:\n\n"
             f"💬 В чатах: {len(_active_chats)//2} пар\n"
             f"🤖 С ИИ: {len(_ai_sessions)}\n"
-            f"⚡ Анон: {sum(1 for q in _get_all_queues()[:1] for _ in q)}\n"
+            f"⚡ Анон: {len(_get_all_queues()[0]) if _get_all_queues() else 0}\n"
             f"🔍 В поиске: {sum(len(q) for q in _get_all_queues())}"
         )
     elif action == "find":

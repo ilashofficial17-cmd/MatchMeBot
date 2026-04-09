@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from locales import t
 from ai_utils import get_ai_answer, OPEN_ROUTER_KEY
 
+logger = logging.getLogger("matchme.moderation")
+
 # Зависимости — инициализируются из bot.py
 _bot = None
 _db_pool = None
