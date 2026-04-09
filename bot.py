@@ -249,6 +249,19 @@ async def init_db():
         """)
 
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_purchased_media (
+                uid BIGINT NOT NULL,
+                character_id TEXT NOT NULL,
+                media_type TEXT NOT NULL,
+                purchased_at TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (uid, character_id, media_type)
+            )
+        """)
+        try:
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_purchased_media_uid ON user_purchased_media(uid)")
+        except Exception: pass
+
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS ab_events (
                 id SERIAL PRIMARY KEY,
                 uid BIGINT NOT NULL,
