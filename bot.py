@@ -1,40 +1,30 @@
 import asyncio
 import os
-import aiohttp
-import random
 import logging
-from telegraph_pages import create_legal_pages, get_legal_url
+from telegraph_pages import create_legal_pages
 from datetime import datetime, timedelta
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import Command, StateFilter
-from aiogram.fsm.context import FSMContext
+from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.fsm.storage.base import StorageKey
 from aiogram.types import (
-    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
     InlineKeyboardMarkup, InlineKeyboardButton, BotCommand,
-    LabeledPrice, PreCheckoutQuery,
 )
 import asyncpg
 import moderation
-from ai_utils import get_ai_answer, translate_message  # подготовка для AI-персонажей на OpenRouter
-from states import (Reg, Chat, LangSelect, Rules, Complaint, EditProfile,
-                    AdminState, ResetProfile, AIChat)
-from locales import t, LANG_BUTTONS, TEXTS
+from locales import t
 from keyboards import (
-    CHANNEL_ID, INTERESTS_MAP,
-    kb_main, kb_lang, kb_privacy, kb_rules, kb_rules_profile, kb_cancel_reg,
+    CHANNEL_ID,
+    kb_main, kb_privacy, kb_cancel_reg,
     kb_gender, kb_mode, kb_cancel_search, kb_chat, kb_search_gender,
-    kb_after_chat, kb_channel_bonus, kb_ai_characters, kb_ai_chat,
+    kb_after_chat, kb_channel_bonus, kb_ai_chat,
     kb_interests, kb_complaint, kb_edit, kb_complaint_action,
-    kb_user_actions, kb_premium, kb_energy_shop,
+    kb_premium, kb_energy_shop,
 )
 import db
 from constants import (
-    PRICE_MULTIPLIERS, PREMIUM_PLANS, AB_PRICE_DISCOUNT_B, GIFTS, ENERGY_PACKS,
-    get_plan_price, get_price, get_chat_topics,
+    PREMIUM_PLANS, AB_PRICE_DISCOUNT_B, GIFTS, ENERGY_PACKS,
+    get_plan_price, get_chat_topics,
     LEVEL_THRESHOLDS, LEVEL_NAMES, STREAK_BONUSES,
-    STOP_WORDS, PARTNER_ADS, filter_ads as _filter_ads,
+    PARTNER_ADS, filter_ads as _filter_ads,
 )
 import ai_chat
 import admin as admin_module
@@ -610,20 +600,6 @@ async def grant_referral_bonus(uid):
     except Exception as e:
         logger.error(f"grant_referral_bonus error: {e}")
 
-async def save_chat_to_db(uid1, uid2, chat_type="profile"):
-    try:
-        async with db_pool.acquire() as conn:
-            await conn.execute(
-                "INSERT INTO active_chats_db (uid1, uid2, chat_type) VALUES ($1,$2,$3) ON CONFLICT (uid1) DO UPDATE SET uid2=$2, chat_type=$3",
-                uid1, uid2, chat_type
-            )
-            await conn.execute(
-                "INSERT INTO active_chats_db (uid1, uid2, chat_type) VALUES ($1,$2,$3) ON CONFLICT (uid1) DO UPDATE SET uid2=$2, chat_type=$3",
-                uid2, uid1, chat_type
-            )
-    except Exception as e:
-        logger.error(f"save_chat_to_db failed: {e}")
-
 async def remove_chat_from_db(uid1, uid2=None):
     try:
         async with db_pool.acquire() as conn:
@@ -635,52 +611,11 @@ async def remove_chat_from_db(uid1, uid2=None):
         logger.error(f"remove_chat_from_db failed: {e}")
 
 # ====================== ЛОГИРОВАНИЕ ======================
-def get_chat_key(uid1, uid2):
-    return (min(uid1, uid2), max(uid1, uid2))
-
-async def log_message_async(uid1, uid2, sender_uid, text):
-    if _use_redis:
-        await redis_state.log_message(uid1, uid2, sender_uid, text)
-    else:
-        key = get_chat_key(uid1, uid2)
-        if key not in _fb_chat_logs:
-            _fb_chat_logs[key] = []
-        _fb_chat_logs[key].append({
-            "sender": sender_uid,
-            "text": text[:200],
-            "time": datetime.now().strftime("%H:%M:%S")
-        })
-        if len(_fb_chat_logs[key]) > 10:
-            _fb_chat_logs[key] = _fb_chat_logs[key][-10:]
-
-async def get_chat_log_text(uid1, uid2):
-    if _use_redis:
-        logs = await redis_state.get_chat_log(uid1, uid2)
-    else:
-        key = get_chat_key(uid1, uid2)
-        logs = _fb_chat_logs.get(key, [])
-    if not logs: return "Переписка пуста"
-    lines = []
-    for msg in logs:
-        sender = "Жалобщик" if msg["sender"] == uid1 else "Обвиняемый"
-        lines.append(f"[{msg['time']}] {sender}: {msg['text']}")
-    return "\n".join(lines)
-
-async def check_stop_words(uid1, uid2):
-    if _use_redis:
-        logs = await redis_state.get_chat_log(uid1, uid2)
-    else:
-        key = get_chat_key(uid1, uid2)
-        logs = _fb_chat_logs.get(key, [])
-    all_text = " ".join(msg["text"].lower() for msg in logs)
-    found = [w for w in STOP_WORDS if w.lower() in all_text]
-    return len(found) > 0, found
-
 async def clear_chat_log(uid1, uid2):
     if _use_redis:
         await redis_state.delete_chat_log(uid1, uid2)
     else:
-        key = get_chat_key(uid1, uid2)
+        key = (min(uid1, uid2), max(uid1, uid2))
         if key in _fb_chat_logs:
             del _fb_chat_logs[key]
 
@@ -810,22 +745,6 @@ def _get_fb_queue(mode, premium=False):
 def get_rating(u):
     return u.get("likes", 0) - u.get("dislikes", 0)
 
-async def _is_in_queue(uid):
-    if _use_redis:
-        return await redis_state.is_in_queue(uid)
-    return any(uid in q for q in _get_fb_all_queues())
-
-async def _clear_ai_if_active(uid, state):
-    current = await state.get_state()
-    if current in (AIChat.choosing.state, AIChat.chatting.state):
-        if _use_redis:
-            await redis_state.delete_ai_session(uid)
-        else:
-            _fb_ai_sessions.pop(uid, None)
-        await state.clear()
-
-_last_relay_msg_id = {}
-
 async def cleanup(uid, state=None):
     if _use_redis:
         await redis_state.remove_from_queues(uid)
@@ -849,10 +768,6 @@ async def cleanup(uid, state=None):
 
 async def unavailable(message: types.Message, lang: str, reason_key: str):
     await message.answer(t(lang, "unavailable", reason=t(lang, reason_key)))
-
-async def get_pending_complaints():
-    async with db_pool.acquire() as conn:
-        return await conn.fetchval("SELECT COUNT(*) FROM complaints_log WHERE reviewed=FALSE") or 0
 
 async def set_commands():
     # Default commands (Russian)
@@ -1001,15 +916,7 @@ async def main():
     import registration as registration_module
     import profile as profile_module
     import payments as payments_module
-    from keyboards import (
-        kb_lang, kb_privacy, kb_rules, kb_rules_profile,
-        kb_ai_characters,
-    )
-    from constants import (
-        PREMIUM_PLANS, ENERGY_PACKS, MAX_BONUS_ENERGY,
-        AB_PRICE_DISCOUNT_B, get_plan_price,
-        LEVEL_THRESHOLDS, LEVEL_NAMES, STREAK_BONUSES,
-    )
+    from constants import MAX_BONUS_ENERGY
 
     # chat.py — no cross-module deps at init time
     chat_module.init(
