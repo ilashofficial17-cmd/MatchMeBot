@@ -40,6 +40,10 @@ _needs_onboarding = None
 _unavailable = None
 _kb_settings_fn = None
 
+# Fallback state (used only when Redis unavailable)
+_get_all_queues = None
+_fb_ai_sessions = None
+
 # Keyboards
 _kb_main = None
 _kb_cancel_reg = None
@@ -69,7 +73,8 @@ async def _is_in_queue(uid: int) -> bool:
     """Check whether *uid* is currently in a search queue."""
     if _use_redis:
         return await redis_state.is_in_queue(uid)
-    # Non-redis fallback: queues live in bot.py; conservatively return False
+    if _get_all_queues is not None:
+        return any(uid in q for q in _get_all_queues())
     return False
 
 
@@ -79,6 +84,8 @@ async def _clear_ai_if_active(uid: int, state: FSMContext):
     if current in (AIChat.choosing.state, AIChat.chatting.state):
         if _use_redis:
             await redis_state.delete_ai_session(uid)
+        elif _fb_ai_sessions is not None:
+            _fb_ai_sessions.pop(uid, None)
         await state.clear()
 
 
@@ -115,6 +122,9 @@ def init(
     LEVEL_THRESHOLDS,
     LEVEL_NAMES,
     STREAK_BONUSES,
+    # fallback state
+    get_all_queues=None,
+    fb_ai_sessions=None,
 ):
     global _bot, _db_pool, _use_redis, _admin_id
     global _get_user, _get_lang, _update_user, _is_premium, _get_premium_tier
@@ -123,12 +133,16 @@ def init(
     global _kb_main, _kb_cancel_reg, _kb_gender, _kb_mode
     global _kb_interests, _kb_search_gender, _kb_edit, _kb_energy_shop, _kb_premium
     global _LEVEL_THRESHOLDS, _LEVEL_NAMES, _STREAK_BONUSES
+    global _get_all_queues, _fb_ai_sessions
     global show_settings
 
     _bot = bot
     _db_pool = db_pool
     _use_redis = use_redis
     _admin_id = admin_id
+
+    _get_all_queues = get_all_queues
+    _fb_ai_sessions = fb_ai_sessions
 
     _get_user = get_user
     _get_lang = get_lang

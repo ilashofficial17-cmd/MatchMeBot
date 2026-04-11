@@ -1137,6 +1137,8 @@ async def main():
         LEVEL_THRESHOLDS=LEVEL_THRESHOLDS,
         LEVEL_NAMES=LEVEL_NAMES,
         STREAK_BONUSES=STREAK_BONUSES,
+        get_all_queues=_get_fb_all_queues,
+        fb_ai_sessions=_fb_ai_sessions,
     )
 
     # payments.py
