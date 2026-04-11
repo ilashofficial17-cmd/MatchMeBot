@@ -25,11 +25,19 @@
 
 ## Архитектура
 
+Основной бот разбит на 6 Router-модулей (aiogram 3), связанных через dependency injection (`init()`):
+
 ```
 Telegram API
     │
     ▼
-bot.py  ←──────────────────────── точка входа, Dispatcher, все основные хендлеры
+bot.py  ←─────────────────── точка входа: Dispatcher, DB/Redis pool, cleanup, main()
+    │   │
+    │   ├── registration.py       /start, onboarding, согласие, Reg FSM-поток
+    │   ├── matching.py           do_find, /find, отмена поиска, двухфазный поиск
+    │   ├── chat.py               relay сообщений, end_chat, mutual match, жалобы, гифты, rate
+    │   ├── profile.py            /profile, /stats, /settings, /edit, /help, quests, energy, referral
+    │   └── payments.py           /premium, trial, buy, pre_checkout, successful_payment
     │
     ├── ai_chat.py                  ИИ чат: персонажи, энергия, memory, vision, voice
     ├── ai_utils.py                 OpenRouter API: chat, vision, voice, budget cap
@@ -69,9 +77,54 @@ funnel_bots/                        ── рекламные воронки ─
 
 ## Файлы проекта
 
+### Основной бот (6 Router-модулей)
+
+| Файл | Строк | Назначение |
+|------|-------|-----------|
+| `bot.py` | 1157 | Точка входа: `init_db()`, DB/Redis pool, DB-хелперы (`get_user`, `update_user`, `is_premium`), cleanup background tasks, error_handler, `main()` wiring всех роутеров через `init()` |
+| `registration.py` | 704 | `/start`, onboarding, согласие с правилами, `needs_onboarding()`, Reg FSM-флоу (name → age → gender → mode → interests) |
+| `matching.py` | 647 | `do_find()` — двухфазный поиск (Redis + DB batch), `anon_search`, `/find`, `cancel_search`, `notify_no_partner`, `_MODE_CHARS` |
+| `chat.py` | 979 | Relay сообщений между партнёрами, `end_chat`, mutual match, жалобы, рейтинг, гифты, stop-words модерация |
+| `profile.py` | 728 | `/profile`, `/stats`, `/settings`, `/edit`, `/help`, квесты, энергия, рефералы, `/reset`, выбор языка, правила |
+| `payments.py` | 367 | Triаl Premium, `/premium`, `buy_premium`, `pre_checkout`, `successful_payment`, gift-платежи, energy-пакеты |
+
+**Итого:** 4582 строк (было ~3413 в монолитном `bot.py`)
+
+### Dependency Injection
+
+Все модули следуют единому паттерну:
+
+```python
+# в модуле:
+router = Router()
+_bot = None
+_db_pool = None
+# ... другие глобальные зависимости
+
+def init(*, bot, db_pool, use_redis, ...):
+    global _bot, _db_pool, ...
+    _bot = bot
+    _db_pool = db_pool
+    # ...
+
+# в bot.py main():
+import chat, matching, registration, profile, payments
+chat.init(bot=bot, db_pool=db_pool, ...)
+matching.init(bot=bot, db_pool=db_pool, ...)
+# ...
+dp.include_router(registration.router)
+dp.include_router(matching.router)
+dp.include_router(chat.router)
+dp.include_router(profile.router)
+dp.include_router(payments.router)
+```
+
+**Циркулярные зависимости** (chat↔matching, registration→matching) разрешаются пост-инициализацией через `set_do_find(fn)`.
+
+### Вспомогательные модули
+
 | Файл | Назначение |
 |------|-----------|
-| `bot.py` | Точка входа: хендлеры, платежи, поиск, квесты, ачивки, стрики (~3400 строк) |
 | `ai_chat.py` | ИИ чат: выбор персонажа, обмен сообщениями, энергия, memory, vision (~1300 строк) |
 | `ai_characters.py` | 13 персонажей: системные промпты, тиры, модели, max_tokens |
 | `ai_utils.py` | OpenRouter API: `get_ai_chat_response()`, `describe_image()`, `transcribe_voice()`, `summarize_conversation()`, budget cap |
