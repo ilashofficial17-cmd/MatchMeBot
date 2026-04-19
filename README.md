@@ -70,7 +70,7 @@ admin_bot/                          ── отдельный бот для ка
 
 funnel_bots/                        ── рекламные воронки ──
     ├── ai_demo_bot.py              демо AI-чата с Мией
-    └── anon_chat_bot.py            промо анонимного чата
+    └── chat_funnel_bot.py          промо анонимного чата
 ```
 
 ---
@@ -152,7 +152,7 @@ dp.include_router(payments.router)
 | `DATABASE_URL` | ✅ | PostgreSQL DSN (`postgresql://user:pass@host/db`) |
 | `ADMIN_ID` | ✅ | Telegram user ID администратора |
 | `OPEN_ROUTER` | ✅ | API ключ OpenRouter (AI чат, модерация, канал) |
-| `REDIS_URL` | Рекомендуется | Redis URL (`redis://...`). Без неё — fallback на in-memory |
+| `REDIS_URL` | ⚠️ Production | Redis URL (`redis://...`). Без неё — fallback на in-memory Python dict (данные теряются при рестарте!) |
 | `CHANNEL_BOT_TOKEN` | Для канала | Токен бота канала @MATCHMEHUB |
 | `ANTHROPIC_API_KEY` | Опционально | Ключ Anthropic (резерв) |
 | `VENICE_API_KEY` | Опционально | Ключ Venice AI (резерв) |
@@ -180,10 +180,10 @@ socket_timeout=5, socket_connect_timeout=5, health_check_interval=30
 | `mm:queue:{mode}:{premium}` | set | — | Очереди поиска (7 ключей) |
 | `mm:chat:lastmsg:{uid}` | string (timestamp) | 600с | Время последнего сообщения |
 | `mm:chat:log:{key}` | list | 3600с | Логи чата для модерации |
-| `mm:ai:session:{uid}` | hash | 1800с | AI-сессия (character, history, msg_count) |
-| `mm:mutual:likes:{uid}` | string | 600с | Взаимные лайки |
-| `mm:memory:{uid}:{char}` | string | 30д | Долгосрочная память AI-персонажа |
-| `mm:facts:{uid}:{char}` | string (JSON list) | 30д | Факты о пользователе для AI |
+| `mm:ai:session:{uid}` | hash | 1800с | AI-сессия (character, history, msg_count, loaded_memory) |
+| `mm:mutual:likes:{uid}` | set | 600с | Взаимные лайки |
+| `mm:ai:memory:{uid}:{char}` | string | 30д | Долгосрочная память AI-персонажа |
+| `mm:ai:facts:{uid}:{char}` | set | 30д | Факты о пользователе для AI (до 10 фактов) |
 | `mm:ratelimit:{action}:{uid}` | sorted set | window+10с | Rate limiting |
 
 ### Lua-скрипты (атомарные операции)
@@ -469,7 +469,7 @@ FLUX.2 Pro через OpenRouter для рубрик: chat_story, hot_take, nigh
 ### Зависимости
 
 ```bash
-pip install aiogram asyncpg aiohttp redis
+pip install -r requirements.txt
 ```
 
 ### Переменные окружения

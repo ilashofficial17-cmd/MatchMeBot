@@ -914,22 +914,6 @@ async def choose_ai_character(callback: types.CallbackQuery, state: FSMContext):
     except Exception: pass
     await callback.message.answer(t(lang, "ai_chat_active"), reply_markup=kb_ai_chat(lang))
     u = await _get_user(uid)
-    # Load long-term memory from Redis
-    memory_notes = ""
-    if _use_redis:
-        try:
-            mem = await redis_state.get_memory(uid, char_id)
-            facts = await redis_state.get_user_facts(uid, char_id)
-            parts = []
-            if mem:
-                parts.append(mem)
-            if facts:
-                parts.append("Факты: " + ", ".join(facts))
-            if parts:
-                memory_notes = "\n".join(parts)
-        except Exception:
-            pass
-
     if db_history:
         # Показываем последнее сообщение персонажа чтобы юзер видел где остановились
         last_assistant = next((m for m in reversed(db_history) if m["role"] == "assistant"), None)
